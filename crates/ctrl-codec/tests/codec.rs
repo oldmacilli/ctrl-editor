@@ -63,14 +63,14 @@ fn korg_frame_checks_and_captures_the_device_id() {
     ];
     // Unknown device id: captured from 0x40 | device-id.
     let got = codec
-        .decode_reply("commit-ack", &ack, &Bindings::new())
+        .decode_reply("commit-scene", &ack, &Bindings::new())
         .unwrap();
     assert_eq!(got["device-id"], int(0));
     assert_eq!(got["status"], int(0x21));
-    assert!(codec.ok("commit-ack", &got).unwrap());
+    assert!(codec.ok("commit-scene", &got).unwrap());
     // Known device id: checked.
     let err = codec
-        .decode_reply("commit-ack", &ack, &args(&[("device-id", int(0x0F))]))
+        .decode_reply("commit-scene", &ack, &args(&[("device-id", int(0x0F))]))
         .unwrap_err();
     assert!(
         matches!(err, CodecError::Mismatch { index: 2, .. }),
@@ -81,16 +81,16 @@ fn korg_frame_checks_and_captures_the_device_id() {
         0xF0, 0x42, 0x40, 0x00, 0x01, 0x36, 0x01, 0x00, 0x00, 0x21, 0xF7,
     ];
     let err = codec
-        .decode_reply("commit-ack", &other, &Bindings::new())
+        .decode_reply("commit-scene", &other, &Bindings::new())
         .unwrap_err();
     assert!(err.to_string().contains("`model` = 0x137"), "{err}");
     // A data ack (23) is not a commit ack.
     let mut data_ack = ack;
     data_ack[9] = 0x23;
     let got = codec
-        .decode_reply("commit-ack", &data_ack, &Bindings::new())
+        .decode_reply("commit-scene", &data_ack, &Bindings::new())
         .unwrap();
-    assert!(!codec.ok("commit-ack", &got).unwrap());
+    assert!(!codec.ok("commit-scene", &got).unwrap());
 }
 
 #[test]

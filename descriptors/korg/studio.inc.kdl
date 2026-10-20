@@ -8,43 +8,53 @@ cdl "0.1"
 sysex-frame "korg-native" status="measured" evidence="byte-identical with the captured requests, writes and acks (korg-sysex tests measured_requests_match_the_capture, measured_write_frames_match_the_capture)"
 message "identity" status="measured" evidence="replies captured from both Studios over USB and Bluetooth (korg-sysex identity_replies_parse_for_both_studios)"
 
-// The measured requests (korg-sysex Request, docs/midi-sysex.md). The
-// exchanges that use them still run in the korg-measured driver.
-message "scene-set-info-request" frame="korg-native" transport="selected" status="measured" evidence="korg-sysex Request::SceneSetInfo; capture" {
+// Shared reply shapes and named acknowledgement statuses (korg-sysex
+// AckStatus). The scene-data pattern is per device because its header differs.
+pattern "korg-ack" "01 00 00 {status}"
+pattern "global-data" "14 01 00 51 {data:packed7}"
+const "data-received" 0x23
+const "write-complete" 0x21
+
+// The measured requests (korg-sysex Request, docs/midi-sysex.md).
+message "scene-set-info-request" frame="korg-native" transport="selected" status="measured" evidence="korg-sysex Request::SceneSetInfo; capture: 02 00 00 42 00 on X14800 and X14802" {
     send "01 00 00 12"
+    // Five-byte readiness reply; no block. The final byte is zero in every
+    // capture and its meaning is unknown.
+    reply "02 00 00 42 {info}" variant="info" timeout=1000
 }
 message "select-scene" frame="korg-native" transport="selected" status="measured" evidence="korg-sysex Request::SelectScene; capture" {
     send "02 00 00 14 {scene}"
+    reply pattern="korg-ack" variant="ack" timeout=2000
+    ok-when "status == data-received"
 }
 message "read-block-request" frame="korg-native" transport="selected" status="measured" evidence="korg-sysex Request::ReadBlock; capture" {
     send "01 00 00 10"
+    reply pattern="scene-data" variant="scene" timeout=2000
 }
 message "global-data-request" frame="korg-native" transport="selected" status="measured" evidence="korg-sysex Request::GlobalData; capture" {
     send "01 00 00 0E"
+    reply pattern="global-data" variant="global" timeout=2000
 }
-message "commit-scene" frame="korg-native" transport="selected" kind="write" status="measured" evidence="korg-sysex build_commit, korg-core MeasuredSession::write_scene" {
+message "commit-scene" frame="korg-native" transport="selected" kind="write" status="measured" evidence="korg-sysex build_commit, korg-core MeasuredSession::write_scene; ack 21 captured" {
     send "02 00 00 11 {scene}"
+    reply pattern="korg-ack" variant="ack" timeout=2000
+    ok-when "status == write-complete"
 }
 message "global-write" frame="korg-native" transport="selected" kind="write" status="measured" evidence="korg-devices global_write_header for 0x136 and 0x137; byte-identical write and re-receive on X14802 (KORG eba516b) and X14800 (KORG aaa4f36)" {
     send "14 01 00 51 {data:packed7}"
     // 23 = data received; the global write has no commit
-    reply "01 00 00 {status}" timeout=2000
-    ok-when "status == 0x23"
-}
-
-// The exchanges are driver-owned (korg-core MeasuredSession, korg-app
-// run_job) until procedures use the messages above.
-driver "korg-measured" {
-    owns "device-id" note="byte 2 of the identity reply; stored in the device (nanoKONTROL 00 on USB, nanoKEY 0F on USB and Bluetooth), not fixed by transport" status="measured" evidence="USB and Bluetooth captures, 2026-10-20"
+    reply pattern="korg-ack" variant="ack" timeout=2000
+    ok-when "status == data-received"
 }
 
 procedure "receive-global" kind="read" status="measured" {
-    driver "korg-measured" step="receive-global"
+    exchange "scene-set-info-request"
+    exchange "global-data-request" into="global"
 }
 procedure "write-global" kind="write" status="measured" evidence="KORG eba516b (X14802), aaa4f36 (X14800)" {
     gate "confirm" text="Write the global settings to the device?"
     restore-point "global"
-    driver "korg-measured" step="write-global"
+    exchange "global-write" from="global"
     verify "receive-global" compare="global"
 }
 

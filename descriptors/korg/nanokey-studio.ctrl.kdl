@@ -1,8 +1,8 @@
 // KORG nanoKEY Studio (class X14800, file key 1480, SysEx model 0x136).
 // Evidence: KORG_Kontrol_Editor crates/korg-devices (measured_layout 0x136),
 // korg-sysex, docs/rewrite/60-implementation-todo.md; KORG aaa4f36.
-// Partial: the exchanges run in the `korg-measured` driver; the scene
-// layout inside the 240 bytes is not decoded beyond the name.
+// The SysEx exchanges are CDL messages. The scene layout inside the 240
+// bytes is not decoded beyond the name.
 cdl "0.1"
 include "common.inc.kdl"
 include "studio.inc.kdl"
@@ -34,6 +34,7 @@ transport "ble" kind="midi" port-match="nanoKEY Studio Bluetooth" role="config" 
 }
 
 const "model" 0x136 status="measured" evidence="identity reply 36 01, captured 2026-10-20; korg-devices measured_layout(0x136)"
+pattern "scene-data" "14 02 00 40 {data:packed7}"
 block "scene" size=240 count=8 status="measured" evidence="measured_layout(0x136)" {
     field "name" offset=0 type="ascii(16)"
     array "knob" count=8 status="unknown"
@@ -41,35 +42,35 @@ block "scene" size=240 count=8 status="measured" evidence="measured_layout(0x136
 }
 block "global" size=128 status="measured" evidence="measured_layout(0x136)"
 
+message "scene-write" frame="korg-native" transport="selected" kind="write" status="measured" evidence="korg-devices measured_layout(0x136); scene-set write verified unchanged (KORG aaa4f36)" {
+    send "14 02 00 40 {data:packed7}"
+    reply pattern="korg-ack" variant="ack" timeout=2000
+    ok-when "status == data-received"
+}
+
 procedure "receive-scene-set" kind="read" status="measured" {
-    driver "korg-measured" step="receive-scene-set"
+    exchange "scene-set-info-request"
+    repeat "s" "0..=7" {
+        exchange "select-scene" scene="{s}"
+        exchange "read-block-request" into="scene[s]"
+    }
 }
 procedure "write-scene" kind="write" status="measured" {
     gate "confirm" text="Write scene {scene} to the device?"
     restore-point "scene[scene]"
-    driver "korg-measured" step="write-scene"
+    exchange "scene-write" from="scene[scene]"
+    exchange "commit-scene" scene="{scene}"
     verify "receive-scene-set" compare="scene[scene]"
 }
-procedure "write-scene-set" kind="write" status="measured" evidence="verified unchanged on X14800, KORG aaa4f36" {
+procedure "write-scene-set" kind="write" status="measured" {
     gate "confirm" text="Write all 8 scenes to the device?"
     restore-point "scene"
-    driver "korg-measured" step="write-scene-set"
+    repeat "s" "0..=7" {
+        exchange "scene-write" from="scene[s]"
+        exchange "commit-scene" scene="{s}"
+    }
     verify "receive-scene-set" compare="scene"
 }
-// receive-global and write-global (measured, header 14 01 00 51, ack 23,
-// no commit) come from common.inc.kdl.
-
-// Acks use the frame: 01 00 00, then the status (korg-sysex ack_status reads
-// only that byte; the captured commit ack is 01 00 00 21). Scene data is
-// acked with 23 (data received), the commit with 21 (write complete), as in
-// korg-sysex Phase::expected.
-message "scene-write" frame="korg-native" transport="selected" kind="write" status="measured" evidence="korg-devices measured_layout(0x136); scene-set write verified unchanged (KORG aaa4f36)" {
-    send "14 02 00 40 {data:packed7}"
-    reply ".. .. .. {status}" timeout=2000
-    ok-when "status == 0x23"
-}
-
-driver "korg-measured" provides="procedure:receive-scene-set procedure:receive-global procedure:write-scene procedure:write-scene-set procedure:write-global"
 
 // Panel: korg_app::panel nanokey_studio(), picture 500 x 294.
 panel picture="500x294" source="measured by eye from the editor's panel picture" {
@@ -103,4 +104,9 @@ test-vector "select-scene-3" message="select-scene" status="measured" evidence="
 test-vector "read-block-request" message="read-block-request" status="measured" evidence="korg-sysex measured_requests_match_the_capture" {
     args device-id=0x0F
     bytes "F0 42 4F 00 01 36 01 00 00 10 F7"
+}
+test-vector "scene-read" message="read-block-request" reply=#true variant="scene" status="measured" evidence="BLE capture 2026-10-20: header 14 02 00 40, 240-byte scene" {
+    args device-id=0x0F
+    data "data" "53 74 61 6E 64 61 72 64 20 20 20 20 FF FF FF FF 08 FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF 08 01 64 80 80 80 00 FF 08 01 65 80 80 80 00 FF 08 01 66 80 80 80 00 FF 08 01 67 80 80 80 00 FF 08 01 68 80 80 80 00 FF 08 01 69 80 80 80 00 FF 08 01 6A 80 80 80 00 FF 08 01 6B 80 80 80 00 FF 08 FF FF FF FF FF FF FF 08 00 14 00 7F FF FF FF 08 00 15 00 7F FF FF FF 08 00 16 00 7F FF FF FF 08 00 17 00 7F FF FF FF 08 00 18 00 7F FF FF FF 08 00 19 00 7F FF FF FF 08 00 1A 00 7F FF FF FF 08 00 1B 00 7F FF FF FF 08 01 12 00 7F 00 11 00 7F 00 12 00 7F FF FF FF 00 01 00 7F FF FF FF 00 08 00 13 00 7F FF FF FF 08 00 40 00 7F 00 FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF"
+    bytes "F0 42 4F 00 01 36 14 02 00 40 00 53 74 61 6E 64 61 72 60 64 20 20 20 20 7F 7F 7B 7F 7F 08 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 0F 7F 7F 7F 7F 08 01 64 17 00 00 00 00 7F 08 01 2E 65 00 00 00 00 7F 08 5C 01 66 00 00 00 00 7F 38 08 01 67 00 00 00 00 71 7F 08 01 68 00 00 00 62 00 7F 08 01 69 00 00 45 00 00 7F 08 01 6A 00 0B 00 00 00 7F 08 01 6B 57 00 00 00 00 7F 08 7F 3F 7F 7F 7F 7F 7F 7F 08 70 00 14 00 7F 7F 7F 7F 60 08 00 15 00 7F 7F 7F 41 7F 08 00 16 00 7F 7F 03 7F 7F 08 00 17 00 7F 07 7F 7F 7F 08 00 18 00 0E 7F 7F 7F 7F 08 00 19 1C 00 7F 7F 7F 7F 08 00 38 1A 00 7F 7F 7F 7F 08 70 00 1B 00 7F 7F 7F 7F 00 08 01 12 00 7F 00 11 40 00 7F 00 12 00 7F 7F 43 7F 7F 00 01 00 7F 7F 03 7F 7F 00 08 00 13 00 0E 7F 7F 7F 7F 08 00 40 78 00 7F 00 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 03 7F 7F F7"
 }

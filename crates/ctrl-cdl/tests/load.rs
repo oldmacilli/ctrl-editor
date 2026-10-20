@@ -139,12 +139,17 @@ fn includes_merge_by_kind_and_name() {
         Some("identity")
     );
 
-    // The local driver extends the shared one: the shared `owns` entry
-    // stays, the local `provides` is added.
-    let driver = d.driver("korg-measured").unwrap();
-    assert_eq!(driver.owns.len(), 1);
-    assert_eq!(driver.provides.len(), 5);
-    assert_eq!(driver.meta.pos.file, 0);
+    // The measured exchanges are CDL now; no protocol driver remains.
+    assert!(d.driver("korg-measured").is_none());
+    assert_eq!(
+        d.message("read-block-request")
+            .unwrap()
+            .reply()
+            .unwrap()
+            .pattern_name
+            .as_deref(),
+        Some("scene-data")
+    );
     // Messages come from both files.
     let write = d.message("scene-write").unwrap();
     assert_eq!(
