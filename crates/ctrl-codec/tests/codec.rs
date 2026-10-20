@@ -412,3 +412,71 @@ fn slices_need_a_pad_to_run_short() {
         Err(CodecError::Trailing(4))
     ));
 }
+
+#[test]
+fn explain_labels_each_run_of_bytes() {
+    let d = descriptor("korg/nanokontrol-studio.ctrl.kdl");
+    let codec = Codec::new(&d);
+    let (bytes, spans) = codec
+        .explain(
+            "select-scene",
+            &args(&[("scene", int(3)), ("device-id", int(0))]),
+        )
+        .unwrap();
+    assert_eq!(hex(&bytes), "F0 42 40 00 01 37 02 00 00 14 03 F7");
+    // The spans cover every byte once, in order.
+    let mut next = 0;
+    for s in &spans {
+        assert_eq!(s.start, next);
+        next += s.len;
+    }
+    assert_eq!(next, bytes.len());
+    let model = spans.iter().find(|s| s.start == 3).unwrap();
+    assert_eq!((model.len, model.region), (3, "prefix"));
+    assert_eq!(model.label, "{model:midi-id} = 311 (0x137)");
+    let scene = spans.iter().find(|s| s.start == 10).unwrap();
+    assert_eq!(
+        (scene.region, scene.label.as_str()),
+        ("body", "{scene} = 3 (0x3)")
+    );
+
+    // A HID frame says where its padding starts.
+    let d = synthetic(
+        r#"transport "hid" kind="hid" frame=8
+message "m" transport="hid" { send "50" }"#,
+    );
+    let (bytes, spans) = Codec::new(&d).explain("m", &Bindings::new()).unwrap();
+    assert_eq!(bytes.len(), 8);
+    let pad = spans.last().unwrap();
+    assert_eq!((pad.start, pad.len, pad.region), (1, 7, "padding"));
+}
+
+#[test]
+fn identify_finds_sends_and_replies() {
+    let d = descriptor("korg/nanokontrol-studio.ctrl.kdl");
+    let codec = Codec::new(&d);
+    let sent = [
+        0xF0, 0x42, 0x40, 0x00, 0x01, 0x37, 0x02, 0x00, 0x00, 0x14, 0x03, 0xF7,
+    ];
+    let found = codec.identify(&sent, Some(Direction::Out), &Bindings::new());
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].message, "select-scene");
+    assert_eq!(found[0].values["scene"], int(3));
+    // The literal bytes: F0, F7 and 02 00 00 14.
+    assert_eq!(found[0].literals, 6);
+
+    // An ack fits every message that uses the shared pattern; its ok-when
+    // tells them apart.
+    let ack = [
+        0xF0, 0x42, 0x40, 0x00, 0x01, 0x37, 0x01, 0x00, 0x00, 0x21, 0xF7,
+    ];
+    let found = codec.identify(&ack, Some(Direction::In), &Bindings::new());
+    let commit = found.iter().find(|m| m.message == "commit-scene").unwrap();
+    assert_eq!(commit.ok, Some(true));
+    let select = found.iter().find(|m| m.message == "select-scene").unwrap();
+    assert_eq!(select.ok, Some(false));
+
+    // A known device id must agree.
+    let other = codec.identify(&sent, None, &args(&[("device-id", int(1))]));
+    assert!(other.is_empty());
+}

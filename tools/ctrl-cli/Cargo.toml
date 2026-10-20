@@ -1,6 +1,6 @@
 [package]
-name = "cdl-parse"
-description = "Load, validate and run the test vectors of CDL descriptors"
+name = "ctrl-cli"
+description = "Check, explain and trace CDL descriptors"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,3 +9,4 @@ publish.workspace = true
 [dependencies]
 ctrl-cdl.workspace = true
 ctrl-codec.workspace = true
+serde_json.workspace = true

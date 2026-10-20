@@ -144,6 +144,40 @@ pub trait VendorEncoding: Send + Sync {
     fn decode(&self, bytes: &[u8]) -> Result<(Val, usize), String>;
 }
 
+/// Where a run of encoded bytes came from: `explain` prints these.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Span {
+    pub start: usize,
+    pub len: usize,
+    /// `prefix`, `body`, `suffix` or `padding`.
+    pub region: &'static str,
+    /// The template piece, e.g. `{model:midi-id}`, and its value.
+    pub label: String,
+}
+
+/// Which way a traced frame went.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Direction {
+    /// To the device: matched against `send` templates.
+    Out,
+    /// From the device: matched against `reply` patterns.
+    In,
+}
+
+/// A frame that matched a message (see [`Codec::identify`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Match {
+    pub message: String,
+    pub direction: Direction,
+    pub variant: Option<String>,
+    pub values: Bindings,
+    /// A reply's `ok-when`; None for sends or when it cannot be evaluated.
+    pub ok: Option<bool>,
+    /// Literal bytes in the template that matched. A frame that several
+    /// templates accept most likely belongs to the one with the most.
+    pub literals: usize,
+}
+
 /// One test vector's result.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VectorResult {
@@ -264,6 +298,12 @@ impl<'d> Codec<'d> {
 
     /// The bytes of message `name` with `args`.
     pub fn encode(&self, name: &str, args: &Bindings) -> Result<Vec<u8>, CodecError> {
+        self.explain(name, args).map(|(bytes, _)| bytes)
+    }
+
+    /// The bytes of message `name` with `args`, and which template piece
+    /// produced each run of them.
+    pub fn explain(&self, name: &str, args: &Bindings) -> Result<(Vec<u8>, Vec<Span>), CodecError> {
         let m = self.message(name)?;
         let send = m
             .send
@@ -277,10 +317,10 @@ impl<'d> Codec<'d> {
         m: &'d Message,
         body: &'d Template,
         args: &Bindings,
-    ) -> Result<Vec<u8>, CodecError> {
+    ) -> Result<(Vec<u8>, Vec<Span>), CodecError> {
         let medium = self.medium(m);
         let layout = self.layout(m, body);
-        let mut chunks: Vec<(Chunk, Region)> = Vec::new();
+        let mut chunks: Vec<(Chunk, Region, String)> = Vec::new();
         for (piece, region) in &layout {
             let chunk = match piece {
                 Piece::Byte { value } => Chunk::Bytes(vec![*value]),
@@ -321,13 +361,13 @@ impl<'d> Codec<'d> {
                 }
                 Piece::Length { encoding } => Chunk::Len(encoding.clone()),
             };
-            chunks.push((chunk, *region));
+            chunks.push((chunk, *region, self.label(piece, args)));
         }
 
         // A length counts the body bytes after it, up to the first checksum.
-        if let Some(at) = chunks.iter().position(|(c, _)| matches!(c, Chunk::Len(_))) {
+        if let Some(at) = chunks.iter().position(|(c, ..)| matches!(c, Chunk::Len(_))) {
             let mut count = 0usize;
-            for (chunk, region) in &chunks[at + 1..] {
+            for (chunk, region, _) in &chunks[at + 1..] {
                 match chunk {
                     _ if *region != Region::Body => break,
                     Chunk::Sum(_) => break,
@@ -345,15 +385,18 @@ impl<'d> Codec<'d> {
             let bytes =
                 self.encode_value("len", &Val::Int(count as i64), Some(encoding), medium)?;
             chunks[at].0 = Chunk::Bytes(bytes);
+            chunks[at].2 = format!("{} = {count}", chunks[at].2);
         }
 
         let mut out = Vec::new();
+        let mut spans = Vec::new();
         let (mut body_start, mut body_end) = (None, 0);
         let mut sums = Vec::new();
-        for (chunk, region) in chunks {
+        for (chunk, region, label) in chunks {
             if region == Region::Body && body_start.is_none() {
                 body_start = Some(out.len());
             }
+            let start = out.len();
             match chunk {
                 Chunk::Bytes(b) => out.extend(b),
                 Chunk::Sum(c) => {
@@ -362,6 +405,16 @@ impl<'d> Codec<'d> {
                 }
                 Chunk::Len(_) => unreachable!(),
             }
+            spans.push(Span {
+                start,
+                len: out.len() - start,
+                region: match region {
+                    Region::Prefix => "prefix",
+                    Region::Body => "body",
+                    Region::Suffix => "suffix",
+                },
+                label,
+            });
             if region == Region::Body {
                 body_end = out.len();
             }
@@ -380,9 +433,38 @@ impl<'d> Codec<'d> {
                     out.len()
                 )));
             }
+            if out.len() < frame {
+                spans.push(Span {
+                    start: out.len(),
+                    len: frame - out.len(),
+                    region: "padding",
+                    label: format!("to the {frame}-byte frame"),
+                });
+            }
             out.resize(frame, 0);
         }
-        Ok(out)
+        Ok((out, spans))
+    }
+
+    /// A piece as written, with the value it takes from `args` or a const.
+    fn label(&self, piece: &Piece, args: &Bindings) -> String {
+        let value = |name: &str| match self.value(name, args) {
+            Ok(Val::Int(i)) => format!(" = {i} ({i:#X})"),
+            Ok(Val::Bytes(b)) => format!(" = {} bytes", b.len()),
+            Err(_) => String::new(),
+        };
+        match piece {
+            Piece::Byte { .. } => "literal".into(),
+            Piece::Field { name, .. } => format!("{piece}{}", value(name)),
+            Piece::Expr { expr } => {
+                let v = Expr::parse(expr)
+                    .and_then(|e| e.eval(&self.lookup(args)))
+                    .map(|v| format!(" = {v} ({v:#X})"))
+                    .unwrap_or_default();
+                format!("{piece}{v}")
+            }
+            _ => piece.to_string(),
+        }
     }
 
     fn encode_slice(
@@ -805,6 +887,64 @@ impl<'d> Codec<'d> {
         };
         let e = Expr::parse(when).map_err(CodecError::Expr)?;
         Ok(e.eval(&self.lookup(bound)).map_err(CodecError::Expr)? != 0)
+    }
+
+    // ---- trace --------------------------------------------------------------
+
+    /// Every message whose `send` (direction Out) or reply (In) matches
+    /// `bytes`, in descriptor order. `None` tries both. `known` holds
+    /// values a match must agree with, such as a captured `device-id`.
+    pub fn identify(
+        &self,
+        bytes: &[u8],
+        direction: Option<Direction>,
+        known: &Bindings,
+    ) -> Vec<Match> {
+        let mut out = Vec::new();
+        for m in &self.d.messages {
+            if direction != Some(Direction::In) {
+                if let Some(send) = &m.send {
+                    if let Ok(values) = self.decode_send(&m.name, bytes, known) {
+                        out.push(Match {
+                            message: m.name.clone(),
+                            direction: Direction::Out,
+                            variant: None,
+                            values,
+                            ok: None,
+                            literals: self.literals(m, send),
+                        });
+                    }
+                }
+            }
+            if direction != Some(Direction::Out) && !m.replies.is_empty() {
+                if let Ok(d) = self.decode_variant(&m.name, bytes, known) {
+                    let ok = self
+                        .ok_variant(&m.name, d.variant.as_deref(), &d.values)
+                        .ok();
+                    let reply = m
+                        .replies
+                        .iter()
+                        .find(|r| r.variant == d.variant)
+                        .unwrap_or(&m.replies[0]);
+                    out.push(Match {
+                        literals: self.literals(m, &reply.pattern),
+                        message: m.name.clone(),
+                        direction: Direction::In,
+                        variant: d.variant,
+                        values: d.values,
+                        ok,
+                    });
+                }
+            }
+        }
+        out
+    }
+
+    fn literals(&self, m: &'d Message, body: &'d Template) -> usize {
+        self.layout(m, body)
+            .iter()
+            .filter(|(p, _)| matches!(p, Piece::Byte { .. }))
+            .count()
     }
 
     // ---- test vectors -----------------------------------------------------

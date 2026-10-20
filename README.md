@@ -17,13 +17,16 @@ typed IR.
   errors as `file:line:col`
 - `crates/ctrl-codec`: message templates to bytes and back; runs the
   descriptors' test vectors
-- `tools/cdl-parse`: loads, validates and runs the test vectors of
-  descriptors
+- `tools/ctrl-cli`: `check` (validate, images, test vectors, send paths
+  without evidence), `explain` (the bytes of a message, piece by piece) and
+  `trace` (decode a capture) (CDL §16)
 - `KORG_Kontrol_Editor/tools/gen-korg-cdl`: generates a CDL base for every device of the KORG
   KONTROL EDITOR from the KORG repo's analysis, with labels and images
   (`python3 KORG_Kontrol_Editor/tools/gen-korg-cdl/gen_korg_cdl.py`, `--check` for staleness)
 
 ```bash
-cargo run -p cdl-parse -- descriptors/*/*.ctrl.kdl
+cargo run -p ctrl-cli -- check descriptors/*/*.ctrl.kdl
+cargo run -p ctrl-cli -- explain descriptors/korg/nanokontrol-studio.ctrl.kdl select-scene scene=3 device-id=0
+cargo run -p ctrl-cli -- trace descriptors/tecontrol/breath.ctrl.kdl capture.txt
 cargo test --workspace
 ```

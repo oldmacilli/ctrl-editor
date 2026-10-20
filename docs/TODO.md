@@ -32,7 +32,8 @@ Last updated: 2026-10-20 (ctrl-cdl landed).
 
 - [x] platform: CDL 0.1 draft (`docs/CDL.md`)
 - [x] platform: example descriptors for DB-1, TEC, nanoKONTROL Studio and a
-  firmware template; all four parse as KDL 2.0 (`tools/cdl-parse`)
+  firmware template; all four parse as KDL 2.0 (`tools/cdl-parse`, now
+  `ctrl-cli check`)
 - [x] platform: the DB-1 LBMT example parses, compiles and runs in
   zigtact's `lbmt` crate
 - [x] platform: KORG lane review applied: model id `00 01 37`, device id
@@ -68,7 +69,9 @@ Last updated: 2026-10-20 (ctrl-cdl landed).
 - [ ] platform+tec: TEC vectors from the HID captures (one today)
 - [ ] platform: a vendor-encoding registry entry only when no generic part
   fits; none needed so far
-- [ ] platform: `ctrl-cli check | explain | trace` (CDL §16)
+- [x] platform: `ctrl-cli check | explain | trace` (CDL §16); replaces
+  `cdl-parse` (HASH)
+- [ ] platform: `ctrl-cli check` compiles LBMT once `lbmt` is a dependency
 - [ ] platform: tree-sitter query file, LBMT injection
 - [ ] platform: `cdl-schema.md`: one table per node with every property,
   generated from the IR types

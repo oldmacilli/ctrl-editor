@@ -682,8 +682,8 @@ yet". `kind`: `knob`, `fader`, `button`, `pad`, `key`, `touchpad`, `jog`,
 `meter` (live value from `midi-map` or a poll).
 
 Image paths (`image` on `device` and `panel`) are relative to the file that
-names them, below its directory (no `..`). `cdl-parse` reports a missing
-file.
+names them, below its directory (no `..`). `ctrl-cli check` reports a
+missing file.
 
 ### 13.1 Labels
 
@@ -754,16 +754,40 @@ A send vector encodes `args` and `data` and compares the result to `bytes`,
 then decodes `bytes` with the send template and compares back to the
 arguments. A `reply=#true` vector decodes `bytes` with the reply pattern.
 String arguments are text (`ascii`). `ctrl-codec` runs them
-(`Codec::run_vectors`); `tools/cdl-parse` and later `ctrl-cli check` print
-the results. External vectors run only when their file exists, like KORG's
+(`Codec::run_vectors`); `ctrl-cli check` prints the results. External vectors run only when their file exists, like KORG's
 `KORG_PRODUCTS_DIR` tests.
 
 ## 16. Tooling
 
-- `ctrl-cli check <file>`: parse, validate the schema, compile LBMT, run
-  the test vectors, list `unknown` and `inferred` items on send paths.
-- `ctrl-cli explain <file> <message> k=v…`: print the bytes a message would
-  send (dry run).
-- `ctrl-cli trace <file> <capture>`: decode a capture with the descriptor.
+`tools/ctrl-cli`:
+
+- `ctrl-cli check <file>…`: parse, validate, check that images exist, run
+  the test vectors, and list every message with a `send` whose message,
+  frame or constants are not `measured` or `decoded`. LBMT is not compiled
+  yet: that waits for `lbmt` as a dependency (TODO P0); `check` says how
+  many snippets it skipped. Fails on errors and failed vectors.
+- `ctrl-cli explain <file> <message> name=value…`: a dry run. Prints the
+  bytes, then each run of them with its region (`prefix`, `body`,
+  `suffix`, `padding`) and the template piece and value that made it, then
+  the reply variants with their `ok-when`. Values: `12`, `0x0F`, `-1`,
+  `hex:AA55`, `text:Name`, `@file`. A missing value names what the
+  message takes.
+- `ctrl-cli trace <file> [--matched] <capture>…`: matches each frame
+  against every `send` and reply (`Codec::identify`). A capture is text,
+  one frame per line with an optional `>` (to the device) or `<` (from
+  it), `#` comments; JSON lines with `hex` and `dir`; or a binary
+  `.syx`/`.bin` MIDI stream, split into messages. Several SysEx messages on
+  one line are split; other lines, such as HID reports, stay whole.
+  - A reply pairs with the message sent just before it when that message
+    accepts it, once per request.
+  - Otherwise the most specific matches win: the most literal bytes, then
+    no negative values, then the fewest captured values. So `50` on the
+    TEC is `commit`, not `{0x40 + s}` with `s = 16`. The others are
+    counted, not shown. Matches that stay tied are printed and counted as
+    ambiguous: KORG acks share one pattern, and their `ok-when` tells
+    which request each one satisfies.
+  - Transport captures (`device-id`) carry over from the first frame that
+    shows them; a frame that only matches with another value says so.
+  - Values print as decimal, and from 10 up also as hex (`35/0x23`).
 - A tree-sitter query file for CDL on top of the KDL grammar, with
   injection of the LBMT grammar into `#"…"#` strings.
