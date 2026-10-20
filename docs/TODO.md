@@ -80,7 +80,7 @@ Last updated: 2026-10-20 (ctrl-cdl landed).
 - [ ] platform: tree-sitter query file, LBMT injection
 - [x] platform: `cdl-schema.md`: one entry per node with every property,
   generated from the converter's node table (`schema.rs`, `ctrl-cli
-  schema`); a test fails when it is stale (HASH)
+  schema`); a test fails when it is stale (5f02a11)
 
 ## P2 Prove CDL on the DB-1; KORG stays intact
 
