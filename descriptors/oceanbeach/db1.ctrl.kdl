@@ -1,0 +1,150 @@
+// Ocean Beach Digital DB-1 drawbar controller.
+// Evidence: OceanBeach_DB-1 crates/db1-protocol (frame.rs, message.rs, state.rs),
+// docs/HANDOVER.md (hardware run with firmware 02.12).
+cdl "0.1"
+
+device "oceanbeach.db1" {
+    vendor "Ocean Beach Digital"
+    model "DB-1"
+    replaces "DB-1 Configurator (LiveCode, 2014)"
+}
+
+identify {
+    midi-port match="DB-1" direction="both"
+    exchange "revision" ok-when="product == 0"     // 1 = bootloader
+}
+
+transport "main" kind="midi" port-match="DB-1" role="performance"
+transport "aux" kind="midi" port-match="DB-1" role="config" status="measured" evidence="HANDOVER.md: SysEx on the AUX pair"
+
+types {
+    enum "polarity" status="measured" evidence="state.rs Polarity" {
+        value 0 "Drawbar"
+        value 1 "Fader"
+    }
+    enum "button-mode" status="measured" evidence="state.rs ButtonMode" {
+        value 0 "Latched"
+        value 1 "Momentary"
+    }
+    int "channel" storage="u7" range="0..=15" display="{v + 1}" parse="{v - 1}"
+    errors "status" status="decoded" evidence="message.rs Status" {
+        value 0 "OK"
+        value 1 "Malformed request"
+        value 2 "Not in user-defined mode"
+        value 3 "Invalid index"
+        value 4 "Invalid MIDI channel"
+        value 5 "Invalid CC"
+        value 6 "Invalid polarity"
+        value 7 "Non-volatile write error"
+        value 8 "Invalid data value"
+        value 9 "Invalid mode value"
+    }
+}
+
+block "drawbar" count=9 status="measured" {
+    field "polarity" type="polarity"
+    field "cc" type="u7"
+    field "channel" type="channel"
+}
+block "button" status="measured" {
+    field "mode" type="button-mode"
+    field "cc" type="u7"
+    field "channel" type="channel"
+    field "a" type="u7"
+    field "b" type="u7"
+}
+block "global" status="measured" {
+    field "instrument" type="u7" range="0..=12" note="modes 2..12 never observed"
+    field "aux" type="bool"
+}
+
+sysex-frame "db1" status="measured" evidence="frame.rs to_bytes" {
+    prefix "F0 09 00 00 00"
+    suffix "F7"
+}
+
+message "revision" frame="db1" transport="aux" status="measured" {
+    send "00 00"
+    // no status byte; the version is hex text: 02 12 reads "02.12"
+    reply "01 00 {product} {hardware} {major} {minor}" timeout=500
+}
+message "get-drawbar" frame="db1" transport="aux" status="measured" {
+    send "00 03 {index}"
+    reply "01 03 {status} {index} {polarity} {cc} {channel}" timeout=500
+    ok-when "status == 0"
+}
+message "set-drawbar" frame="db1" transport="aux" status="measured" {
+    send "02 03 {index} {polarity} {cc} {channel}"
+    reply "03 03 {status}" timeout=500
+    ok-when "status == 0"
+}
+message "get-button" frame="db1" transport="aux" status="measured" {
+    send "00 0F 00"
+    reply "01 0F {status} .. {mode} {cc} {channel} {a} {b}" timeout=500
+    ok-when "status == 0"
+}
+message "set-button" frame="db1" transport="aux" status="measured" {
+    send "02 0F 00 {mode} {cc} {channel} {a} {b}"
+    reply "03 0F {status}" timeout=500
+    ok-when "status == 0"
+}
+message "get-global" frame="db1" transport="aux" status="measured" {
+    send "00 10"
+    reply "01 10 {status} {instrument} {aux}" timeout=500
+    ok-when "status == 0"
+}
+message "set-global" frame="db1" transport="aux" status="measured" {
+    send "02 10 {instrument} {aux}"
+    reply "03 10 {status}" timeout=500
+    ok-when "status == 0"
+}
+
+procedure "read-all" kind="read" transport="aux" status="measured" {
+    exchange "revision"
+    repeat "i" "0..=8" {
+        exchange "get-drawbar" index="{i}" into="drawbar[i]"
+    }
+    exchange "get-button" into="button"
+    exchange "get-global" into="global"
+}
+
+procedure "write-all" kind="write" transport="aux" status="measured" {
+    gate "confirm" text="Write 9 drawbars, the button and the global settings to the DB-1?"
+    restore-point "drawbar" "button" "global"
+    repeat "i" "0..=8" {
+        exchange "set-drawbar" index="{i}" from="drawbar[i]"
+    }
+    exchange "set-global" from="global"
+    exchange "set-button" from="button"
+    verify "read-all"
+}
+
+// Classic MIDI patching: what the drawbars send in performance use.
+midi-map transport="main" {
+    source "drawbar" count=9 kind="cc" cc="{drawbar.$i.cc}" channel="{drawbar.$i.channel}" range="0..=127"
+    source "button" kind="cc" cc="{button.cc}" channel="{button.channel}"
+}
+
+// A live rule, off by default: move the drawbar CCs up by 12 for an organ
+// that expects a different CC block. Illustrative; edit to taste.
+lbmt "organ-remap" from="main" to="virtual:DB-1 Organ" enabled=#false #"""
+@preset "DB-1 organ remap"
+@translator "drawbar to organ" enabled
+  @trigger midi cc
+  RULE:
+    ss = qq
+    IF qq < 9
+    ss = qq + 12
+  @action midi cc cc#=ss value=rr
+@end
+"""#
+
+firmware status="unknown" evidence="DB-1 findings: .obd image encoded, decoding parked" {
+    image format="obd" magic="30 42 44 20" driver="db1-obd"
+    recovery "Not decoded. Use the vendor's OBD Firmware Update Utility."
+}
+
+test-vector "set-drawbar-0" message="set-drawbar" status="decoded" evidence="db1-protocol set_drawbar" {
+    args index=0 polarity=0 cc=12 channel=0
+    bytes "F0 09 00 00 00 02 03 00 00 0C 00 F7"
+}

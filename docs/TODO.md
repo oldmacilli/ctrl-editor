@@ -1,0 +1,133 @@
+# Living TODO: merging the three editors
+
+Concept: [CONCEPT.md](CONCEPT.md) · Language: [CDL.md](CDL.md)
+
+How to keep this file alive:
+
+- Tick an item in the same commit that finishes it, and append the commit
+  hash: `- [x] … (abc1234)`.
+- New work goes under the phase it belongs to, with an owner.
+- A blocked item says what it waits for after `blocked:`.
+- Remove items that are no longer wanted; do not leave them stale.
+
+Owners: **platform** = the ctrl-editor lane (w5:p1) · **korg** = KORG
+editor lane (OMP, w5:p2) · **db1** / **tec** = whoever owns those repos ·
+**zigtact** = the LBMT owners · **user** = needs the owner's decision or
+hardware.
+
+Last updated: 2026-10-20.
+
+## P0 Agree the concept
+
+- [ ] user: approve the concept, the working name `ctrl-editor` and a
+  GitHub repo (nothing is pushed yet)
+- [ ] korg: review CONCEPT §3 and §4 (crate moves out of the KORG repo)
+- [ ] db1, tec: review CONCEPT and their descriptors
+  (`descriptors/oceanbeach/db1.ctrl.kdl`, `descriptors/tecontrol/breath.ctrl.kdl`)
+- [ ] zigtact: agree to `lbmt` as a pinned git dependency and to the
+  wide-integer request (P3)
+
+## P1 CDL toolchain
+
+- [x] platform: CDL 0.1 draft (`docs/CDL.md`)
+- [x] platform: example descriptors for DB-1, TEC, nanoKONTROL Studio and a
+  firmware template; all four parse as KDL 2.0 (`tools/cdl-parse`)
+- [x] platform: the DB-1 LBMT example parses, compiles and runs in
+  zigtact's `lbmt` crate
+- [ ] platform: `ctrl-cdl` crate: KDL → typed IR (serde), with errors that
+  point at line and column
+- [ ] platform: validator: unknown names, ranges, `status` rules (CDL §4.1),
+  `unknown` on send paths
+- [ ] platform: template codec: encode and decode `send`/`reply` (CDL §6),
+  checksums (§6.1)
+- [ ] platform: test-vector runner; DB-1 vectors from `db1-protocol` tests,
+  TEC vectors from the HID captures
+- [ ] platform: `ctrl-cli check | explain | trace` (CDL §16)
+- [ ] platform: tree-sitter query file, LBMT injection
+- [ ] platform: `cdl-schema.md`: one table per node with every property,
+  generated from the IR types
+
+## P2 Platform crates from KORG
+
+Order matters: rename and generalise; do not rewrite.
+
+- [ ] korg+platform: `ctrl-transport` from `korg-midi` (`MidiTransport`,
+  `MockTransport`) plus a `HidDevice` trait from `tec-device`
+- [ ] korg+platform: `ctrl-core` from `korg-core`; `EditorController` and
+  `ViewModel` over CDL blocks instead of Korg scenes. **API change: korg owner
+  acks first.**
+- [ ] platform: `ctrl-engine`: procedure runner (exchange, repeat, verify,
+  gates, restore points, tx log from `db1-session`)
+- [ ] korg+platform: `ctrl-app` from `korg-app`; `DeviceJob` becomes "run
+  procedure"; `panel` loaded from CDL
+- [ ] platform: `ctrl-tui` from `korg-tui`, with no device-specific code
+- [ ] korg: `ctrl-slint` from `korg-slint` (at `c98ded8`: tabs, browse,
+  copy/paste, New from factory, prefs, measured jobs)
+- [ ] platform: `scripts/check-platform-deps.sh` and `ci-check.sh` carried
+  over
+
+## P3 LBMT integration
+
+- [ ] platform: `ctrl-lbmt`: sandboxed run of `compute` and `translator`
+  snippets (no key, mouse or timer actions in transforms; step limit)
+- [ ] zigtact: wide-integer mode in `lbmt` (Bome uses 32-bit signed; today
+  every result is clamped to 0..127). Needed for 14-bit values and
+  checksums in LBMT. blocked: zigtact owner
+- [ ] zigtact: check the spec examples against the parser (`THEN` and
+  nested translators in `lbmt-language-spec.md` may not parse)
+- [ ] platform: translator panel in GUI and TUI (enable, edit, monitor)
+
+## P4 Device packs
+
+### KORG
+
+- [ ] korg: nanoKONTROL Studio descriptor complete: SysEx exchanges as CDL
+  messages instead of the `korg-measured` driver
+- [ ] korg: Strings XML from the vendor application (`the local capture archive`)
+  → control lists and value labels for all 14 devices
+- [ ] korg: parameter schemas for the 12 devices without one (getters)
+- [ ] korg: exact click areas from the component code
+- [ ] user: global write capture. blocked: user
+- [ ] korg: nanoKEY Studio calibration (`X14800_Calib`). blocked: capture
+- [ ] platform: update `KORG_Kontrol_Editor/docs/rewrite/72-feature-parity.md`
+  to `c98ded8` (most menus now ✅ in Slint)
+
+### DB-1
+
+- [ ] db1: descriptor reviewed against `db1-protocol`; `db1-cli` test
+  vectors pass through `ctrl-cli check`
+- [ ] db1: the instrument enum (0..12) named in the descriptor from
+  `state.rs`
+- [ ] db1: restore points and tx log move to `ctrl-engine`
+- [ ] db1: hardware checklist through the platform (read, write, restore)
+  equal to the `db1-cli` run in `docs/HANDOVER.md`
+- [ ] db1: retire `db1-tui` (REPL) in favour of `ctrl-tui`
+
+### TEC
+
+- [ ] tec: `ctrl-hid-iokit` from `tec-device/src/macos.rs` (Seize, report
+  id 0, 8-byte frames)
+- [ ] tec: hub (one thread per device, keyed by serial) in `ctrl-engine`
+- [ ] tec: `tec-curve` driver; byte-exact against the captured curve
+  tables
+- [ ] tec: `arm` gate replaces the `unsafe-commands` runtime arm; the Cargo
+  feature stays as a build-time guard
+- [ ] tec: live meters (poll at about 19 Hz) in GUI and TUI
+- [ ] user: first platform write to a TEC controller, with the tracer
+  running
+
+## P5 Firmware update
+
+- [ ] db1: decode the `.obd` image (`DB-1 findings` §5, §8) and
+  capture the vendor updater on hardware. blocked: user, hardware with a
+  spare unit
+- [ ] platform: `firmware` runner with the CDL §12 checks (image, version,
+  recovery text, arm)
+- [ ] tec: a debug-interface firmware read is out of scope unless the user
+  asks for it
+
+## P6 Retire the old front ends
+
+- [ ] each lane: the old editor's hardware checklist passes on the platform
+- [ ] each lane: old product crates removed from their repos; the repos keep
+  analysis, findings and captures

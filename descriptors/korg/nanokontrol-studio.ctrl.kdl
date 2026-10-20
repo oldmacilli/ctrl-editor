@@ -1,0 +1,86 @@
+// KORG nanoKONTROL Studio (class X14802, file key 1482, SysEx model 0x137).
+// Evidence: KORG_Kontrol_Editor crates/korg-devices (measured_layout 0x137),
+// crates/korg-sysex, crates/korg-model (JogConfig), hardware receive 2026-10-20.
+// Partial: the SysEx exchanges still run in the `korg-measured` driver
+// (korg-core MeasuredSession) until they are written as CDL messages.
+cdl "0.1"
+
+device "korg.nanokontrol-studio" {
+    vendor "KORG"
+    model "nanoKONTROL Studio"
+    class "X14802"
+    file-key "1482"
+}
+
+identify {
+    midi-port match="nanoKONTROL Studio" direction="both"
+    sysex-identity manufacturer=0x42 model=0x137 status="measured"
+}
+
+transport "usb" kind="midi" port-match="nanoKONTROL Studio CTRL" role="config"
+transport "ble" kind="midi" port-match="nanoKONTROL Studio Bluetooth" role="config" status="measured" evidence="TUI receive over Bluetooth, 2026-10-20"
+
+types {
+    enum "jog-type" {
+        value 0 "Inc/Dec 1" status="inferred"
+        value 1 "Inc/Dec 2" status="measured"
+        value 2 "Continuous" status="measured"
+        value 3 "Sign Magnitude" status="measured"
+        value 4 "No Assign" status="inferred"
+        value 5 "Encoder 01/7F" status="measured"
+        value 6 "Encoder 3F/41" status="inferred"
+    }
+    enum "jog-accel" {
+        value 0 "1"
+        value 1 "2"
+        value 2 "Const"
+    }
+    int "channel" storage="u7" range="0..=15" display="{v + 1}" parse="{v - 1}"
+}
+
+sysex-frame "korg-native" status="decoded" evidence="korg-sysex push_model, encode" {
+    prefix "F0 42 {0x40 | channel} {model:korg-model}"
+    suffix "F7"
+}
+
+block "scene" size=560 count=5 status="measured" evidence="measured_layout(0x137)" {
+    field "name" offset=0 type="ascii(16)"
+    group "jog" offset=512 evidence="korg-model JogConfig::decode" {
+        field "channel" offset=0 type="channel"
+        field "type" offset=1 type="jog-type"
+        field "acceleration" offset=2 type="jog-accel"
+        field "sign-cc" offset=3 type="u7" visible-when="type == 3 || type >= 5"
+        field "cw-cc" offset=4 type="u7" visible-when="type <= 1"
+        field "ccw-cc" offset=5 type="u7" visible-when="type <= 1"
+        field "cc" offset=6 type="u7" visible-when="type == 2"
+        field "min" offset=7 type="u7" visible-when="type == 2"
+        field "max" offset=8 type="u7" visible-when="type == 2"
+    }
+    array "knob" count=8 status="unknown"
+    array "slider" count=8 status="unknown"
+}
+block "global" size=128 status="measured" evidence="measured_layout(0x137)"
+
+procedure "receive-set" kind="read" status="measured" {
+    driver "korg-measured" step="receive-scene-set"
+}
+procedure "write-scene" kind="write" status="measured" evidence="write header 01 05 00 40" {
+    gate "confirm" text="Write scene {scene} to the device?"
+    restore-point "scene[scene]"
+    driver "korg-measured" step="write-scene"
+    verify "receive-set" compare="scene[scene]"
+}
+procedure "write-global" kind="write" status="unknown" evidence="waits for the global write capture"
+
+driver "korg-measured" provides="procedure:receive-scene-set procedure:write-scene procedure:write-scene-set procedure:receive-global"
+driver "korg-nktrl-file" provides="file:nktrl_st_set file:nktrl_st_data file:nktrl_st_glob"
+
+// Panel: korg_app::panel nanokontrol_studio(), picture 550 x 329.
+panel picture="550x329" source="measured by eye from the editor's panel picture" {
+    control "jog" kind="jog" label="Jog Wheel" group="Jog Wheel" box="36,199,92,92" bind="scene.jog"
+    control "scene" kind="button" label="Scene" group="Scene" box="25,93,22,12"
+    repeat "n" "1..=8" {
+        control "knob{n}" kind="knob" label="Knob {n}" group="Knob" box="{135.5 + 44.5 * n},146,28,28"
+        control "slider{n}" kind="fader" label="Slider {n}" group="Slider" box="{128.5 + 44.5 * n},188,14,116"
+    }
+}

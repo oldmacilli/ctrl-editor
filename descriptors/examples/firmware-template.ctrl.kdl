@@ -1,0 +1,45 @@
+// Template for a firmware update procedure. Illustrative: no device in scope
+// has a decoded update procedure, so every message here is `unknown` and
+// `ctrl-cli check` refuses to run it. Copy it into a device descriptor and
+// replace each `unknown` with captured bytes.
+cdl "0.1"
+
+device "example.firmware" {
+    vendor "Example"
+    model "Template"
+}
+
+transport "aux" kind="midi" port-match="Example" role="config"
+
+message "enter-bootloader" transport="aux" kind="commit" status="unknown"
+message "erase" transport="aux" kind="commit" status="unknown"
+message "write-chunk" transport="aux" kind="commit" status="unknown"
+message "image-crc" transport="aux" status="unknown"
+message "reboot" transport="aux" kind="commit" status="unknown"
+
+firmware status="unknown" {
+    image format="example" magic="00 00 00 00" driver="example-image"
+    version-from "revision" field="major.minor"
+    require "battery_ok && !downgrade"
+    stage "enter-bootloader" {
+        exchange "enter-bootloader"
+        expect-identity product=1
+    }
+    stage "erase" kind="commit" {
+        exchange "erase" timeout=5000
+    }
+    stage "transfer" kind="commit" {
+        repeat "chunk" "image-chunks" size=256 {
+            exchange "write-chunk" data="{chunk:packed7}"
+        }
+    }
+    stage "verify" {
+        exchange "image-crc"
+        ok-when "crc == image.crc"
+    }
+    stage "reboot" {
+        send "reboot"
+        expect-identity product=0 timeout=10000
+    }
+    recovery "If the device stays in the bootloader, run the update again."
+}

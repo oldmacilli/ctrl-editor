@@ -1,0 +1,9 @@
+[package]
+name = "cdl-parse"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Syntax check for CDL descriptors (KDL 2.0). Not the validator; see docs/CDL.md section 16."
+
+[dependencies]
+kdl = "6"

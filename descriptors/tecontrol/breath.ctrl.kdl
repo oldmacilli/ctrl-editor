@@ -1,0 +1,132 @@
+// TEControl USB MIDI Breath Controller.
+// Evidence: TECcontrol HANDOVER.md "Verified device protocol" (passive capture
+// 2026-10-13, tec-device/hid-trace-2026-10-13*.log), tec-device/src/write.rs.
+cdl "0.1"
+
+device "tecontrol.breath" {
+    vendor "TEControl"
+    model "USB MIDI Breath Controller"
+    replaces "TECMidiBreathCtrl 2.app v5.3b1"
+}
+
+identify {
+    hid usage-page=0x0C report-size=8 status="measured" evidence="firmware/descriptors-2026-10-14.txt"
+    midi-port match="Breath" direction="out"
+    key "usb-serial"                         // several controllers at once
+}
+
+// Configuration is HID only. The firmware emits MIDI by itself.
+transport "hid" kind="hid" usage-page=0x0C frame=8 report-id=0 seize=#true status="measured"
+transport "midi" kind="midi" port-match="Breath" role="performance"
+
+types {
+    enum "msg-type" status="measured" evidence="gate-5 capture" {
+        value 0 "Control Change"
+        value 1 "Aftertouch"
+        value 2 "Pitch Bend Up"
+        value 3 "Pitch Bend Down"
+        value 4 "Pitch Bend Both"
+    }
+    // 0x10 means Disable; 0..15 shown as 1..16
+    int "tec-channel" storage="u8" range="0..=16" display="{v + 1}" parse="{v - 1}" special="16=Disable"
+    int "percent" storage="u8" range="0..=255" display="{v * 100 / 255}%"
+}
+
+block "sensor" count=4 names="Breath Bite Nod Tilt" status="measured" {
+    group "meta" {
+        field "cc" type="u7"
+        field "channel" type="tec-channel"
+        field "message" type="msg-type"
+        field "const-09" type="u8" fixed=0x09 note="meaning unknown, never edited"
+        field "attack" type="u8"
+        field "decay" type="u8"
+    }
+    group "shaping" {
+        field "bending" type="percent"
+        field "symmetry" type="percent"
+        field "sensor-min" type="percent"
+        field "sensor-max" type="percent"
+        field "midi-min" type="percent"
+        field "midi-max" type="percent"
+    }
+    // 32 values, computed from shaping by the original's generator
+    array "curve" count=32 type="u7" driver="tec-curve"
+}
+
+message "poll" transport="hid" status="measured" {
+    send "00"
+    reply "{breath} {bite} {nod} {tilt} {f0} {f1} {f2} {f3}" timeout=200
+}
+message "read-meta" transport="hid" status="measured" {
+    send "{0x10 + s}"
+    reply "{cc} {channel} {message} {const-09} {attack} {decay} 00" timeout=200
+}
+message "write-meta" transport="hid" kind="write" status="measured" {
+    send "{0x20 + s} {cc} {channel} {message} 09 {attack} {decay} 00"
+    reply "00 00 00 00 00 00 00 00" timeout=200
+}
+message "read-shaping" transport="hid" status="measured" {
+    send "{0x14 + s}"
+    reply "{bending} {symmetry} {sensor-min} {sensor-max} {midi-min} {midi-max} 00" timeout=200
+}
+message "write-shaping" transport="hid" kind="write" status="measured" {
+    send "{0x24 + s} {bending} {symmetry} {sensor-min} {sensor-max} {midi-min} {midi-max} 00"
+    reply "00 00 00 00 00 00 00 00" timeout=200
+}
+// The curve table cannot be read back.
+message "write-curve-page" transport="hid" kind="write" status="measured" {
+    send "{0x40 + s} {page} {v0} {v1} {v2} {v3} {v4} {v5}"
+    reply "00 00 00 00 00 00 00 00" timeout=200
+}
+message "commit" transport="hid" kind="commit" status="measured" evidence="gate-5, gate-6: ack after 621 ms" {
+    send "50"
+    reply "00 00 00 00 00 00 00 00" timeout=2000
+}
+message "calibrate" transport="hid" kind="commit" status="decoded" evidence="vendor analysis" {
+    send "{0x60 + s}"
+}
+
+procedure "read-all" kind="read" transport="hid" {
+    repeat "s" "0..=3" {
+        exchange "read-meta" s="{s}" into="sensor[s].meta"
+        exchange "read-shaping" s="{s}" into="sensor[s].shaping"
+    }
+}
+
+// The original sends meta, shaping and the 6 curve pages per sensor.
+procedure "write-sensor" kind="write" transport="hid" {
+    gate "confirm" text="Write sensor {s} to the controller's RAM?"
+    restore-point "sensor[s]"
+    exchange "write-meta" from="sensor[s].meta"
+    exchange "write-shaping" from="sensor[s].shaping"
+    repeat "p" "0..=5" {
+        exchange "write-curve-page" page="{p * 6}" from="sensor[s].curve[p * 6 ..]"
+    }
+    verify "read-all" compare="sensor[s].meta sensor[s].shaping"
+}
+
+procedure "make-permanent" kind="commit" transport="hid" {
+    gate "arm" text="Store the current RAM settings in the controller's flash?"
+    exchange "commit"
+}
+
+midi-map transport="midi" {
+    source "sensor" count=4 kind="from-field" message="{sensor.$i.message}" cc="{sensor.$i.cc}" channel="{sensor.$i.channel}"
+}
+
+panel source="drawn from the original's window" status="inferred" {
+    control "breath" kind="meter" bind="sensor[0]" live="poll.breath"
+    control "bite" kind="meter" bind="sensor[1]" live="poll.bite"
+    control "nod" kind="meter" bind="sensor[2]" live="poll.nod"
+    control "tilt" kind="meter" bind="sensor[3]" live="poll.tilt"
+}
+
+driver "tec-curve" provides="block:sensor.curve" from="sensor.shaping"
+
+firmware status="unknown" evidence="firmware/README.md: no DFU or bootloader in the vendor app" {
+    recovery "No update path exists."
+}
+
+test-vector "commit" message="commit" status="measured" evidence="hid-trace gate-5" {
+    bytes "50 00 00 00 00 00 00 00"
+}
