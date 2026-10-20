@@ -147,6 +147,22 @@ fn db1_reply_and_status() {
         codec.decode_reply("get-drawbar", &reply[..12], &Bindings::new()),
         Err(CodecError::Truncated(_))
     ));
+    // Drawbars are 0..=8, as in db1-protocol, both ways.
+    assert!(codec
+        .encode("get-drawbar", &args(&[("index", int(9))]))
+        .is_err());
+    let mut nine = reply;
+    nine[8] = 9;
+    assert!(codec
+        .decode_reply("get-drawbar", &nine, &Bindings::new())
+        .is_err());
+    // A non-volatile write error (7) decodes and is not ok.
+    let nv = [0xF0, 0x09, 0, 0, 0, 0x03, 0x03, 0x07, 0xF7];
+    let got = codec
+        .decode_reply("set-drawbar", &nv, &Bindings::new())
+        .unwrap();
+    assert_eq!(got["status"], int(7));
+    assert!(!codec.ok("set-drawbar", &got).unwrap());
 }
 
 #[test]

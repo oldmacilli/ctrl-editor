@@ -62,10 +62,11 @@ Last updated: 2026-10-20 (ctrl-cdl landed).
   messages (exchange on one is an error), reply variants with first match,
   named patterns, replies into blocks with exact size (`ctrl_codec::fill`),
   `selected` needs a config transport (7710126)
-- [ ] korg: scene-set-info reply variants, per-device `scene-data`
+- [x] korg: scene-set-info reply variants, per-device `scene-data`
   patterns for read-block, a scene-read reply vector from a capture, then
-  the procedures off `korg-measured`
-- [ ] platform+db1: more DB-1 vectors from `db1-protocol` tests (one today)
+  the procedures off `korg-measured` (2a475d4)
+- [x] platform+db1: DB-1 vectors from `db1-protocol` tests, the app's
+  frames and the hardware ping reply: 10; drawbar `arg` index 0..=8 (HASH)
 - [x] platform+tec: TEC vectors from the HID captures: 16, and every
   transaction in the 10 TECcontrol traces decodes to one message (725a2c8)
 - [x] platform: KORG and TEC descriptors in one style: `arg` ranges (CDL

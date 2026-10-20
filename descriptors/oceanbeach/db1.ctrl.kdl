@@ -73,11 +73,13 @@ message "revision" frame="db1" transport="aux" status="measured" {
     reply "01 00 {product} {hardware} {major} {minor}" timeout=500
 }
 message "get-drawbar" frame="db1" transport="aux" status="measured" {
+    arg "index" index="drawbar"
     send "00 03 {index}"
     reply "01 03 {status} {index} {polarity} {cc} {channel}" timeout=500
     ok-when "status == 0"
 }
 message "set-drawbar" frame="db1" transport="aux" status="measured" {
+    arg "index" index="drawbar"
     send "02 03 {index} {polarity} {cc} {channel}"
     reply "03 03 {status}" timeout=500
     ok-when "status == 0"
@@ -153,4 +155,41 @@ firmware status="unknown" evidence="DB-1 findings: .obd image encoded, decoding 
 test-vector "set-drawbar-0" message="set-drawbar" status="decoded" evidence="db1-protocol set_drawbar" {
     args index=0 polarity=0 cc=12 channel=0
     bytes "F0 09 00 00 00 02 03 00 00 0C 00 F7"
+}
+// Requests: the app's frames (findings/livecode-capsule.md §3, counts of
+// each in the stack) and db1-protocol message.rs tests.
+test-vector "revision" message="revision" status="decoded" evidence="livecode-capsule.md §3: ping, 878 uses; db1-protocol ping()" {
+    bytes "F0 09 00 00 00 00 00 F7"
+}
+test-vector "revision-reply" message="revision" reply=#true status="measured" evidence="HANDOVER.md: raw ping reply from the DB-1, firmware 02.12" {
+    args product=0 hardware=0 major=2 minor=0x12
+    bytes "F0 09 00 00 00 01 00 00 00 02 12 F7"
+}
+test-vector "get-drawbar-4" message="get-drawbar" status="decoded" evidence="db1-protocol captured_query_frames_match_byte_for_byte" {
+    args index=4
+    bytes "F0 09 00 00 00 00 03 04 F7"
+}
+test-vector "drawbar-reply" message="get-drawbar" reply=#true status="decoded" evidence="db1-protocol an_impossible_reply_channel_is_rejected (the accepted frame)" {
+    args status=0 index=3 polarity=0 cc=20 channel=15
+    bytes "F0 09 00 00 00 01 03 00 03 00 14 0F F7"
+}
+test-vector "get-button" message="get-button" status="decoded" evidence="db1-protocol captured_query_frames_match_byte_for_byte" {
+    bytes "F0 09 00 00 00 00 0F 00 F7"
+}
+test-vector "get-global" message="get-global" status="decoded" evidence="db1-protocol captured_query_frames_match_byte_for_byte" {
+    bytes "F0 09 00 00 00 00 10 F7"
+}
+// Channel 3 goes out as 2 (the wire carries channel - 1).
+test-vector "set-drawbar-fader" message="set-drawbar" status="decoded" evidence="db1-protocol set_drawbar_encodes_channel_minus_one" {
+    args index=0 polarity=1 cc=0x10 channel=2
+    bytes "F0 09 00 00 00 02 03 00 01 10 02 F7"
+}
+test-vector "set-button-momentary" message="set-button" status="decoded" evidence="db1-protocol set_button_encodes_mode_and_values" {
+    args mode=1 cc=1 channel=1 a=5 b=9
+    bytes "F0 09 00 00 00 02 0F 00 01 01 01 05 09 F7"
+}
+// Status 7 (non-volatile write error) decodes, and its ok-when fails.
+test-vector "set-ack-nv-error" message="set-drawbar" reply=#true status="decoded" evidence="db1-protocol nv_write_error_is_reported_not_swallowed" {
+    args status=7
+    bytes "F0 09 00 00 00 03 03 07 F7"
 }
