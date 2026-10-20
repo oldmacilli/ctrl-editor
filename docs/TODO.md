@@ -43,12 +43,12 @@ Last updated: 2026-10-20 (ctrl-cdl landed).
   point at line and column; includes merge (`*.inc.kdl`); templates, paths
   and ranges parsed; all descriptors load (e44a6e1)
 - [x] platform: slice placeholders `{curve[6] pad=7F}`; the TEC curve pages
-  are CDL again, no driver step (COMMIT)
+  are CDL again, no driver step (5bd7d4a)
 - [x] platform: validator (`ctrl_cdl::validate`): references and paths,
   sizes and ranges, `status` rules (CDL §4.1), write policy (§11), port
-  overlap (§5), SysEx data bytes, HID frame sizes, scan messages (COMMIT)
+  overlap (§5), SysEx data bytes, HID frame sizes, scan messages (5bd7d4a)
 - [x] platform: CDL §5.1 `scan` and `listen` for DIN-only devices; DB-1
-  found by scanning with its revision request (COMMIT)
+  found by scanning with its revision request (5bd7d4a)
 - [ ] platform: template codec: encode and decode `send`/`reply` (CDL §6),
   checksums (§6.1)
 - [ ] platform: test-vector runner; DB-1 vectors from `db1-protocol` tests,
@@ -121,7 +121,7 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
 - [ ] user+korg: check whether the nanoKONTROL Studio's USB input port also
   has its own name; its descriptor uses one `port-match` today
 - [x] platform: overlapping port matches are a validation error (CDL §5)
-  (COMMIT)
+  (5bd7d4a)
 - [ ] korg: nanoKEY Studio calibration (`X14800_Calib`). blocked: capture
 - [x] korg: `docs/rewrite/72-feature-parity.md` updated with the Slint
   state (KORG eba516b)
@@ -143,7 +143,7 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
 
 - [x] korg (OMP): TEC USB gaps closed from the analysis and a read-only
   trace (TECcontrol fb97e8b, findings); applied to
-  the descriptor (COMMIT)
+  the descriptor (5bd7d4a)
 - [x] platform: TEC descriptor: USB ids with bcd from HANDOVER.md, 8-byte
   read replies, curve pages driver-owned (e44a6e1)
 - [ ] tec: `ctrl-hid-iokit` from `tec-device/src/macos.rs` (Seize, report
