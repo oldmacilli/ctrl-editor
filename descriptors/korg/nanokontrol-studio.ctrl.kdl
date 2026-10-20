@@ -44,7 +44,8 @@ types {
     }
 }
 
-// Frame, identity, global read/write: common.inc.kdl. 0x137 encodes as 00 01 37.
+// Frame, identity, requests, global read/write: common.inc.kdl.
+const "model" 0x137 status="measured" evidence="identity reply 37 01, captured 2026-10-20; korg-devices measured_layout(0x137)"
 
 block "scene" size=560 count=5 status="measured" evidence="measured_layout(0x137)" {
     field "name" offset=0 type="ascii(16)"
@@ -64,9 +65,22 @@ block "scene" size=560 count=5 status="measured" evidence="measured_layout(0x137
 }
 block "global" size=128 status="measured" evidence="measured_layout(0x137)"
 
+// Acks use the frame: 01 00 00, then the status (korg-sysex ack_status reads
+// only that byte; the captured commit ack is 01 00 00 21). Scene data is
+// acked with 23 (data received), the commit with 21 (write complete), as in
+// korg-sysex Phase::expected.
+message "scene-write" frame="korg-native" transport="selected" kind="write" status="measured" evidence="korg-sysex X14802_SCENE_WRITE_HEADER, build_write_frame; capture" {
+    send "01 05 00 40 {data:packed7}"
+    reply ".. .. .. {status}" timeout=2000
+    ok-when "status == 0x23"
+}
+message "commit-ack" frame="korg-native" transport="selected" status="measured" evidence="korg-sysex test measured_write_frames_match_the_capture" {
+    reply ".. .. .. {status}" timeout=2000
+    ok-when "status == 0x21"
+}
+
 // The exchanges are driver-owned (korg-core MeasuredSession, korg-app
-// run_job) until they are written as CDL messages. The bytes the driver
-// sends are on record under `owns`.
+// run_job) until procedures use the messages here and in common.inc.kdl.
 procedure "receive-scene-set" kind="read" status="measured" {
     driver "korg-measured" step="receive-scene-set"
 }
@@ -83,9 +97,7 @@ procedure "write-scene-set" kind="write" status="measured" {
     verify "receive-scene-set" compare="scene"
 }
 
-driver "korg-measured" provides="procedure:receive-scene-set procedure:receive-global procedure:write-scene procedure:write-scene-set procedure:write-global" {
-    owns "scene-write-header" bytes="01 05 00 40" status="measured" evidence="korg-devices measured_layout(0x137), korg-sysex X14802_SCENE_WRITE_HEADER"
-}
+driver "korg-measured" provides="procedure:receive-scene-set procedure:receive-global procedure:write-scene procedure:write-scene-set procedure:write-global"
 driver "korg-nktrl-file" provides="file:nktrl_st_set file:nktrl_st_data file:nktrl_st_glob"
 
 // Panel: korg_app::panel nanokontrol_studio(), picture 550 x 329.
@@ -96,4 +108,32 @@ panel picture="550x329" source="measured by eye from the editor's panel picture"
         control "knob{n}" kind="knob" label="Knob {n}" group="Knob" box="{135.5 + 44.5 * n},146,28,28"
         control "slider{n}" kind="fader" label="Slider {n}" group="Slider" box="{128.5 + 44.5 * n},188,14,116"
     }
+}
+
+// Byte for byte from korg-sysex's tests (captured from the hardware unless
+// noted), device id 00.
+test-vector "identity-request" message="identity" status="measured" evidence="korg-sysex IDENTITY_REQUEST" {
+    bytes "F0 7E 7F 06 01 F7"
+}
+test-vector "identity-reply" message="identity" reply=#true status="measured" evidence="korg-sysex identity_replies_parse_for_both_studios" {
+    args device-id=0 member=0 version=5
+    bytes "F0 7E 00 06 02 42 37 01 00 00 05 00 01 00 F7"
+}
+test-vector "global-data-request" message="global-data-request" status="measured" evidence="korg-sysex measured_requests_match_the_capture" {
+    args device-id=0
+    bytes "F0 42 40 00 01 37 01 00 00 0E F7"
+}
+test-vector "commit-scene-1" message="commit-scene" status="measured" evidence="korg-sysex measured_write_frames_match_the_capture" {
+    args device-id=0 scene=1
+    bytes "F0 42 40 00 01 37 02 00 00 11 01 F7"
+}
+test-vector "commit-ack" message="commit-ack" reply=#true status="measured" evidence="korg-sysex measured_write_frames_match_the_capture" {
+    args device-id=0 status=0x21
+    bytes "F0 42 40 00 01 37 01 00 00 21 F7"
+}
+// The header is captured; the packed payload follows korg-sysex pack_7in8.
+test-vector "scene-write" message="scene-write" status="decoded" evidence="korg-sysex measured_write_frames_match_the_capture, pack_7in8" {
+    args device-id=0
+    data "data" "AA 55 80 01"
+    bytes "F0 42 40 00 01 37 01 05 00 40 05 2A 55 00 01 F7"
 }

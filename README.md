@@ -15,8 +15,10 @@ typed IR.
   firmware template)
 - `crates/ctrl-cdl`: CDL loader: KDL 2.0 into a typed IR, includes merged,
   errors as `file:line:col`
-- `tools/cdl-parse`: loads descriptors with `ctrl-cdl` and prints a summary
-  or the errors
+- `crates/ctrl-codec`: message templates to bytes and back; runs the
+  descriptors' test vectors
+- `tools/cdl-parse`: loads, validates and runs the test vectors of
+  descriptors
 
 ```bash
 cargo run -p cdl-parse -- descriptors/*/*.ctrl.kdl

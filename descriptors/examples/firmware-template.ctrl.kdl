@@ -33,7 +33,8 @@ firmware status="unknown" {
     }
     stage "transfer" kind="commit" {
         repeat "chunk" "image-chunks" size=256 {
-            exchange "write-chunk" data="{chunk:packed7}"
+            // the message template encodes it: send "… {data:packed7}"
+            exchange "write-chunk" data="{chunk}"
         }
     }
     stage "verify" {

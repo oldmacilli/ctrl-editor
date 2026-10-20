@@ -80,7 +80,11 @@ pub enum Encoding {
     Packed7,
     /// The whole block as is.
     Raw,
-    /// A device pack type such as `korg-model` (CDL §8).
+    /// A MIDI ID (CDL §8.1): one byte below 0x80, otherwise `00 hi lo` with
+    /// `hi = v >> 8` and `lo = v & 0xFF`, both 7-bit. Manufacturer IDs and
+    /// KORG model IDs use it.
+    MidiId,
+    /// A device pack type, registered with the codec (CDL §8).
     Vendor(String),
 }
 
@@ -88,6 +92,7 @@ impl Encoding {
     pub fn parse(s: &str) -> Result<Self, String> {
         match s {
             "packed7" => Ok(Self::Packed7),
+            "midi-id" => Ok(Self::MidiId),
             "raw" => Ok(Self::Raw),
             _ => match Storage::parse(s) {
                 Ok(storage) => Ok(Self::Storage(storage)),
@@ -103,6 +108,7 @@ impl fmt::Display for Encoding {
         match self {
             Self::Storage(storage) => storage.fmt(f),
             Self::Packed7 => f.write_str("packed7"),
+            Self::MidiId => f.write_str("midi-id"),
             Self::Raw => f.write_str("raw"),
             Self::Vendor(name) => f.write_str(name),
         }
@@ -160,6 +166,12 @@ pub enum Piece {
         expr: String,
     },
     Checksum(Checksum),
+    /// `{len:encoding}`: the number of bytes after this field, up to the
+    /// first checksum or the end of the message body (before the frame
+    /// suffix).
+    Length {
+        encoding: Encoding,
+    },
 }
 
 impl Piece {
@@ -199,6 +211,7 @@ impl fmt::Display for Piece {
             }
             Self::Rest { name } => write!(f, "{{{name}*}}"),
             Self::Expr { expr } => write!(f, "{{={expr}}}"),
+            Self::Length { encoding } => write!(f, "{{len:{encoding}}}"),
             Self::Checksum(c) => {
                 let algorithm = match c.algorithm {
                     ChecksumAlgorithm::Sum7 => "sum7",
@@ -293,6 +306,11 @@ fn placeholder(inner: &str) -> Result<Piece, String> {
         let (name, encoding) = (name.trim(), encoding.trim());
         if name == "sum" {
             return checksum(encoding).map(Piece::Checksum);
+        }
+        if name == "len" {
+            return Ok(Piece::Length {
+                encoding: Encoding::parse(encoding)?,
+            });
         }
         if is_ident(name) {
             return Ok(Piece::Field {

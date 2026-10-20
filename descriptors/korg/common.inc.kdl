@@ -1,33 +1,69 @@
 // Shared by the KORG device descriptors (include "common.inc.kdl").
 // Evidence: KORG_Kontrol_Editor crates/korg-sysex, korg-devices, korg-core.
+// Each device declares `const "model"` (its SysEx model id).
 cdl "0.1"
 
-// F0 42 4d, where d is the device id from the identity reply. It is a
-// stored device setting, not fixed by transport: nanoKONTROL Studio 00
-// over USB, nanoKEY Studio 0F over both USB and Bluetooth. It is not a MIDI
-// channel. Then the model id (one byte
-// below 0x80, otherwise 00 hi lo), then the command.
-sysex-frame "korg-native" status="decoded" evidence="korg-sysex push_model, encode" {
-    prefix "F0 42 {0x40 | device-id} {model:korg-model}"
+const "manufacturer" 0x42 status="measured" evidence="korg-sysex KORG_ID; byte 5 of the identity replies captured 2026-10-20"
+
+// KORG native SysEx, built from generic parts (CDL §8.1):
+//   F0, the manufacturer as a MIDI ID (42), 0x40 | device id, the model as
+//   a MIDI ID (0x137 is 00 01 37), then the command bytes, then F7.
+// The device id is the stored setting from the identity reply (nanoKONTROL
+// Studio 00, nanoKEY Studio 0F, over USB and Bluetooth alike); it is not a
+// MIDI channel. Replies use the same frame, so `{0x40 | device-id}` checks
+// the id when it is known and captures it when it is not.
+sysex-frame "korg-native" status="measured" evidence="korg-sysex build_request, build_write_frame, build_commit (push_model); byte-identical with the captured requests, writes and acks (korg-sysex tests measured_requests_match_the_capture, measured_write_frames_match_the_capture)" {
+    prefix "F0 {manufacturer:midi-id} {0x40 | device-id} {model:midi-id}"
     suffix "F7"
 }
 
-message "identity" transport="selected" status="measured" evidence="korg-sysex IDENTITY_REQUEST" {
+// The universal identity request. The reply carries the device id and the
+// model as two bytes, low first (0x137 is 37 01); a reply from another
+// model does not match, because `model` is a constant.
+message "identity" transport="selected" status="measured" evidence="korg-sysex IDENTITY_REQUEST, parse_identity; replies captured from both Studios" {
     send "F0 7E 7F 06 01 F7"
+    reply "F0 7E {device-id} 06 02 {manufacturer:midi-id} {model:u16le} {member:u16le} {version:u16le} .. .. F7" timeout=1000
+}
+
+// The measured requests (korg-sysex Request, docs/midi-sysex.md). The
+// exchanges that use them still run in the korg-measured driver.
+message "scene-set-info-request" frame="korg-native" transport="selected" status="measured" evidence="korg-sysex Request::SceneSetInfo; capture" {
+    send "01 00 00 12"
+}
+message "select-scene" frame="korg-native" transport="selected" status="measured" evidence="korg-sysex Request::SelectScene; capture" {
+    send "02 00 00 14 {scene}"
+}
+message "read-block-request" frame="korg-native" transport="selected" status="measured" evidence="korg-sysex Request::ReadBlock; capture" {
+    send "01 00 00 10"
+}
+message "global-data-request" frame="korg-native" transport="selected" status="measured" evidence="korg-sysex Request::GlobalData; capture" {
+    send "01 00 00 0E"
+}
+message "commit-scene" frame="korg-native" transport="selected" kind="write" status="measured" evidence="korg-sysex build_commit, korg-core MeasuredSession::write_scene" {
+    send "02 00 00 11 {scene}"
+}
+message "global-write" frame="korg-native" transport="selected" kind="write" status="measured" evidence="korg-devices global_write_header for 0x136 and 0x137; byte-identical write and re-receive on X14802 (KORG eba516b) and X14800 (KORG aaa4f36)" {
+    send "14 01 00 51 {data:packed7}"
+    // 23 = data received; the global write has no commit
+    reply "01 00 00 {status}" timeout=2000
+    ok-when "status == 0x23"
 }
 
 types {
     int "channel" storage="u7" range="0..=15" display="{v + 1}" parse="{v - 1}"
+    // korg-sysex AckStatus
+    errors "ack" status="decoded" evidence="korg-sysex AckStatus" {
+        value 0x21 "Write complete"
+        value 0x22 "Write error"
+        value 0x23 "Data received"
+        value 0x24 "Not acknowledged"
+    }
 }
 
 // The exchanges are driver-owned (korg-core MeasuredSession, korg-app
-// run_job) until they are written as CDL messages. Shared bytes are on
-// record here; each device adds its own `owns` entries.
+// run_job) until procedures use the messages above.
 driver "korg-measured" {
-    owns "identity-request" bytes="F0 7E 7F 06 01 F7" status="measured" evidence="korg-sysex IDENTITY_REQUEST"
     owns "device-id" note="byte 2 of the identity reply; stored in the device (nanoKONTROL 00 on USB, nanoKEY 0F on USB and Bluetooth), not fixed by transport" status="measured" evidence="USB and Bluetooth captures, 2026-10-20"
-    owns "global-write-header" bytes="14 01 00 51" status="measured" evidence="korg-devices global_write_header for 0x136 and 0x137; ack 23, no commit; byte-identical write and re-receive on X14802 (KORG eba516b) and X14800 (KORG aaa4f36)"
-    owns "scene-commit" bytes="02 00 00 11 {scene}" frame="korg-native" status="measured" evidence="korg-sysex build_commit, korg-core MeasuredSession::write_scene"
 }
 
 procedure "receive-global" kind="read" status="measured" {
@@ -39,3 +75,6 @@ procedure "write-global" kind="write" status="measured" evidence="KORG eba516b (
     driver "korg-measured" step="write-global"
     verify "receive-global" compare="global"
 }
+
+// Test vectors from korg-sysex's capture tests. They need the device's
+// `model`, so each device descriptor carries its own.

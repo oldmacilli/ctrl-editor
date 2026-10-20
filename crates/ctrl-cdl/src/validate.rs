@@ -106,6 +106,21 @@ impl<'d> V<'d> {
         self.push(Severity::Error, pos, message);
     }
 
+    /// Reports an expression that does not parse (CDL §10.1).
+    fn expr(&mut self, pos: Pos, what: &str, s: &str) {
+        if let Err(e) = Expr::parse(s) {
+            self.error(pos, format!("{what}: {e}"));
+        }
+    }
+
+    fn template_exprs(&mut self, pos: Pos, what: &str, t: &Template) {
+        for piece in &t.pieces {
+            if let Piece::Expr { expr } = piece {
+                self.expr(pos, what, expr);
+            }
+        }
+    }
+
     fn type_def(&self, name: &str) -> Option<&'d TypeDef> {
         self.d.types.iter().find(|t| t.name() == name)
     }
@@ -194,6 +209,9 @@ impl<'d> V<'d> {
             }
             match item {
                 Item::Field(f) => {
+                    if let Some(when) = &f.visible_when {
+                        self.expr(f.meta.pos, "visible-when", when);
+                    }
                     let Some((width, range)) = self.type_shape(f.meta.pos, &f.ty) else {
                         continue;
                     };
@@ -326,6 +344,16 @@ impl<'d> V<'d> {
     fn path(&mut self, pos: Pos, path: &Path) {
         if let Err(e) = self.resolve(path) {
             self.error(pos, e);
+        }
+        for segment in &path.segments {
+            match &segment.index {
+                Some(Index::At(e)) => self.expr(pos, "index", e),
+                Some(Index::Range { start, end }) => {
+                    self.expr(pos, "index", start);
+                    self.expr(pos, "index", end);
+                }
+                None => {}
+            }
         }
     }
 
@@ -462,9 +490,42 @@ impl<'d> V<'d> {
     // ---- messages ---------------------------------------------------------
 
     fn messages(&mut self) {
+        // A frame's names come from the device, not from message arguments:
+        // each is a `const` or a transport `capture` (CDL §8.1).
+        let captured: Vec<&str> = self
+            .d
+            .transports
+            .iter()
+            .flat_map(|t| t.captures.iter().map(|c| c.name.as_str()))
+            .collect();
+        for f in &self.d.frames {
+            for t in f.prefix.iter().chain(&f.suffix) {
+                self.template_exprs(f.meta.pos, "sysex-frame", t);
+                for name in template_names(t) {
+                    if self.d.constant(&name).is_none() && !captured.contains(&name.as_str()) {
+                        self.error(
+                            f.meta.pos,
+                            format!(
+                                "sysex-frame `{}` uses `{name}`, which is neither a `const` nor a transport `capture`",
+                                f.name
+                            ),
+                        );
+                    }
+                }
+            }
+        }
         for m in &self.d.messages {
             if let Some(t) = &m.transport {
                 self.transport_ref(m.meta.pos, t);
+            }
+            if let Some(send) = &m.send {
+                self.template_exprs(m.meta.pos, "send", send);
+            }
+            if let Some(reply) = &m.reply {
+                self.template_exprs(reply.meta.pos, "reply", &reply.pattern);
+            }
+            if let Some(when) = &m.ok_when {
+                self.expr(m.meta.pos, "ok-when", when);
             }
             let frame = match &m.frame {
                 Some(name) => {
@@ -605,11 +666,9 @@ impl<'d> V<'d> {
                     }
                 }
                 Step::Driver { meta, driver, .. } => self.driver_ref(meta.pos, driver),
-                Step::Delay { .. }
-                | Step::Gate { .. }
-                | Step::Require { .. }
-                | Step::ExpectIdentity { .. }
-                | Step::OkWhen { .. } => {}
+                Step::Require { meta, expr } => self.expr(meta.pos, "require", expr),
+                Step::OkWhen { meta, expr } => self.expr(meta.pos, "ok-when", expr),
+                Step::Delay { .. } | Step::Gate { .. } | Step::ExpectIdentity { .. } => {}
             }
         }
     }
@@ -617,6 +676,13 @@ impl<'d> V<'d> {
     fn message_step(&mut self, what: &str, kind: Option<Access>, runnable: bool, s: &MessageStep) {
         for path in s.into.iter().chain(&s.from) {
             self.path(s.meta.pos, path);
+        }
+        for arg in &s.args {
+            if let Value::String(v) = &arg.value {
+                if let Some(inner) = v.strip_prefix('{').and_then(|v| v.strip_suffix('}')) {
+                    self.expr(s.meta.pos, &format!("argument `{}`", arg.name), inner);
+                }
+            }
         }
         let Some(m) = self.d.message(&s.message) else {
             self.error(s.meta.pos, format!("unknown message `{}`", s.message));
@@ -735,6 +801,9 @@ impl<'d> V<'d> {
             return;
         };
         let runnable = f.meta.status != Some(Status::Unknown);
+        for r in &f.requires {
+            self.expr(f.meta.pos, "require", r);
+        }
         if let Some(image) = &f.image {
             if let Some(driver) = &image.driver {
                 self.driver_ref(image.meta.pos, driver);
@@ -762,9 +831,17 @@ impl<'d> V<'d> {
 
     fn identify(&mut self) {
         for m in &self.d.identify {
-            if let Matcher::Exchange { meta, message, .. } = m {
+            if let Matcher::Exchange {
+                meta,
+                message,
+                ok_when,
+            } = m
+            {
                 if self.d.message(message).is_none() {
                     self.error(meta.pos, format!("unknown message `{message}`"));
+                }
+                if let Some(when) = ok_when {
+                    self.expr(meta.pos, "ok-when", when);
                 }
             }
         }
@@ -837,6 +914,9 @@ impl<'d> V<'d> {
                 }
             }
             for owned in &driver.owns {
+                if let Some(bytes) = &owned.bytes {
+                    self.template_exprs(owned.meta.pos, "bytes", bytes);
+                }
                 if owned.meta.status.is_none() {
                     self.error(
                         owned.meta.pos,
@@ -915,6 +995,28 @@ impl<'d> V<'d> {
             }
         }
     }
+}
+
+/// The names a template reads: fields, slices and expression names.
+fn template_names(t: &Template) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for piece in &t.pieces {
+        let names = match piece {
+            Piece::Field { name, .. } | Piece::Slice { name, .. } | Piece::Rest { name } => {
+                vec![name.clone()]
+            }
+            Piece::Expr { expr } => Expr::parse(expr)
+                .map(|e| e.names().into_iter().map(String::from).collect())
+                .unwrap_or_default(),
+            _ => Vec::new(),
+        };
+        for n in names {
+            if !out.contains(&n) {
+                out.push(n);
+            }
+        }
+    }
+    out
 }
 
 fn collect_items<'d>(parent: &str, items: &'d [Item], out: &mut Vec<(String, &'d Meta)>) {
@@ -1037,6 +1139,7 @@ fn template_len(t: &Template, default: u32) -> Option<u32> {
             } => u32::from(*count) * width(encoding)?,
             Piece::Checksum(c) if c.algorithm == ChecksumAlgorithm::Fnv1a32 => 4,
             Piece::Checksum(_) => 1,
+            Piece::Length { encoding } => width(&Some(encoding.clone()))?,
             Piece::Rest { .. } => return None,
         };
         Some(n + w)

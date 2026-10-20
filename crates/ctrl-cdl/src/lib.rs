@@ -12,6 +12,7 @@
 
 mod convert;
 mod error;
+pub mod expr;
 mod ir;
 mod path;
 mod raw;
@@ -23,6 +24,7 @@ use std::path::Path as FsPath;
 
 pub use convert::SUPPORTED_VERSIONS;
 pub use error::{Error, Errors};
+pub use expr::Expr;
 pub use ir::*;
 pub use path::{Index, Path, Segment};
 pub use template::{Checksum, ChecksumAlgorithm, Encoding, Piece, Storage, Template};

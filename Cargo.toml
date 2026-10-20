@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/ctrl-cdl", "tools/cdl-parse"]
+members = ["crates/ctrl-cdl", "crates/ctrl-codec", "tools/cdl-parse"]
 
 [workspace.package]
 version = "0.1.0"
@@ -13,3 +13,4 @@ kdl = "6"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 ctrl-cdl = { path = "crates/ctrl-cdl" }
+ctrl-codec = { path = "crates/ctrl-codec" }

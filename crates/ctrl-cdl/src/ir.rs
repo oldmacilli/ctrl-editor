@@ -74,6 +74,7 @@ pub struct Descriptor {
     pub lbmt: Vec<Lbmt>,
     pub drivers: Vec<Driver>,
     pub test_vectors: Vec<TestVector>,
+    pub consts: Vec<Const>,
 }
 
 impl Descriptor {
@@ -109,6 +110,10 @@ impl Descriptor {
 
     pub fn driver(&self, name: &str) -> Option<&Driver> {
         self.drivers.iter().find(|d| d.name == name)
+    }
+
+    pub fn constant(&self, name: &str) -> Option<&Const> {
+        self.consts.iter().find(|c| c.name == name)
     }
 }
 
@@ -688,5 +693,23 @@ pub struct TestVector {
     pub file: Option<String>,
     pub sha256: Option<String>,
     pub args: Vec<Arg>,
+    /// Decode `bytes` with the reply pattern instead of encoding the send.
+    pub reply: bool,
+    /// Byte-array arguments: `data "payload" "AA 55 80 01"`.
+    pub data: Vec<ByteArg>,
     pub bytes: Option<Vec<u8>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ByteArg {
+    pub name: String,
+    pub bytes: Vec<u8>,
+}
+
+/// `const "model" 0x137`: a named number the device's templates use (§8.1).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Const {
+    pub meta: Meta,
+    pub name: String,
+    pub value: i64,
 }

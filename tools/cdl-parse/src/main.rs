@@ -1,5 +1,6 @@
-//! Load and validate each CDL descriptor with `ctrl-cdl`. Prints a summary
-//! and every finding as `file:line:col: severity: message`; fails on errors.
+//! Load and validate each CDL descriptor and run its test vectors. Prints a
+//! summary, every finding as `file:line:col: severity: message` and each
+//! vector's result; fails on errors and failed vectors.
 
 use std::process::ExitCode;
 
@@ -22,6 +23,18 @@ fn main() -> ExitCode {
                 );
                 for finding in &report.findings {
                     println!("  {finding}");
+                }
+                for v in ctrl_codec::Codec::new(&d).run_vectors() {
+                    match v.outcome {
+                        ctrl_codec::Outcome::Pass => println!("  vector {}: pass", v.name),
+                        ctrl_codec::Outcome::Skipped(why) => {
+                            println!("  vector {}: skipped ({why})", v.name)
+                        }
+                        ctrl_codec::Outcome::Fail(why) => {
+                            failed = true;
+                            println!("  vector {}: FAIL {why}", v.name);
+                        }
+                    }
                 }
             }
             Err(errors) => {

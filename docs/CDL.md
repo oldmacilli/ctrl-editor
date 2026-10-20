@@ -45,10 +45,12 @@ cdl 0.1                                   // first node: language version
 device "oceanbeach.db1" { … }             // identity, vendor, links
 identify { … }                            // how to recognise it (§3)
 transport "aux" kind="midi" { … }         // one or more (§5)
+const "model" 0x137                       // named numbers for templates (§8.1)
 types { … }                               // enums and value types (§4.2)
 block "drawbar" { … }                     // stored data and its fields (§4)
 panel { … }                               // controls and bindings (§13)
 midi-map { … }                            // classic MIDI patching (§7)
+sysex-frame "korg-native" { … }           // vendor SysEx framing (§8.1)
 message "set-drawbar" { … }               // SysEx or HID message templates (§6)
 procedure "read-all" { … }                // ordered exchanges (§11)
 firmware { … }                            // update procedure (§12)
@@ -267,15 +269,18 @@ A template is a string of bytes and placeholders:
 | Element | Meaning |
 |---|---|
 | `F0`, `7F` | literal byte (hex, two digits) |
-| `{name}` | one byte from a field or argument, encoded with the field's storage type; without a type it is `u7` on MIDI transports (must fit `0..=127`) and `u8` on USB transports |
+| `{name}` | one value, encoded with the field's storage type; without a type it is `u7` on MIDI transports (must fit `0..=127`) and `u8` on USB transports |
 | `{name:type}` | encode with a storage type, e.g. `{value:u14le}` → 2 bytes |
+| `{name:midi-id}` | a MIDI ID: 1 or 3 bytes (§8.1) |
 | `{name[n]}`, `{name[n]:type pad=7F}` | `n` elements of an array, from the step's `from=` slice; elements past the array's end are sent as `pad` (without `pad`, an error) |
-| `{block:packed7}` | the whole block, 8→7 bit packed (KORG) |
-| `{block:raw}` | the whole block as is |
-| `{sum:roland(from,to)}` | checksum over a byte range (§6.1) |
-| `{=lbmt expr}` | computed byte (§10) |
+| `{name:packed7}` | bytes, 8→7 bit packed (§8.1) |
+| `{name:raw}` | bytes as they are |
+| `{name:ascii(n)}` | text, padded with spaces to `n` bytes |
+| `{len:type}` | the number of body bytes after this field, up to the first checksum or the end of the body |
+| `{sum:roland(from,to)}` | checksum over a range of the body (§6.1) |
+| `{expr}`, `{=expr}` | a computed byte, a CDL expression (§10.1) |
 | `..` | in a reply pattern: any one byte |
-| `{name*}` | in a reply pattern: capture the rest up to the terminator |
+| `{name*}` | in a reply pattern: capture the rest up to what follows |
 
 ```kdl
 message "set-drawbar" transport="aux" status="measured" evidence="db1-protocol/src/message.rs set_drawbar" {
@@ -292,15 +297,34 @@ fails `ok-when`. Error texts come from an enum:
 
 A placeholder whose content is a name (letters, digits, `_`, `-`, `.`, `$`;
 a letter, `_` or `$` first) is a field or argument; anything else, such as
-`{0x40 | device-id}`, is an LBMT expression, the same as `{=…}`. `..` and
-`{name*}` are allowed in replies only.
+`{0x40 | device-id}`, is a CDL expression (§10.1), the same as `{=…}`. `..`
+and `{name*}` are allowed in replies only.
+
+A message's bytes are the frame's `prefix`, the message's own template (the
+**body**), then the frame's `suffix`. A name resolves to the step's
+arguments, the transport's captures and the reply's earlier captures, then
+to the device's `const` nodes.
+
+Matching a reply, a placeholder whose name is already known (an argument, a
+capture, a `const`) is checked; an unknown one is captured. An expression is
+checked when all its names are known. Otherwise it captures its one unknown
+name if it has one of the forms `x`, `x + k`, `k + x`, `x - k`, `k | x` or
+`x | k`, with `k` known; for `|` every bit of `k` must be set in the byte, and
+`x` takes the remaining bits. So `{0x40 | device-id}` captures the KORG
+device id from `4F`, and rejects `3F`. A variable-width piece (`{x*}`,
+`packed7`, `raw`) takes the bytes up to the fixed-width pieces that follow
+it; one such piece per message. On a fixed-size HID or USB frame, sends are
+padded with `00` and zeros after the pattern are padding.
 
 ### 6.1 Checksums
 
-Built in: `sum7` (two's complement of the sum, low 7 bits), `roland`
-(`(128 - sum % 128) % 128`), `xor7`, `fnv1a32` (files only). Ranges are byte
-indexes into the message, and negative values count from the end. Anything
-else is a `compute` LBMT snippet or a driver.
+Built in: `sum7` and `roland` (both `(128 - sum % 128) % 128`), `xor7` (the
+XOR of the bytes, low 7 bits) and `fnv1a32` (files only). `from` and `to`
+index the message body, not the whole message: `from` is included, `to` is
+not, and a negative index counts from the body's end. Checksum bytes count
+as `00` while the sum is computed. So a Roland-style body
+`12 {address:u14be} {value} {sum:roland(1,-1)}` sums the address and the
+value. Anything else is a `compute` LBMT snippet or a driver.
 
 ## 7. Classic MIDI patching
 
@@ -329,25 +353,79 @@ bend by setting). The editor uses `midi-map` to:
 ## 8. SysEx patching
 
 SysEx is a set of `message` nodes (§6) plus the `procedure`s that use them
-(§11). Two helpers make vendor framing short:
+(§11). The vendor's framing is written once, as a `sysex-frame`, and each
+message names it with `frame=`.
+
+### 8.1 Vendor framing from generic parts
+
+Most vendors' SysEx is built from the same parts. CDL has one generic tool
+per part, so a frame needs no vendor code:
+
+| Part | Examples | CDL |
+|---|---|---|
+| start, end | `F0` … `F7` | literal bytes in `prefix` and `suffix` |
+| manufacturer ID | `42` (KORG), `00 20 29` (3-byte IDs) | `const "manufacturer" 0x42`, `{manufacturer:midi-id}` |
+| device ID in a byte with fixed bits | `4d` (KORG), `1n` | an expression, `{0x40 \| device-id}`; the value comes from a transport `capture` of the identity reply |
+| model ID | `00 01 37` (KORG), fixed bytes | `const "model" 0x137` with `{model:midi-id}`, literal bytes, or `{model:u14be}` |
+| command, address | `01 00 00 12` | literal bytes, fields, `{address:u14be}` |
+| byte count | before the data | `{len:u14be}` (§6) |
+| 8-bit data in 7-bit bytes | KORG 7-in-8 | `{data:packed7}` |
+| plain data, text | | `{data:raw}`, `{name:ascii(16)}`, slices `{v[6]}` |
+| checksum | Roland | `{sum:roland(1,-1)}` (§6.1) |
+
+**`midi-id`**: a value below `0x80` is one byte; any other is three bytes
+`00 hi lo` with `hi = v >> 8` and `lo = v & 0xFF`, both below `0x80`
+(`0x137` → `00 01 37`, `0x2029` → `00 20 29`). Manufacturer IDs and KORG
+model IDs use it. Decoding reads one byte, or three when the first is `00`.
+
+**`packed7`**: data goes in groups of up to seven bytes, each preceded by
+one byte that holds their top bits: bit `i` is the top bit of the group's
+byte `i`. A short last group still gets its leading byte, so `n` bytes pack
+into `n + ceil(n / 7)`, and a packed region of `m` bytes unpacks into
+`m - ceil(m / 8)`. `80 01` packs to `01 00 01`.
+
+Names in a frame come from the device, not from message arguments: each is
+a `const` or a transport `capture`. `ctrl_cdl::validate` checks this.
+
+The KORG framing (`descriptors/korg/common.inc.kdl`, measured):
 
 ```kdl
-// from korg-sysex: F0 42 4d, where d is the device id read from the
-// identity reply (a stored device setting, not tied to the transport and
-// not a MIDI channel), then the model id
-// (one byte below 0x80, otherwise 00 hi lo, so 0x137 is 00 01 37), then
-// the command
-sysex-frame "korg-native" status="decoded" evidence="KORG crates/korg-sysex push_model, encode" {
-    prefix "F0 42 {0x40 | device-id} {model:korg-model}"
+const "manufacturer" 0x42
+sysex-frame "korg-native" status="measured" {
+    prefix "F0 {manufacturer:midi-id} {0x40 | device-id} {model:midi-id}"
     suffix "F7"
 }
-message "scene-dump-request" frame="korg-native" { send "{cmd.scene_data_request} {scene}" }
+message "identity" transport="selected" status="measured" {
+    send "F0 7E 7F 06 01 F7"
+    reply "F0 7E {device-id} 06 02 {manufacturer:midi-id} {model:u16le} {member:u16le} {version:u16le} .. .. F7"
+}
+message "select-scene" frame="korg-native" transport="selected" status="measured" {
+    send "02 00 00 14 {scene}"
+}
 ```
 
-`korg-model` is a storage type of the `korg` device pack. Vendor pack types
-like this one are allowed when they are pure functions with test vectors.
-Dump messages carry a block with `{block:packed7}`; the engine splits and
-joins multi-message dumps when the block says `chunk=…`.
+Each device adds `const "model" 0x137`. The transports `capture
+"device-id" from="identity"`; the identity reply checks `model`, so another
+model's reply does not match. The frame then gives `F0 42 4F 00 01 36 02 00
+00 14 03 F7` for scene 3 on a nanoKEY Studio with device id `0F`, byte for
+byte the capture that `korg-sysex` tests against.
+
+Other vendors' framing has the same shape. These sketches show the parts,
+not evidence; a real descriptor needs captures:
+
+```kdl
+// Roland-style: device id byte, model id, command 12, address, data, checksum
+sysex-frame "roland" { prefix "F0 41 {device-id} {model:midi-id} 12"; suffix "F7" }
+message "set" frame="roland" { send "{address:u14be} {value} {sum:roland(0,-1)}" }
+// Yamaha-style: 1n device byte, a byte count before the data
+sysex-frame "yamaha" { prefix "F0 43 {0x10 | device-id}"; suffix "F7" }
+message "bulk" frame="yamaha" { send "7A {len:u14be} {data:raw} {sum:sum7(1,-1)}" }
+```
+
+A device pack may register its own encoding (`{x:vendor-name}`, a Rust
+`VendorEncoding` in `ctrl-codec`) only when no generic part fits, and only
+with test vectors. Dump messages carry a block with `{data:packed7}`; the
+engine splits and joins multi-message dumps when the block says `chunk=…`.
 
 ## 9. USB parameter patching
 
@@ -390,8 +468,27 @@ limit.
 
 ### 10.1 Expressions
 
-A short expression in braces or `#"…"#` is one LBMT expression. Field names
-bind to LBMT globals by name; `v` is the value at hand:
+Placeholders (`{0x20 + s}`), `ok-when`, `visible-when`, `require`, path
+indexes and `{…}` arguments use **CDL expressions**, a small integer
+language. They are not LBMT: LBMT binds `& | ^ << >>` tighter than `+`, has
+comparisons only in `IF`, and its names cannot contain `-`. LBMT stays for
+`compute` blocks and translators (§10.2, §10.3).
+
+- Values are 64-bit integers: decimal, `0x` hex, `_` separators. A
+  comparison or `&&`, `||`, `!` gives 0 or 1; any non-zero value is true.
+- Names: letters, digits, `_`, `$`, `.`, and `-` between two such characters
+  when a letter follows (`device-id`, `image.crc`). `v-1` and `v - 1` are
+  both `v` minus 1.
+- Operators bind as in C, tightest first: unary `- ! ~`; `* / %`; `+ -`;
+  `<< >>`; `< <= > >=`; `== !=`; `&`; `^`; `|`; `&&`; `||`.
+- An arithmetic operator (`+ - * / %`) and a bitwise one (`& | ^ << >>`) may
+  not be operands of each other without parentheses: write `(a + b) | c`.
+  This keeps an expression from meaning one thing here and another in LBMT.
+- Overflow, division by zero, a shift outside `0..64` and an unknown name
+  are errors. `&&` and `||` stop early.
+
+The validator parses every expression; the codec evaluates them. `v` is the
+value at hand in `display` and `parse`:
 
 ```kdl
 int "channel" storage="u7" range="0..=15" display="{v + 1}" parse="{v - 1}"
@@ -498,7 +595,7 @@ firmware status="unknown" {
     stage "enter-bootloader" { exchange "enter-bootloader"; expect-identity product=1 }
     stage "erase" kind="commit" { exchange "erase" timeout=5000 }
     stage "transfer" kind="commit" {
-        repeat "chunk" image-chunks size=… { exchange "write-chunk" data="{chunk:packed7}" }
+        repeat "chunk" image-chunks size=… { exchange "write-chunk" data="{chunk}" }
     }
     stage "verify" { exchange "image-crc"; ok-when #"crc == image.crc"# }
     stage "reboot" { send "reboot"; expect-identity product=0 timeout=10000 }
@@ -565,12 +662,25 @@ test-vector "set-drawbar-0" message="set-drawbar" status="decoded" evidence="db1
     args index=0 polarity=0 cc=12 channel=0
     bytes "F0 09 00 00 00 02 03 00 00 0C 00 F7"
 }
+test-vector "scene-write" message="scene-write" status="decoded" {
+    args device-id=0
+    data "data" "AA 55 80 01"                  // a byte-array argument
+    bytes "F0 42 40 00 01 37 01 05 00 40 05 2A 55 00 01 F7"
+}
+test-vector "commit-ack" message="commit-ack" reply=#true {
+    args device-id=0 status=0x21
+    bytes "F0 42 40 00 01 37 01 00 00 21 F7"
+}
 test-vector "scene-1" block="scene" file="the local capture archive" sha256="…"   // external, opt-in
 ```
 
-`ctrl-cli check` encodes `args` and compares to `bytes`, and decodes `bytes`
-back to `args`. External vectors run only when their file exists, like
-KORG's `KORG_PRODUCTS_DIR` tests.
+A send vector encodes `args` and `data` and compares the result to `bytes`,
+then decodes `bytes` with the send template and compares back to the
+arguments. A `reply=#true` vector decodes `bytes` with the reply pattern.
+String arguments are text (`ascii`). `ctrl-codec` runs them
+(`Codec::run_vectors`); `tools/cdl-parse` and later `ctrl-cli check` print
+the results. External vectors run only when their file exists, like KORG's
+`KORG_PRODUCTS_DIR` tests.
 
 ## 16. Tooling
 

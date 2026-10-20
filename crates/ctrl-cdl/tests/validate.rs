@@ -361,6 +361,21 @@ fn scan_rules() {
 }
 
 #[test]
+fn frame_names_come_from_the_device() {
+    let frame = r#"sysex-frame "k" status="measured" { prefix "F0 {manufacturer:midi-id} {0x40 | device-id} {model:midi-id}"; suffix "F7" }"#;
+    assert_eq!(
+        errors(&format!(
+            "const \"manufacturer\" 0x42\nconst \"model\" 0x137\ntransport \"u\" kind=\"midi\" role=\"config\" {{ capture \"device-id\" from=\"id\" }}\nmessage \"id\" transport=\"u\" status=\"measured\" {{ send \"F0 7E 7F 06 01 F7\"; reply \"F0 7E {{device-id}} ..\" }}\n{frame}"
+        )),
+        Vec::<String>::new()
+    );
+    let e = errors(&format!("const \"manufacturer\" 0x42\n{frame}"));
+    assert_eq!(e.len(), 2, "{e:#?}");
+    assert!(e[0].contains("uses `device-id`"), "{e:#?}");
+    assert!(e[1].contains("uses `model`"), "{e:#?}");
+}
+
+#[test]
 fn firmware_rules() {
     assert_eq!(
         errors(r#"firmware status="measured""#),

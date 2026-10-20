@@ -49,10 +49,18 @@ Last updated: 2026-10-20 (ctrl-cdl landed).
   overlap (§5), SysEx data bytes, HID frame sizes, scan messages (5bd7d4a)
 - [x] platform: CDL §5.1 `scan` and `listen` for DIN-only devices; DB-1
   found by scanning with its revision request (5bd7d4a)
-- [ ] platform: template codec: encode and decode `send`/`reply` (CDL §6),
-  checksums (§6.1)
-- [ ] platform: test-vector runner; DB-1 vectors from `db1-protocol` tests,
-  TEC vectors from the HID captures
+- [x] platform: CDL expressions (§10.1), parsed by the validator; LBMT stays
+  for compute and translators (COMMIT)
+- [x] platform: `ctrl-codec`: encode and decode `send`/`reply` (CDL §6),
+  checksums (§6.1), lengths, `midi-id`, `packed7`, HID frame padding, reply
+  captures through expressions; test-vector runner in `cdl-parse` (COMMIT)
+- [x] platform: KORG framing from generic parts (CDL §8.1): `const`,
+  `midi-id`, `{0x40 | device-id}`; 10 KORG vectors byte for byte with
+  `korg-sysex`'s captures (COMMIT)
+- [ ] platform+db1: more DB-1 vectors from `db1-protocol` tests (one today)
+- [ ] platform+tec: TEC vectors from the HID captures (one today)
+- [ ] platform: a vendor-encoding registry entry only when no generic part
+  fits; none needed so far
 - [ ] platform: `ctrl-cli check | explain | trace` (CDL §16)
 - [ ] platform: tree-sitter query file, LBMT injection
 - [ ] platform: `cdl-schema.md`: one table per node with every property,
@@ -98,9 +106,10 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
 
 ### KORG
 
-- [ ] korg: nanoKONTROL Studio descriptor complete: SysEx exchanges as CDL
-  messages instead of the `korg-measured` driver; identity reply as a CDL
-  pattern that captures the device id
+- [ ] korg: nanoKONTROL Studio descriptor complete: procedures that use the
+  CDL messages (identity, requests, scene write, commit, global write, acks;
+  in place since COMMIT) instead of the `korg-measured` driver; data reply
+  pattern for the receive (header and packed payload)
 - [ ] korg: Strings XML from the vendor application (`the local capture archive`)
   → control lists and value labels for all 14 devices
 - [ ] korg: parameter schemas for the 12 devices without one (getters)

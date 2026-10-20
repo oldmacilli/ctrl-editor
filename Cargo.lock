@@ -13,6 +13,7 @@ name = "cdl-parse"
 version = "0.1.0"
 dependencies = [
  "ctrl-cdl",
+ "ctrl-codec",
 ]
 
 [[package]]
@@ -28,6 +29,13 @@ dependencies = [
  "kdl",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "ctrl-codec"
+version = "0.1.0"
+dependencies = [
+ "ctrl-cdl",
 ]
 
 [[package]]

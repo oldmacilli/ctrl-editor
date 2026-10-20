@@ -1,0 +1,10 @@
+[package]
+name = "ctrl-codec"
+description = "Encode and decode CDL message templates; run descriptor test vectors"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+ctrl-cdl.workspace = true

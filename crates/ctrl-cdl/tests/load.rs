@@ -117,23 +117,22 @@ fn includes_merge_by_kind_and_name() {
     assert_eq!(d.files.len(), 2);
     assert!(d.files[1].ends_with("common.inc.kdl"));
 
-    // The local driver extends the shared one: 4 shared `owns`, 1 local.
+    // The local driver extends the shared one: the shared `owns` entry
+    // stays, the local `provides` is added.
     let driver = d.driver("korg-measured").unwrap();
-    assert_eq!(driver.owns.len(), 5);
+    assert_eq!(driver.owns.len(), 1);
     assert_eq!(driver.provides.len(), 5);
-    let header = driver
-        .owns
-        .iter()
-        .find(|o| o.name == "scene-write-header")
-        .unwrap();
-    assert_eq!(header.bytes.as_ref().unwrap().to_string(), "14 02 00 40");
-    assert_eq!(header.meta.pos.file, 0);
-    let commit = driver
-        .owns
-        .iter()
-        .find(|o| o.name == "scene-commit")
-        .unwrap();
-    assert_eq!(commit.meta.pos.file, 1);
+    assert_eq!(driver.meta.pos.file, 0);
+    // Messages come from both files.
+    let write = d.message("scene-write").unwrap();
+    assert_eq!(
+        write.send.as_ref().unwrap().to_string(),
+        "14 02 00 40 {data:packed7}"
+    );
+    assert_eq!(write.meta.pos.file, 0);
+    assert_eq!(d.message("commit-scene").unwrap().meta.pos.file, 1);
+    assert_eq!(d.constant("model").unwrap().value, 0x136);
+    assert_eq!(d.constant("manufacturer").unwrap().value, 0x42);
 
     // Shared procedures and the frame come from the include.
     assert!(d.procedure("write-global").is_some());
@@ -158,9 +157,9 @@ fn includes_merge_by_kind_and_name() {
 #[test]
 fn nanokontrol_types_block_and_panel() {
     let d = load_ok("korg/nanokontrol-studio.ctrl.kdl");
-    // `types` merges: the shared int "channel" plus the local enums.
+    // `types` merges: the shared "channel" and "ack" plus the local enums.
     let names: Vec<_> = d.types.iter().map(TypeDef::name).collect();
-    assert_eq!(names, ["channel", "jog-type", "jog-accel"]);
+    assert_eq!(names, ["channel", "ack", "jog-type", "jog-accel"]);
     let TypeDef::Int(channel) = &d.types[0] else {
         panic!();
     };
@@ -493,13 +492,7 @@ fn local_children_replace_included_ones() {
 #[test]
 fn error_at_names_the_file() {
     let d = load_ok("korg/nanokey-studio.ctrl.kdl");
-    let commit = d
-        .driver("korg-measured")
-        .unwrap()
-        .owns
-        .iter()
-        .find(|o| o.name == "scene-commit")
-        .unwrap();
+    let commit = d.message("commit-scene").unwrap();
     let e = d.error_at(commit.meta.pos, "x");
     assert!(e.file.ends_with("common.inc.kdl"));
     assert!(e.line > 1);

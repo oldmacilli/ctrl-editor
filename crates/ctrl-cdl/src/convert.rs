@@ -64,6 +64,7 @@ pub(crate) fn convert(
             lbmt: b.lbmt,
             drivers: b.drivers,
             test_vectors: b.test_vectors,
+            consts: b.consts,
         }),
         _ => Err(Errors(cx.errors)),
     }
@@ -417,6 +418,7 @@ struct Builder {
     lbmt: Vec<Lbmt>,
     drivers: Vec<Driver>,
     test_vectors: Vec<TestVector>,
+    consts: Vec<Const>,
 }
 
 const TOP: &[&str] = &[
@@ -437,6 +439,7 @@ const TOP: &[&str] = &[
     "lbmt",
     "driver",
     "test-vector",
+    "const",
 ];
 
 impl Builder {
@@ -481,6 +484,17 @@ impl Builder {
             "lbmt" => self.lbmt.push(lbmt(cx, n)),
             "driver" => self.drivers.push(driver(cx, n)),
             "test-vector" => self.test_vectors.push(test_vector(cx, n)),
+            "const" => {
+                cx.shape(n, 2..=2, Some(&[]), false);
+                let name = cx.name(n);
+                if let Some(value) = cx.arg_int(n, 1) {
+                    self.consts.push(Const {
+                        meta: cx.meta(n),
+                        name,
+                        value,
+                    });
+                }
+            }
             // Resolved by the loader; a bad one was reported there.
             "include" => {}
             _ => cx.unknown_child("the descriptor", n, TOP),
@@ -573,6 +587,11 @@ impl Builder {
             self.test_vectors
                 .iter()
                 .map(|t| (t.name.as_str(), t.meta.pos)),
+        );
+        dups(
+            cx,
+            "const",
+            self.consts.iter().map(|c| (c.name.as_str(), c.meta.pos)),
         );
     }
 }
@@ -1362,7 +1381,7 @@ fn test_vector(cx: &mut Cx, n: &RawNode) -> TestVector {
     cx.shape(
         n,
         1..=1,
-        Some(&["message", "block", "file", "sha256"]),
+        Some(&["message", "block", "file", "sha256", "reply"]),
         true,
     );
     let mut t = TestVector {
@@ -1372,7 +1391,9 @@ fn test_vector(cx: &mut Cx, n: &RawNode) -> TestVector {
         block: cx.prop_str(n, "block"),
         file: cx.prop_str(n, "file"),
         sha256: cx.prop_str(n, "sha256"),
+        reply: cx.prop_bool(n, "reply"),
         args: Vec::new(),
+        data: Vec::new(),
         bytes: None,
     };
     for c in &n.children {
@@ -1387,7 +1408,14 @@ fn test_vector(cx: &mut Cx, n: &RawNode) -> TestVector {
                     once(cx, c, &mut t.bytes, bytes);
                 }
             }
-            _ => cx.unknown_child("test-vector", c, &["args", "bytes"]),
+            "data" => {
+                cx.shape(c, 2..=2, Some(&[]), false);
+                let name = cx.name(c);
+                if let Some(bytes) = cx.arg_with(c, 1, parse_hex_bytes) {
+                    t.data.push(ByteArg { name, bytes });
+                }
+            }
+            _ => cx.unknown_child("test-vector", c, &["args", "data", "bytes"]),
         }
     }
     t

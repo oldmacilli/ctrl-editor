@@ -31,7 +31,7 @@ transport "ble" kind="midi" port-match="nanoKEY Studio Bluetooth" role="config" 
     capture "device-id" from="identity"
 }
 
-// 0x136 encodes as 00 01 36.
+const "model" 0x136 status="measured" evidence="identity reply 36 01, captured 2026-10-20; korg-devices measured_layout(0x136)"
 block "scene" size=240 count=8 status="measured" evidence="measured_layout(0x136)" {
     field "name" offset=0 type="ascii(16)"
     array "knob" count=8 status="unknown"
@@ -57,9 +57,17 @@ procedure "write-scene-set" kind="write" status="measured" evidence="verified un
 // receive-global and write-global (measured, header 14 01 00 51, ack 23,
 // no commit) come from common.inc.kdl.
 
-driver "korg-measured" provides="procedure:receive-scene-set procedure:receive-global procedure:write-scene procedure:write-scene-set procedure:write-global" {
-    owns "scene-write-header" bytes="14 02 00 40" status="measured" evidence="korg-devices measured_layout(0x136)"
+// Acks use the frame: 01 00 00, then the status (korg-sysex ack_status reads
+// only that byte; the captured commit ack is 01 00 00 21). Scene data is
+// acked with 23 (data received), the commit with 21 (write complete), as in
+// korg-sysex Phase::expected.
+message "scene-write" frame="korg-native" transport="selected" kind="write" status="measured" evidence="korg-devices measured_layout(0x136); scene-set write verified unchanged (KORG aaa4f36)" {
+    send "14 02 00 40 {data:packed7}"
+    reply ".. .. .. {status}" timeout=2000
+    ok-when "status == 0x23"
 }
+
+driver "korg-measured" provides="procedure:receive-scene-set procedure:receive-global procedure:write-scene procedure:write-scene-set procedure:write-global"
 driver "korg-nktrl-file" provides="file:nanokey_st_set file:nanokey_st_data file:nanokey_st_glob"
 
 // Panel: korg_app::panel nanokey_studio(), picture 500 x 294.
@@ -77,3 +85,21 @@ panel picture="500x294" source="measured by eye from the editor's panel picture"
 
 firmware status="unknown"
 procedure "calibrate-touch-pad" kind="commit" status="unknown" evidence="X14800_Calib class in the vendor application; needs a capture"
+
+// Byte for byte from korg-sysex's capture tests, device id 0F.
+test-vector "identity-reply" message="identity" reply=#true status="measured" evidence="korg-sysex identity_replies_parse_for_both_studios" {
+    args device-id=0x0F member=0 version=8
+    bytes "F0 7E 0F 06 02 42 36 01 00 00 08 00 01 00 F7"
+}
+test-vector "scene-set-info-request" message="scene-set-info-request" status="measured" evidence="korg-sysex measured_requests_match_the_capture" {
+    args device-id=0x0F
+    bytes "F0 42 4F 00 01 36 01 00 00 12 F7"
+}
+test-vector "select-scene-3" message="select-scene" status="measured" evidence="korg-sysex measured_requests_match_the_capture" {
+    args device-id=0x0F scene=3
+    bytes "F0 42 4F 00 01 36 02 00 00 14 03 F7"
+}
+test-vector "read-block-request" message="read-block-request" status="measured" evidence="korg-sysex measured_requests_match_the_capture" {
+    args device-id=0x0F
+    bytes "F0 42 4F 00 01 36 01 00 00 10 F7"
+}

@@ -70,6 +70,8 @@ const NAMED: &[&str] = &[
     "driver",
     "owns",
     "test-vector",
+    "const",
+    "data",
 ];
 
 /// Kinds whose children are an ordered step list; a local list replaces the
