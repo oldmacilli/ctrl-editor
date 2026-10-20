@@ -15,7 +15,10 @@ message "enter-bootloader" transport="aux" kind="commit" status="unknown"
 message "erase" transport="aux" kind="commit" status="unknown"
 message "write-chunk" transport="aux" kind="commit" status="unknown"
 message "image-crc" transport="aux" status="unknown"
+message "revision" transport="aux" status="unknown"
 message "reboot" transport="aux" kind="commit" status="unknown"
+
+driver "example-image" status="unknown" note="checks the image: format, size, integrity"
 
 firmware status="unknown" {
     image format="example" magic="00 00 00 00" driver="example-image"

@@ -9,13 +9,17 @@ device "oceanbeach.db1" {
     replaces "DB-1 Configurator (LiveCode, 2014)"
 }
 
+// The DB-1 has 5-pin DIN ports only (MAIN and AUX pairs), so no MIDI port
+// carries its name: it is reached through whatever interface the user has
+// (proven: Behringer UMC404HD). A scan (CDL §5.1) sends the revision request
+// on each output and pairs it with the input that answers; the user can also
+// pick the ports by hand.
 identify {
-    midi-port match="DB-1" direction="both"
-    exchange "revision" ok-when="product == 0"     // 1 = bootloader
+    exchange "revision" ok-when="product == 0" status="measured" evidence="HANDOVER.md raw ping reply"   // 1 = bootloader
 }
 
-transport "main" kind="midi" port-match="DB-1" role="performance"
-transport "aux" kind="midi" port-match="DB-1" role="config" status="measured" evidence="HANDOVER.md: SysEx on the AUX pair"
+transport "main" kind="midi" role="performance" note="MAIN OUT; drawbar CCs in performance use"
+transport "aux" kind="midi" role="config" scan="revision" status="measured" evidence="HANDOVER.md: programming on the AUX pair, through a UMC404HD"
 
 types {
     enum "polarity" status="measured" evidence="state.rs Polarity" {
@@ -138,6 +142,8 @@ lbmt "organ-remap" from="main" to="virtual:DB-1 Organ" enabled=#false #"""
   @action midi cc cc#=ss value=rr
 @end
 """#
+
+driver "db1-obd" status="unknown" evidence="DB-1 findings: the .obd image is encoded; decoding parked"
 
 firmware status="unknown" evidence="DB-1 findings: .obd image encoded, decoding parked" {
     image format="obd" magic="30 42 44 20" driver="db1-obd"

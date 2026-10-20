@@ -106,7 +106,17 @@ Every node may carry `status` and `evidence`:
 
 `evidence` is free text pointing at the proof: a capture file, an analysed
 address, a doc section. The rule "do not guess SysEx values" becomes a
-check: `ctrl-cli check` fails when a sendable path depends on `unknown`.
+check (`ctrl_cdl::validate`, run by `ctrl-cli check`):
+
+- A node marked `unknown` is disabled and listed. A procedure, firmware
+  stage or scan that is not `unknown` but sends an `unknown` message, frame
+  or block path is an error: measure the dependency, or mark the node
+  `unknown` too.
+- A `write` or `commit` procedure that sends a message or frame that is only
+  `decoded` is an error.
+- Every message or frame on a send path, and every driver `owns` entry,
+  carries a `status`.
+- `inferred` dependencies are listed: they need the user's opt-in.
 
 ### 4.2 Types
 
@@ -189,6 +199,10 @@ config transport (KORG over USB and BLE), one carries `preferred=#true`,
 and the user's port choice overrides it. Without a preferred transport the
 engine asks the user to choose and never picks one silently.
 
+A MIDI transport without a match is reached through a port the user picks,
+and the choice is saved with the device: the DB-1 has 5-pin DIN ports only,
+so its port is named after the user's interface.
+
 `port-match` is a case-sensitive substring of the port name, used for both
 directions. When the input and output ports have different names, use
 `port-match-in` and `port-match-out` instead; a transport has either
@@ -208,6 +222,44 @@ that more than one transport matches.
 A transport can capture values from the identity exchange for later
 messages: `capture "device-id" from="identity-reply.device"`.
 
+### 5.1 Finding a device without a port name: scan and listen
+
+A device with 5-pin DIN ports only (the DB-1) sits behind any MIDI
+interface or network session, so no port carries its name. `scan` names a
+read message whose reply identifies the device:
+
+```kdl
+transport "aux" kind="midi" role="config" scan="revision"
+```
+
+The engine then:
+
+1. sends the scan message on one MIDI output at a time, and listens on
+   every input for its `reply` pattern, up to the message's `timeout`;
+2. pairs that output with the input the matching reply arrived on, and
+   checks `ok-when` (the DB-1 answers `product == 0`; 1 is its bootloader);
+3. asks the user when several pairs answer, and saves the choice with the
+   device, as for a port picked by hand;
+4. skips ports already bound to a device, and scans only when the user
+   starts it (a scan sends bytes to every device on every port).
+
+The scan message must be a read (`kind` absent or `read`), measured or
+decoded, with a `reply`. Prefer a message that other devices ignore: SysEx
+with the vendor's manufacturer ID, or the universal identity request
+`F0 7E 7F 06 01 F7`, which every device that implements it answers. On a
+MIDI network with several devices of one model, the identity replies carry
+each device's id (byte 2, `capture "device-id"`), so each reply becomes its
+own device.
+
+`listen` is passive: bytes the device sends by itself on an input, such as
+Active Sensing (`FE`, about every 300 ms) or a known CC. It marks an input
+as live, so the engine can scan it first or show it to the user. Active
+Sensing carries no device id, so `listen` never identifies a device alone:
+
+```kdl
+identify { listen "FE" status="inferred" }
+```
+
 ## 6. Message templates
 
 A template is a string of bytes and placeholders:
@@ -217,6 +269,7 @@ A template is a string of bytes and placeholders:
 | `F0`, `7F` | literal byte (hex, two digits) |
 | `{name}` | one byte from a field or argument, encoded with the field's storage type; without a type it is `u7` on MIDI transports (must fit `0..=127`) and `u8` on USB transports |
 | `{name:type}` | encode with a storage type, e.g. `{value:u14le}` → 2 bytes |
+| `{name[n]}`, `{name[n]:type pad=7F}` | `n` elements of an array, from the step's `from=` slice; elements past the array's end are sent as `pad` (without `pad`, an error) |
 | `{block:packed7}` | the whole block, 8→7 bit packed (KORG) |
 | `{block:raw}` | the whole block as is |
 | `{sum:roland(from,to)}` | checksum over a byte range (§6.1) |
@@ -311,7 +364,23 @@ message "poll" transport="hid" { send "00"; reply "{breath} {bite} {nod} {tilt} 
 
 `{0x20 + sensor}` is a computed byte (an expression in braces, §10.1). HID
 reports have no SysEx framing; the transport sets the report ID (none for
-TEC).
+TEC). A send must fit the frame, and a reply must fill it.
+
+An array goes out in pages with a slice placeholder. The TEC curve is 32
+values in 6 pages of 6, and the last page is padded with 7F:
+
+```kdl
+message "write-curve-page" transport="hid" kind="write" {
+    send "{0x40 + s} {start} {curve[6] pad=7F}"
+    reply "00 00 00 00 00 00 00 00"
+}
+procedure "write-sensor" kind="write" {
+    …
+    repeat "p" "0..=5" {
+        exchange "write-curve-page" start="{p * 6}" from="sensor[s].curve[p * 6 .. p * 6 + 6]"
+    }
+}
+```
 
 ## 10. LBMT inside CDL
 

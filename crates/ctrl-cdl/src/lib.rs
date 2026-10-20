@@ -5,10 +5,10 @@
 //! converts the merged KDL into a [`Descriptor`]. Every error carries file,
 //! line and column, and one load reports all errors it finds.
 //!
-//! This crate checks shape: node and property names, argument counts, value
-//! types, templates (§6), paths (§4.4) and ranges. Cross-references (does
-//! the message exist, does the field fit the block) and the `status` rules
-//! (§4.1) belong to the validator.
+//! Loading checks shape: node and property names, argument counts, value
+//! types, templates (§6), paths (§4.4) and ranges. [`validate`] then checks
+//! the loaded descriptor: references, sizes, the `status` rules (§4.1), the
+//! write policy (§11) and port matches (§5).
 
 mod convert;
 mod error;
@@ -16,6 +16,7 @@ mod ir;
 mod path;
 mod raw;
 mod template;
+mod validate;
 
 use std::io;
 use std::path::Path as FsPath;
@@ -25,6 +26,7 @@ pub use error::{Error, Errors};
 pub use ir::*;
 pub use path::{Index, Path, Segment};
 pub use template::{Checksum, ChecksumAlgorithm, Encoding, Piece, Storage, Template};
+pub use validate::{validate, Finding, Report, Severity, SELECTED_TRANSPORT};
 
 /// Loads a descriptor from the file system.
 pub fn load(path: impl AsRef<FsPath>) -> Result<Descriptor, Errors> {

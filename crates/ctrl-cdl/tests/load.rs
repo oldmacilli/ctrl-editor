@@ -276,6 +276,22 @@ fn tec_usb_identity_and_hid_messages() {
 }
 
 #[test]
+fn db1_is_found_by_scan() {
+    let d = load_ok("oceanbeach/db1.ctrl.kdl");
+    let aux = d.transport("aux").unwrap();
+    assert_eq!(aux.ports, None);
+    assert_eq!(aux.scan.as_deref(), Some("revision"));
+    let d = parse_str(
+        "t.ctrl.kdl",
+        "cdl \"0.1\"\ndevice \"t.x\"\nidentify { listen \"FE\" status=\"inferred\" }\n",
+    )
+    .unwrap();
+    assert!(
+        matches!(&d.identify[0], Matcher::Listen { pattern, .. } if pattern.to_string() == "FE")
+    );
+}
+
+#[test]
 fn firmware_template() {
     let d = load_ok("examples/firmware-template.ctrl.kdl");
     let f = d.firmware.as_ref().unwrap();

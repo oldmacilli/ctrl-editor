@@ -682,6 +682,14 @@ fn matcher(cx: &mut Cx, n: &RawNode) -> Option<Matcher> {
                 source: cx.name(n),
             }
         }
+        "listen" => {
+            cx.shape(n, 1..=1, Some(&[]), false);
+            let pattern = cx.arg_with(n, 0, Template::parse)?;
+            Matcher::Listen {
+                meta: cx.meta(n),
+                pattern,
+            }
+        }
         _ => {
             cx.unknown_child(
                 "identify",
@@ -693,6 +701,7 @@ fn matcher(cx: &mut Cx, n: &RawNode) -> Option<Matcher> {
                     "hid",
                     "exchange",
                     "key",
+                    "listen",
                 ],
             );
             return None;
@@ -719,6 +728,7 @@ fn transport(cx: &mut Cx, n: &RawNode) -> Transport {
             "interface",
             "ep-out",
             "ep-in",
+            "scan",
         ]),
         true,
     );
@@ -766,6 +776,7 @@ fn transport(cx: &mut Cx, n: &RawNode) -> Transport {
         interface: cx.prop_u32(n, "interface"),
         ep_out: cx.prop_u32(n, "ep-out"),
         ep_in: cx.prop_u32(n, "ep-in"),
+        scan: cx.prop_str(n, "scan"),
         captures,
     }
 }

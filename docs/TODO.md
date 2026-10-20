@@ -42,11 +42,13 @@ Last updated: 2026-10-20 (ctrl-cdl landed).
 - [x] platform: `ctrl-cdl` crate: KDL → typed IR (serde), with errors that
   point at line and column; includes merge (`*.inc.kdl`); templates, paths
   and ranges parsed; all descriptors load (e44a6e1)
-- [ ] platform: array slices in templates, with a pad byte, so that the TEC
-  curve pages (`{0x40 + s} {start} v0..v5`, last page padded with 7F) need
-  no driver step
-- [ ] platform: validator: unknown names, ranges, `status` rules (CDL §4.1),
-  `unknown` on send paths
+- [x] platform: slice placeholders `{curve[6] pad=7F}`; the TEC curve pages
+  are CDL again, no driver step (COMMIT)
+- [x] platform: validator (`ctrl_cdl::validate`): references and paths,
+  sizes and ranges, `status` rules (CDL §4.1), write policy (§11), port
+  overlap (§5), SysEx data bytes, HID frame sizes, scan messages (COMMIT)
+- [x] platform: CDL §5.1 `scan` and `listen` for DIN-only devices; DB-1
+  found by scanning with its revision request (COMMIT)
 - [ ] platform: template codec: encode and decode `send`/`reply` (CDL §6),
   checksums (§6.1)
 - [ ] platform: test-vector runner; DB-1 vectors from `db1-protocol` tests,
@@ -118,8 +120,8 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
   over USB too: a stored setting, not tied to the transport
 - [ ] user+korg: check whether the nanoKONTROL Studio's USB input port also
   has its own name; its descriptor uses one `port-match` today
-- [ ] platform: `ctrl-cli check` reports overlapping `port-match` strings
-  within a device (CDL §5)
+- [x] platform: overlapping port matches are a validation error (CDL §5)
+  (COMMIT)
 - [ ] korg: nanoKEY Studio calibration (`X14800_Calib`). blocked: capture
 - [x] korg: `docs/rewrite/72-feature-parity.md` updated with the Slint
   state (KORG eba516b)
@@ -139,10 +141,9 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
 
 ### TEC
 
-- [ ] korg (OMP, asked 2026-10-20): TEC USB gaps from the analysis and
-  read-only checks on the connected unit: VID/PID/bcd, poll format, reply
-  bytes 6-7, curve padding, calibrate, the 0x51 read, the 09 constant,
-  firmware path. No writes
+- [x] korg (OMP): TEC USB gaps closed from the analysis and a read-only
+  trace (TECcontrol fb97e8b, findings); applied to
+  the descriptor (COMMIT)
 - [x] platform: TEC descriptor: USB ids with bcd from HANDOVER.md, 8-byte
   read replies, curve pages driver-owned (e44a6e1)
 - [ ] tec: `ctrl-hid-iokit` from `tec-device/src/macos.rs` (Seize, report

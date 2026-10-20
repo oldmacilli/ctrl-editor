@@ -142,6 +142,15 @@ pub enum Piece {
         name: String,
         encoding: Option<Encoding>,
     },
+    /// `{name[n]}`, `{name[n]:encoding pad=XX}`: `n` elements of an array,
+    /// taken from the step's `from=` slice. Elements past the end of the
+    /// array are sent as `pad`; without `pad` that is an error.
+    Slice {
+        name: String,
+        count: u16,
+        encoding: Option<Encoding>,
+        pad: Option<u8>,
+    },
     /// `{name*}`: the rest up to the terminator (reply patterns only).
     Rest {
         name: String,
@@ -173,6 +182,21 @@ impl fmt::Display for Piece {
                 name,
                 encoding: Some(encoding),
             } => write!(f, "{{{name}:{encoding}}}"),
+            Self::Slice {
+                name,
+                count,
+                encoding,
+                pad,
+            } => {
+                write!(f, "{{{name}[{count}]")?;
+                if let Some(encoding) = encoding {
+                    write!(f, ":{encoding}")?;
+                }
+                if let Some(pad) = pad {
+                    write!(f, " pad={pad:02X}")?;
+                }
+                f.write_str("}")
+            }
             Self::Rest { name } => write!(f, "{{{name}*}}"),
             Self::Expr { expr } => write!(f, "{{={expr}}}"),
             Self::Checksum(c) => {
@@ -262,6 +286,9 @@ fn placeholder(inner: &str) -> Result<Piece, String> {
             return Ok(Piece::Rest { name: name.into() });
         }
     }
+    if let Some(slice) = slice(inner) {
+        return slice;
+    }
     if let Some((name, encoding)) = inner.split_once(':') {
         let (name, encoding) = (name.trim(), encoding.trim());
         if name == "sum" {
@@ -281,6 +308,47 @@ fn placeholder(inner: &str) -> Result<Piece, String> {
         });
     }
     Ok(Piece::Expr { expr: inner.into() })
+}
+
+/// `name[n]`, then optionally `:encoding`, then optionally `pad=XX`. `None`
+/// when `inner` is not shaped `name[number]…`, so that it stays an
+/// expression; a slice with bad parts after the count is an error.
+fn slice(inner: &str) -> Option<Result<Piece, String>> {
+    let open = inner.find('[')?;
+    let name = &inner[..open];
+    let close = inner.find(']')?;
+    let count = inner[open + 1..close].trim().parse::<u16>().ok()?;
+    if !is_ident(name) || close < open {
+        return None;
+    }
+    let mut rest = inner[close + 1..].trim();
+    let bad = |why: &str| Some(Err(format!("`{{{inner}}}`: {why}")));
+    if count == 0 {
+        return bad("a slice needs at least one element");
+    }
+    let mut pad = None;
+    if let Some((before, after)) = rest.rsplit_once("pad=") {
+        let after = after.trim();
+        if after.len() != 2 || !after.bytes().all(|b| b.is_ascii_hexdigit()) {
+            return bad("`pad=` takes one hex byte, e.g. pad=7F");
+        }
+        pad = Some(u8::from_str_radix(after, 16).expect("two hex digits"));
+        rest = before.trim();
+    }
+    let encoding = match rest.strip_prefix(':') {
+        Some(e) => match Encoding::parse(e.trim()) {
+            Ok(e) => Some(e),
+            Err(e) => return Some(Err(e)),
+        },
+        None if rest.is_empty() => None,
+        None => return bad("expected `:encoding` or `pad=XX` after the count"),
+    };
+    Some(Ok(Piece::Slice {
+        name: name.into(),
+        count,
+        encoding,
+        pad,
+    }))
 }
 
 fn checksum(s: &str) -> Result<Checksum, String> {
@@ -416,6 +484,35 @@ mod tests {
         assert!(Template::parse("  ").is_err());
         assert!(Template::parse("{sum:crc(1,2)}").is_err());
         assert!(Template::parse("{x:bits(9)}").is_err());
+    }
+
+    #[test]
+    fn slices() {
+        let t = Template::parse("{0x40 + s} {start} {curve[6] pad=7F}").unwrap();
+        assert_eq!(
+            t.pieces[2],
+            Piece::Slice {
+                name: "curve".into(),
+                count: 6,
+                encoding: None,
+                pad: Some(0x7F)
+            }
+        );
+        let t = Template::parse("{v[2]:u14le}").unwrap();
+        assert_eq!(
+            t.pieces[0],
+            Piece::Slice {
+                name: "v".into(),
+                count: 2,
+                encoding: Some(Encoding::Storage(Storage::U14le)),
+                pad: None
+            }
+        );
+        let src = "{curve[6]:u7 pad=7F} {x[1]}";
+        assert_eq!(Template::parse(src).unwrap().to_string(), src);
+        assert!(Template::parse("{curve[0]}").is_err());
+        assert!(Template::parse("{curve[6] pad=7}").is_err());
+        assert!(Template::parse("{curve[6] x}").is_err());
     }
 
     #[test]

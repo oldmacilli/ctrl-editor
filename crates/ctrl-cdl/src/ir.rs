@@ -168,6 +168,9 @@ pub enum Matcher {
     },
     /// The property that keys the device hub, e.g. `usb-serial`.
     Key { meta: Meta, source: String },
+    /// Bytes the device sends by itself, such as Active Sensing (`FE`).
+    /// A hint for a port, never an identification on its own.
+    Listen { meta: Meta, pattern: Template },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -209,6 +212,9 @@ pub struct Transport {
     pub ep_out: Option<u32>,
     pub ep_in: Option<u32>,
     pub captures: Vec<Capture>,
+    /// A read message the engine sends on each MIDI output to find the
+    /// device; the input that answers pairs with that output (§5.1).
+    pub scan: Option<String>,
 }
 
 /// `capture "device-id" from="identity"`.
