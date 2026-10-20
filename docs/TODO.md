@@ -111,9 +111,12 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
   snippets (no key, mouse or timer actions in transforms; step limit)
 - [ ] zigtact: wide-integer mode in `lbmt` (Bome uses 32-bit signed; today
   every result is clamped to 0..127). Needed for 14-bit values and
-  checksums in LBMT. blocked: zigtact owner
-- [ ] zigtact: check the spec examples against the parser (`THEN` and
-  nested translators in `lbmt-language-spec.md` may not parse)
+  checksums in LBMT. In progress: SPEC-lbmt-001 on zigtact branch
+  `claude/lbmt-midi2` (i64 registers, no clamp; `encode_midi1`/`encode_ump`
+  clamp per protocol; `midi2` keyword). Bump the pin at its merge commit.
+- [ ] zigtact: parser gaps from the spec examples: `THEN` parses; missing
+  field names, `IF` guarding more than one op and `IF` with a non-number
+  right-hand side go to a separate parser spec (zigtact owner)
 - [ ] platform: translator panel in GUI and TUI (enable, edit, monitor)
 
 ## P4 Device packs
