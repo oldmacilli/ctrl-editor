@@ -60,7 +60,7 @@ Last updated: 2026-10-20 (ctrl-cdl landed).
 - [x] platform: CDL versatility, from the KORG lane's proposal: send-only
   messages (exchange on one is an error), reply variants with first match,
   named patterns, replies into blocks with exact size (`ctrl_codec::fill`),
-  `selected` needs a config transport (COMMIT)
+  `selected` needs a config transport (7710126)
 - [ ] korg: scene-set-info reply variants, per-device `scene-data`
   patterns for read-block, a scene-read reply vector from a capture, then
   the procedures off `korg-measured`
