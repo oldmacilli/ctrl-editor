@@ -24,45 +24,6 @@ block "scene" size=339 count=1 status="decoded" evidence="KORG analysis/products
 
 driver "korg-file" provides="file:nktrl2_data" status="decoded" evidence="KORG analysis/products/catalog.json (Info.plist document types)"
 
-types {
-    enum "assign-type" status="inferred" evidence="KORG UI strings AssignType; item index as stored value not verified" {
-        value 0 "No Assign"
-        value 1 "Control Change"
-        value 2 "Note"
-    }
-    enum "sw-type" status="inferred" evidence="KORG UI strings SwType; item index as stored value not verified" {
-        value 0 "Momentary"
-        value 1 "Toggle"
-    }
-    enum "function-command" status="inferred" evidence="KORG UI strings FunctionCommand; item index as stored value not verified" {
-        value 0 "Stop"
-        value 1 "Play"
-        value 2 "Deffered Play"
-        value 3 "Fast Forward"
-        value 4 "Rewind"
-        value 5 "Record Strobe"
-        value 6 "Record Exit"
-        value 7 "Record Pause"
-        value 8 "Pause"
-        value 9 "Eject"
-        value 10 "Chase"
-        value 11 "Command Error Reset"
-        value 12 "MMC Reset"
-    }
-    enum "daw-mode" status="inferred" evidence="KORG UI strings DAWMode; item index as stored value not verified" {
-        value 0 "Cubase"
-        value 1 "DP"
-        value 2 "Live"
-        value 3 "Pro Tools"
-        value 4 "Sonar"
-    }
-    enum "key-mode" status="inferred" evidence="KORG UI strings KeyMode; item index as stored value not verified" {
-        value 0 "Single"
-        value 1 "Layer"
-        value 2 "Split"
-    }
-}
-
 labels "en" source="KORG KONTROL EDITOR UI strings" {
     list "controller-names" {
         item 0 "Common"
@@ -115,6 +76,30 @@ labels "en" source="KORG KONTROL EDITOR UI strings" {
         item 5 "Transport Common"
         item 6 "Transport"
     }
+    list "assign-type" {
+        item 0 "No Assign"
+        item 1 "Control Change"
+        item 2 "Note"
+    }
+    list "sw-type" {
+        item 0 "Momentary"
+        item 1 "Toggle"
+    }
+    list "function-command" {
+        item 0 "Stop"
+        item 1 "Play"
+        item 2 "Deffered Play"
+        item 3 "Fast Forward"
+        item 4 "Rewind"
+        item 5 "Record Strobe"
+        item 6 "Record Exit"
+        item 7 "Record Pause"
+        item 8 "Pause"
+        item 9 "Eject"
+        item 10 "Chase"
+        item 11 "Command Error Reset"
+        item 12 "MMC Reset"
+    }
     list "transport-button-names" {
         item 0 "Track Rew"
         item 1 "Track FF"
@@ -127,6 +112,18 @@ labels "en" source="KORG KONTROL EDITOR UI strings" {
         item 8 "STOP"
         item 9 "PLAY"
         item 10 "REC"
+    }
+    list "daw-mode" {
+        item 0 "Cubase"
+        item 1 "DP"
+        item 2 "Live"
+        item 3 "Pro Tools"
+        item 4 "Sonar"
+    }
+    list "key-mode" {
+        item 0 "Single"
+        item 1 "Layer"
+        item 2 "Split"
     }
 }
 

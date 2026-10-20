@@ -19,25 +19,6 @@ block "global" size=128 status="decoded" evidence="KORG analysis/products/catalo
 
 driver "korg-file" provides="file:nanokey_st_data file:nanokey_st_glob file:nanokey_st_set" status="decoded" evidence="KORG analysis/products/catalog.json (Info.plist document types)"
 
-types {
-    enum "assign-type" status="inferred" evidence="KORG UI strings AssignType; item index as stored value not verified" {
-        value 0 "Control Change"
-        value 1 "Note"
-        value 2 "No Assign"
-    }
-    enum "sw-type" status="inferred" evidence="KORG UI strings SwType; item index as stored value not verified" {
-        value 0 "Momt"
-        value 1 "Tgl"
-    }
-    enum "auto-power-off-type" status="inferred" evidence="KORG UI strings AutoPowerOffType; item index as stored value not verified" {
-        value 0 "Disable"
-        value 1 "30 min"
-        value 2 "1 hour"
-        value 3 "2 hours"
-        value 4 "4 hours"
-    }
-}
-
 labels "en" source="KORG KONTROL EDITOR UI strings" {
     list "controller-names" {
         item 0 "Common"
@@ -69,6 +50,22 @@ labels "en" source="KORG KONTROL EDITOR UI strings" {
         item 7 "Pitch/Mod"
         item 8 "Touch Scale"
         item 9 "Button"
+    }
+    list "assign-type" {
+        item 0 "Control Change"
+        item 1 "Note"
+        item 2 "No Assign"
+    }
+    list "sw-type" {
+        item 0 "Momt"
+        item 1 "Tgl"
+    }
+    list "auto-power-off-type" {
+        item 0 "Disable"
+        item 1 "30 min"
+        item 2 "1 hour"
+        item 3 "2 hours"
+        item 4 "4 hours"
     }
 }
 

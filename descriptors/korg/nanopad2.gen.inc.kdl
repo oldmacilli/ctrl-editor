@@ -25,43 +25,6 @@ block "global" size=47 status="decoded" evidence="KORG analysis/products/catalog
 
 driver "korg-file" provides="file:nanopad2_data file:nanopad2_glob file:nanopad2_set" status="decoded" evidence="KORG analysis/products/catalog.json (Info.plist document types)"
 
-types {
-    enum "touch-assign-type" status="inferred" evidence="KORG UI strings TouchAssignType; item index as stored value not verified" {
-        value 0 "Disable"
-        value 1 "Enable"
-    }
-    enum "xy-assign-type" status="inferred" evidence="KORG UI strings XyAssignType; item index as stored value not verified" {
-        value 0 "No Assign"
-        value 1 "Control Change"
-        value 2 "Pitch Bend"
-    }
-    enum "polarity" status="inferred" evidence="KORG UI strings Polarity; item index as stored value not verified" {
-        value 0 "Normal"
-        value 1 "Reverse"
-    }
-    enum "pad-assign-type" status="inferred" evidence="KORG UI strings PadAssignType; item index as stored value not verified" {
-        value 0 "No Assign"
-        value 1 "Control Change"
-        value 2 "Note"
-    }
-    enum "ena-dis" status="inferred" evidence="KORG UI strings EnaDis; item index as stored value not verified" {
-        value 0 "Disable"
-        value 1 "Enable"
-    }
-    enum "speed" status="inferred" evidence="KORG UI strings Speed; item index as stored value not verified" {
-        value 0 "sixty fourth"
-        value 1 "thirty second"
-        value 2 "sixteenth"
-        value 3 "eigth triplets"
-        value 4 "eigth"
-        value 5 "quarter triplets"
-        value 6 "dotted eigth"
-        value 7 "quarter"
-        value 8 "dotted quarter"
-        value 9 "half"
-    }
-}
-
 labels "en" source="KORG KONTROL EDITOR UI strings" {
     list "controller-names" {
         item 0 "None"
@@ -103,6 +66,40 @@ labels "en" source="KORG KONTROL EDITOR UI strings" {
     list "edit-types" {
         item 0 "None"
         item 1 "Trigger Pad"
+    }
+    list "touch-assign-type" {
+        item 0 "Disable"
+        item 1 "Enable"
+    }
+    list "xy-assign-type" {
+        item 0 "No Assign"
+        item 1 "Control Change"
+        item 2 "Pitch Bend"
+    }
+    list "polarity" {
+        item 0 "Normal"
+        item 1 "Reverse"
+    }
+    list "pad-assign-type" {
+        item 0 "No Assign"
+        item 1 "Control Change"
+        item 2 "Note"
+    }
+    list "ena-dis" {
+        item 0 "Disable"
+        item 1 "Enable"
+    }
+    list "speed" {
+        item 0 "sixty fourth"
+        item 1 "thirty second"
+        item 2 "sixteenth"
+        item 3 "eigth triplets"
+        item 4 "eigth"
+        item 5 "quarter triplets"
+        item 6 "dotted eigth"
+        item 7 "quarter"
+        item 8 "dotted quarter"
+        item 9 "half"
     }
 }
 

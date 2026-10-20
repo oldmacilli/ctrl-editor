@@ -24,29 +24,6 @@ block "scene" size=64 count=1 status="decoded" evidence="KORG analysis/products/
 
 driver "korg-file" provides="file:nanokey2_data" status="decoded" evidence="KORG analysis/products/catalog.json (Info.plist document types)"
 
-types {
-    enum "pitch-bend-speed" status="inferred" evidence="KORG UI strings PitchBendSpeed; item index as stored value not verified" {
-        value 0 "No"
-        value 1 "Fast"
-        value 2 "Nomal"
-        value 3 "Slow"
-    }
-    enum "velocity-curve" status="inferred" evidence="KORG UI strings VelocityCurve; item index as stored value not verified" {
-        value 0 "Light"
-        value 1 "Normal"
-        value 2 "Heavy"
-        value 3 "Const"
-    }
-    enum "assign-type" status="inferred" evidence="KORG UI strings AssignType; item index as stored value not verified" {
-        value 0 "No Assign"
-        value 1 "Control Change"
-    }
-    enum "button-behavior" status="inferred" evidence="KORG UI strings ButtonBehavior; item index as stored value not verified" {
-        value 0 "Momentary"
-        value 1 "Toggle"
-    }
-}
-
 labels "en" source="KORG KONTROL EDITOR UI strings" {
     list "controller-names" {
         item 0 "Common"
@@ -81,6 +58,26 @@ labels "en" source="KORG KONTROL EDITOR UI strings" {
         item 1 "Common"
         item 2 "Keyboard"
         item 3 "Keys"
+    }
+    list "pitch-bend-speed" {
+        item 0 "No"
+        item 1 "Fast"
+        item 2 "Nomal"
+        item 3 "Slow"
+    }
+    list "velocity-curve" {
+        item 0 "Light"
+        item 1 "Normal"
+        item 2 "Heavy"
+        item 3 "Const"
+    }
+    list "assign-type" {
+        item 0 "No Assign"
+        item 1 "Control Change"
+    }
+    list "button-behavior" {
+        item 0 "Momentary"
+        item 1 "Toggle"
     }
 }
 

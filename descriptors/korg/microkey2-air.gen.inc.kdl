@@ -16,41 +16,6 @@ block "scene" size=256 count=1 status="decoded" evidence="KORG analysis/products
 
 driver "korg-file" provides="file:microkey2_data" status="decoded" evidence="KORG analysis/products/catalog.json (Info.plist document types)"
 
-types {
-    enum "velocity-curve" status="inferred" evidence="KORG UI strings VelocityCurve; item index as stored value not verified" {
-        value 0 "Curve 1"
-        value 1 "Curve 2"
-        value 2 "Curve 3"
-        value 3 "Curve 4"
-        value 4 "Curve 5"
-        value 5 "Curve 6"
-        value 6 "Curve 7"
-        value 7 "Curve 8"
-        value 8 "Const"
-    }
-    enum "assign-type" status="inferred" evidence="KORG UI strings AssignType; item index as stored value not verified" {
-        value 0 "Disable"
-        value 1 "Enable"
-    }
-    enum "pedal-polarity" status="inferred" evidence="KORG UI strings PedalPolarity; item index as stored value not verified" {
-        value 0 "Auto"
-        value 1 "Minus"
-        value 2 "Plus"
-    }
-    enum "auto-power-off" status="inferred" evidence="KORG UI strings AutoPowerOff; item index as stored value not verified" {
-        value 0 "Disable"
-        value 1 "Enable"
-    }
-    enum "battery-type" status="inferred" evidence="KORG UI strings BatteryType; item index as stored value not verified" {
-        value 0 "Alkaline"
-        value 1 "Ni-MH"
-    }
-    enum "encryption" status="inferred" evidence="KORG UI strings Encryption; item index as stored value not verified" {
-        value 0 "Off"
-        value 1 "On"
-    }
-}
-
 labels "en" source="KORG KONTROL EDITOR UI strings" {
     list "controller-names" {
         item 0 "Common"
@@ -85,6 +50,38 @@ labels "en" source="KORG KONTROL EDITOR UI strings" {
         item 1 "Common"
         item 2 "Keyboard"
         item 3 "Mod Wheel"
+    }
+    list "velocity-curve" {
+        item 0 "Curve 1"
+        item 1 "Curve 2"
+        item 2 "Curve 3"
+        item 3 "Curve 4"
+        item 4 "Curve 5"
+        item 5 "Curve 6"
+        item 6 "Curve 7"
+        item 7 "Curve 8"
+        item 8 "Const"
+    }
+    list "assign-type" {
+        item 0 "Disable"
+        item 1 "Enable"
+    }
+    list "pedal-polarity" {
+        item 0 "Auto"
+        item 1 "Minus"
+        item 2 "Plus"
+    }
+    list "auto-power-off" {
+        item 0 "Disable"
+        item 1 "Enable"
+    }
+    list "battery-type" {
+        item 0 "Alkaline"
+        item 1 "Ni-MH"
+    }
+    list "encryption" {
+        item 0 "Off"
+        item 1 "On"
     }
 }
 

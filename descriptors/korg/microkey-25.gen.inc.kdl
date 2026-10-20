@@ -16,49 +16,6 @@ block "scene" size=256 count=1 status="decoded" evidence="KORG analysis/products
 
 driver "korg-file" provides="file:microkey25_data" status="decoded" evidence="KORG analysis/products/catalog.json (Info.plist document types)"
 
-types {
-    enum "velocity-curve" status="inferred" evidence="KORG UI strings VelocityCurve; item index as stored value not verified" {
-        value 0 "Curve 1"
-        value 1 "Curve 2"
-        value 2 "Curve 3"
-        value 3 "Curve 4"
-        value 4 "Curve 5"
-        value 5 "Curve 6"
-        value 6 "Curve 7"
-        value 7 "Curve 8"
-        value 8 "Const"
-    }
-    enum "assign-type" status="inferred" evidence="KORG UI strings AssignType; item index as stored value not verified" {
-        value 0 "Disable"
-        value 1 "Enable"
-    }
-    enum "button-behavior" status="inferred" evidence="KORG UI strings ButtonBehavior; item index as stored value not verified" {
-        value 0 "Momentary"
-        value 1 "Toggle"
-    }
-    enum "octave-range" status="inferred" evidence="KORG UI strings OctaveRange; item index as stored value not verified" {
-        value 0 "Octave1"
-        value 1 "Octave2"
-        value 2 "Octave3"
-        value 3 "Octave4"
-    }
-    enum "key-sync" status="inferred" evidence="KORG UI strings KeySync; item index as stored value not verified" {
-        value 0 "Off"
-        value 1 "On"
-    }
-    enum "midi-clock" status="inferred" evidence="KORG UI strings MidiClock; item index as stored value not verified" {
-        value 0 "Auto"
-        value 1 "Internal"
-        value 2 "External"
-    }
-    enum "arp-type" status="inferred" evidence="KORG UI strings ArpType; item index as stored value not verified" {
-        value 0 "Joystick"
-        value 1 "Trigger"
-        value 2 "Up"
-        value 3 "Down"
-    }
-}
-
 labels "en" source="KORG KONTROL EDITOR UI strings" {
     list "controller-names" {
         item 0 "Common"
@@ -116,6 +73,46 @@ labels "en" source="KORG KONTROL EDITOR UI strings" {
         item 5 "Joystick Button"
         item 6 "Sustain Button"
         item 7 "Arpeggiator"
+    }
+    list "velocity-curve" {
+        item 0 "Curve 1"
+        item 1 "Curve 2"
+        item 2 "Curve 3"
+        item 3 "Curve 4"
+        item 4 "Curve 5"
+        item 5 "Curve 6"
+        item 6 "Curve 7"
+        item 7 "Curve 8"
+        item 8 "Const"
+    }
+    list "assign-type" {
+        item 0 "Disable"
+        item 1 "Enable"
+    }
+    list "button-behavior" {
+        item 0 "Momentary"
+        item 1 "Toggle"
+    }
+    list "octave-range" {
+        item 0 "Octave1"
+        item 1 "Octave2"
+        item 2 "Octave3"
+        item 3 "Octave4"
+    }
+    list "key-sync" {
+        item 0 "Off"
+        item 1 "On"
+    }
+    list "midi-clock" {
+        item 0 "Auto"
+        item 1 "Internal"
+        item 2 "External"
+    }
+    list "arp-type" {
+        item 0 "Joystick"
+        item 1 "Trigger"
+        item 2 "Up"
+        item 3 "Down"
     }
 }
 

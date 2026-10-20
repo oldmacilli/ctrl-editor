@@ -688,8 +688,11 @@ file.
 ### 13.1 Labels
 
 `labels` holds UI texts for one language as numbered lists: the names of
-controls, parameters, edit pages, and value lists too long for an `enum`.
-Value lists that are settings become `enum` types (§4.2) instead.
+controls, parameters and edit pages, and the texts of value lists. A label
+list's numbers are display positions, not wire codes; an `enum` (§4.2)
+gives the codes, from a getter or a capture, and may take its texts from a
+list. The KORG jog list shows why: 4 labels in display order against 7
+measured codes.
 
 ```kdl
 labels "en" source="KORG KONTROL EDITOR Strings XML, resource …" {
