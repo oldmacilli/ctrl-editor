@@ -804,6 +804,11 @@ String arguments are text (`ascii`). `ctrl-codec` runs them
 
 ## 16. Tooling
 
+`docs/cdl-schema.md` lists every node with its arguments, properties and
+children. It is printed from the converter's own node table
+(`crates/ctrl-cdl/src/schema.rs`) by `ctrl-cli schema`; a test fails when
+it is stale.
+
 `tools/ctrl-cli`:
 
 - `ctrl-cli check <file>…`: parse, validate, check that images exist, run

@@ -12,7 +12,12 @@ use crate::*;
 pub const SUPPORTED_VERSIONS: &[&str] = &["0.1"];
 
 /// Properties every node may carry (§4.1).
-const COMMON: &[&str] = &["status", "evidence", "note"];
+/// The properties every node takes (`schema::COMMON`).
+const COMMON: [&str; 3] = [
+    crate::schema::COMMON[0].name,
+    crate::schema::COMMON[1].name,
+    crate::schema::COMMON[2].name,
+];
 
 pub(crate) fn convert(
     files: Vec<String>,
@@ -41,7 +46,7 @@ pub(crate) fn convert(
     // Patterns first, so that a message may use one defined later or in
     // another file.
     for n in nodes.iter().filter(|n| n.name == "pattern") {
-        cx.shape(n, 2..=2, Some(&[]), false);
+        cx.node(n, "pattern");
         let name = cx.name(n);
         if let Some(template) = cx.arg_with(n, 1, Template::parse) {
             let pattern = Pattern {
@@ -131,7 +136,7 @@ impl Cx<'_> {
         if let Some(allowed) = props {
             for (key, value) in &n.props {
                 if !allowed.contains(&key.as_str()) && !COMMON.contains(&key.as_str()) {
-                    let mut known: Vec<_> = allowed.iter().chain(COMMON).copied().collect();
+                    let mut known: Vec<_> = allowed.iter().chain(&COMMON).copied().collect();
                     known.sort_unstable();
                     self.err(
                         value.pos,
@@ -149,6 +154,18 @@ impl Cx<'_> {
                 self.err(child.pos, format!("`{}` takes no children", n.name));
             }
         }
+    }
+
+    /// Checks `n` against its entry in the node table (`schema.rs`).
+    fn node(&mut self, n: &RawNode, path: &str) {
+        let spec = crate::schema::spec(path);
+        let props: Option<Vec<&str>> = spec.props.map(|ps| ps.iter().map(|p| p.name).collect());
+        self.shape(
+            n,
+            spec.args.0..=spec.args.1,
+            props.as_deref(),
+            spec.children,
+        );
     }
 
     fn unknown_child(&mut self, parent: &str, n: &RawNode, known: &[&str]) {
@@ -473,7 +490,7 @@ impl Builder {
                 once(cx, n, &mut self.device, device);
             }
             "identify" => {
-                cx.shape(n, 0..=0, Some(&[]), true);
+                cx.node(n, "identify");
                 for c in &n.children {
                     if let Some(m) = matcher(cx, c) {
                         self.identify.push(m);
@@ -482,7 +499,7 @@ impl Builder {
             }
             "transport" => self.transports.push(transport(cx, n)),
             "types" => {
-                cx.shape(n, 0..=0, Some(&[]), true);
+                cx.node(n, "types");
                 for c in &n.children {
                     if let Some(t) = type_def(cx, c) {
                         self.types.push(t);
@@ -510,7 +527,7 @@ impl Builder {
             // Read before the other nodes, in `convert`.
             "pattern" => {}
             "const" => {
-                cx.shape(n, 2..=2, Some(&[]), false);
+                cx.node(n, "const");
                 let name = cx.name(n);
                 if let Some(value) = cx.arg_int(n, 1) {
                     self.consts.push(Const {
@@ -527,7 +544,7 @@ impl Builder {
     }
 
     fn version(&mut self, cx: &mut Cx, n: &RawNode) {
-        cx.shape(n, 1..=1, Some(&[]), false);
+        cx.node(n, "cdl");
         if self.version.is_some() {
             cx.err(n.pos, "`cdl` appears twice");
             return;
@@ -643,7 +660,7 @@ fn once<T>(cx: &mut Cx, n: &RawNode, slot: &mut Option<T>, value: T) {
 }
 
 fn device(cx: &mut Cx, n: &RawNode) -> Device {
-    cx.shape(n, 1..=1, Some(&[]), true);
+    cx.node(n, "device");
     let mut d = Device {
         meta: cx.meta(n),
         id: cx.name(n),
@@ -658,7 +675,7 @@ fn device(cx: &mut Cx, n: &RawNode) -> Device {
     };
     for c in &n.children {
         if c.name == "image" {
-            cx.shape(c, 1..=1, Some(&["role"]), false);
+            cx.node(c, "device/image");
             let path = cx.arg_with(c, 0, asset_path);
             d.images.push(Picture {
                 meta: cx.meta(c),
@@ -667,7 +684,7 @@ fn device(cx: &mut Cx, n: &RawNode) -> Device {
             });
             continue;
         }
-        cx.shape(c, 1..=1, Some(&[]), false);
+        cx.node(c, "device/vendor|model|class|file-key|manual|replaces|aka");
         let value = cx.arg_str(c, 0);
         let slot = match c.name.as_str() {
             "vendor" => &mut d.vendor,
@@ -700,7 +717,7 @@ fn device(cx: &mut Cx, n: &RawNode) -> Device {
 fn matcher(cx: &mut Cx, n: &RawNode) -> Option<Matcher> {
     let m = match n.name.as_str() {
         "usb" => {
-            cx.shape(n, 0..=0, Some(&["vid", "pid", "bcd"]), false);
+            cx.node(n, "identify/usb");
             Matcher::Usb {
                 meta: cx.meta(n),
                 vid: cx.prop_u32(n, "vid"),
@@ -709,7 +726,7 @@ fn matcher(cx: &mut Cx, n: &RawNode) -> Option<Matcher> {
             }
         }
         "midi-port" => {
-            cx.shape(n, 0..=0, Some(&["match", "direction"]), false);
+            cx.node(n, "identify/midi-port");
             let pattern = cx.prop_str(n, "match");
             Matcher::MidiPort {
                 meta: cx.meta(n),
@@ -720,7 +737,7 @@ fn matcher(cx: &mut Cx, n: &RawNode) -> Option<Matcher> {
             }
         }
         "sysex-identity" => {
-            cx.shape(n, 0..=0, Some(&["reply", "manufacturer", "model"]), false);
+            cx.node(n, "identify/sysex-identity");
             Matcher::SysexIdentity {
                 meta: cx.meta(n),
                 reply: cx.prop_with(n, "reply", Template::parse),
@@ -729,7 +746,7 @@ fn matcher(cx: &mut Cx, n: &RawNode) -> Option<Matcher> {
             }
         }
         "hid" => {
-            cx.shape(n, 0..=0, Some(&["usage-page", "report-size"]), false);
+            cx.node(n, "identify/hid");
             Matcher::Hid {
                 meta: cx.meta(n),
                 usage_page: cx.prop_u32(n, "usage-page"),
@@ -737,7 +754,7 @@ fn matcher(cx: &mut Cx, n: &RawNode) -> Option<Matcher> {
             }
         }
         "exchange" => {
-            cx.shape(n, 1..=1, Some(&["ok-when"]), false);
+            cx.node(n, "identify/exchange");
             Matcher::Exchange {
                 meta: cx.meta(n),
                 message: cx.name(n),
@@ -745,14 +762,14 @@ fn matcher(cx: &mut Cx, n: &RawNode) -> Option<Matcher> {
             }
         }
         "key" => {
-            cx.shape(n, 1..=1, Some(&[]), false);
+            cx.node(n, "identify/key");
             Matcher::Key {
                 meta: cx.meta(n),
                 source: cx.name(n),
             }
         }
         "listen" => {
-            cx.shape(n, 1..=1, Some(&[]), false);
+            cx.node(n, "identify/listen");
             let pattern = cx.arg_with(n, 0, Template::parse)?;
             Matcher::Listen {
                 meta: cx.meta(n),
@@ -780,27 +797,7 @@ fn matcher(cx: &mut Cx, n: &RawNode) -> Option<Matcher> {
 }
 
 fn transport(cx: &mut Cx, n: &RawNode) -> Transport {
-    cx.shape(
-        n,
-        1..=1,
-        Some(&[
-            "kind",
-            "port-match",
-            "port-match-in",
-            "port-match-out",
-            "role",
-            "preferred",
-            "usage-page",
-            "frame",
-            "report-id",
-            "seize",
-            "interface",
-            "ep-out",
-            "ep-in",
-            "scan",
-        ]),
-        true,
-    );
+    cx.node(n, "transport");
     let kind = cx.prop_with(n, "kind", keyword);
     let both = cx.prop_str(n, "port-match");
     let input = cx.prop_str(n, "port-match-in");
@@ -823,7 +820,7 @@ fn transport(cx: &mut Cx, n: &RawNode) -> Transport {
             cx.unknown_child("transport", c, &["capture"]);
             continue;
         }
-        cx.shape(c, 1..=1, Some(&["from"]), false);
+        cx.node(c, "transport/capture");
         let from = cx.prop_str(c, "from");
         captures.push(Capture {
             meta: cx.meta(c),
@@ -853,14 +850,14 @@ fn transport(cx: &mut Cx, n: &RawNode) -> Transport {
 fn type_def(cx: &mut Cx, n: &RawNode) -> Option<TypeDef> {
     match n.name.as_str() {
         "enum" | "errors" => {
-            cx.shape(n, 1..=1, Some(&[]), true);
+            cx.node(n, "types/enum|errors");
             let mut values = Vec::new();
             for c in &n.children {
                 if c.name != "value" {
                     cx.unknown_child(&n.name, c, &["value"]);
                     continue;
                 }
-                cx.shape(c, 2..=2, Some(&[]), false);
+                cx.node(c, "types/enum|errors/value");
                 if let (Some(value), Some(label)) = (cx.arg_int(c, 0), cx.arg_str(c, 1)) {
                     values.push(EnumValue {
                         meta: cx.meta(c),
@@ -881,12 +878,7 @@ fn type_def(cx: &mut Cx, n: &RawNode) -> Option<TypeDef> {
             })
         }
         "int" => {
-            cx.shape(
-                n,
-                1..=1,
-                Some(&["storage", "range", "display", "parse", "special"]),
-                false,
-            );
+            cx.node(n, "types/int");
             let storage = cx.prop_with(n, "storage", Storage::parse);
             Some(TypeDef::Int(IntType {
                 meta: cx.meta(n),
@@ -908,7 +900,7 @@ fn type_def(cx: &mut Cx, n: &RawNode) -> Option<TypeDef> {
 }
 
 fn block(cx: &mut Cx, n: &RawNode) -> Block {
-    cx.shape(n, 1..=1, Some(&["size", "count", "names"]), true);
+    cx.node(n, "block");
     Block {
         meta: cx.meta(n),
         name: cx.name(n),
@@ -924,12 +916,7 @@ fn items(cx: &mut Cx, parent: &str, nodes: &[RawNode]) -> Vec<Item> {
     for n in nodes {
         match n.name.as_str() {
             "field" => {
-                cx.shape(
-                    n,
-                    1..=1,
-                    Some(&["offset", "type", "range", "visible-when", "fixed"]),
-                    false,
-                );
+                cx.node(n, "block … field");
                 let ty = cx.prop_with(n, "type", parse_type_ref);
                 let ty = cx.required(n, "type", ty);
                 out.push(Item::Field(Field {
@@ -943,7 +930,7 @@ fn items(cx: &mut Cx, parent: &str, nodes: &[RawNode]) -> Vec<Item> {
                 }));
             }
             "group" => {
-                cx.shape(n, 1..=1, Some(&["offset"]), true);
+                cx.node(n, "block … group");
                 out.push(Item::Group(Group {
                     meta: cx.meta(n),
                     name: cx.name(n),
@@ -952,12 +939,7 @@ fn items(cx: &mut Cx, parent: &str, nodes: &[RawNode]) -> Vec<Item> {
                 }));
             }
             "array" => {
-                cx.shape(
-                    n,
-                    1..=1,
-                    Some(&["count", "offset", "stride", "type", "driver"]),
-                    true,
-                );
+                cx.node(n, "block … array");
                 let count = cx.prop_u32(n, "count");
                 out.push(Item::Array(Array {
                     meta: cx.meta(n),
@@ -977,12 +959,7 @@ fn items(cx: &mut Cx, parent: &str, nodes: &[RawNode]) -> Vec<Item> {
 }
 
 fn param(cx: &mut Cx, n: &RawNode) -> Param {
-    cx.shape(
-        n,
-        1..=1,
-        Some(&["label", "group", "ui", "min-firmware"]),
-        false,
-    );
+    cx.node(n, "param");
     Param {
         meta: cx.meta(n),
         path: cx.name(n),
@@ -994,7 +971,7 @@ fn param(cx: &mut Cx, n: &RawNode) -> Param {
 }
 
 fn panel(cx: &mut Cx, n: &RawNode) -> Panel {
-    cx.shape(n, 0..=0, Some(&["picture", "image", "source"]), true);
+    cx.node(n, "panel");
     Panel {
         meta: cx.meta(n),
         picture: cx.prop_with(n, "picture", parse_size),
@@ -1019,21 +996,21 @@ fn asset_path(s: &str) -> Result<String, String> {
 }
 
 fn labels(cx: &mut Cx, n: &RawNode) -> Labels {
-    cx.shape(n, 1..=1, Some(&["source"]), true);
+    cx.node(n, "labels");
     let mut lists = Vec::new();
     for c in &n.children {
         if c.name != "list" {
             cx.unknown_child("labels", c, &["list"]);
             continue;
         }
-        cx.shape(c, 1..=1, Some(&[]), true);
+        cx.node(c, "labels/list");
         let mut items = Vec::new();
         for i in &c.children {
             if i.name != "item" {
                 cx.unknown_child("list", i, &["item"]);
                 continue;
             }
-            cx.shape(i, 2..=2, Some(&[]), false);
+            cx.node(i, "labels/list/item");
             if let (Some(value), Some(label)) = (cx.arg_int(i, 0), cx.arg_str(i, 1)) {
                 if items.iter().any(|s: &Special| s.value == value) {
                     cx.err(i.pos, format!("item {value} appears twice"));
@@ -1060,12 +1037,7 @@ fn panel_items(cx: &mut Cx, nodes: &[RawNode]) -> Vec<PanelItem> {
     for n in nodes {
         match n.name.as_str() {
             "control" => {
-                cx.shape(
-                    n,
-                    1..=1,
-                    Some(&["kind", "label", "group", "box", "bind", "live"]),
-                    false,
-                );
+                cx.node(n, "panel/control");
                 let kind = cx.prop_with(n, "kind", keyword);
                 let Some(kind) = cx.required(n, "kind", kind) else {
                     continue;
@@ -1082,7 +1054,7 @@ fn panel_items(cx: &mut Cx, nodes: &[RawNode]) -> Vec<PanelItem> {
                 }));
             }
             "repeat" => {
-                cx.shape(n, 2..=2, Some(&[]), true);
+                cx.node(n, "panel/repeat");
                 let var = cx.name(n);
                 let Some(range) = cx.arg_with(n, 1, parse_range) else {
                     continue;
@@ -1101,7 +1073,7 @@ fn panel_items(cx: &mut Cx, nodes: &[RawNode]) -> Vec<PanelItem> {
 }
 
 fn midi_map(cx: &mut Cx, n: &RawNode) -> MidiMap {
-    cx.shape(n, 0..=0, Some(&["transport"]), true);
+    cx.node(n, "midi-map");
     let mut endpoints = Vec::new();
     for c in &n.children {
         let direction = match c.name.as_str() {
@@ -1112,12 +1084,7 @@ fn midi_map(cx: &mut Cx, n: &RawNode) -> MidiMap {
                 continue;
             }
         };
-        cx.shape(
-            c,
-            1..=1,
-            Some(&["count", "kind", "cc", "note", "channel", "message", "range"]),
-            false,
-        );
+        cx.node(c, "midi-map/source|sink");
         let kind = cx.prop_with(c, "kind", keyword);
         let Some(kind) = cx.required(c, "kind", kind) else {
             continue;
@@ -1143,7 +1110,7 @@ fn midi_map(cx: &mut Cx, n: &RawNode) -> MidiMap {
 }
 
 fn frame(cx: &mut Cx, n: &RawNode) -> SysexFrame {
-    cx.shape(n, 1..=1, Some(&[]), true);
+    cx.node(n, "sysex-frame");
     let mut f = SysexFrame {
         meta: cx.meta(n),
         name: cx.name(n),
@@ -1159,7 +1126,7 @@ fn frame(cx: &mut Cx, n: &RawNode) -> SysexFrame {
                 continue;
             }
         };
-        cx.shape(c, 1..=1, Some(&[]), false);
+        cx.node(c, "sysex-frame/prefix|suffix");
         let Some(s) = cx.arg_str(c, 0) else {
             continue;
         };
@@ -1171,7 +1138,7 @@ fn frame(cx: &mut Cx, n: &RawNode) -> SysexFrame {
 }
 
 fn message(cx: &mut Cx, n: &RawNode) -> Message {
-    cx.shape(n, 1..=1, Some(&["transport", "frame", "kind"]), true);
+    cx.node(n, "message");
     let mut m = Message {
         meta: cx.meta(n),
         name: cx.name(n),
@@ -1186,7 +1153,7 @@ fn message(cx: &mut Cx, n: &RawNode) -> Message {
     for c in &n.children {
         match c.name.as_str() {
             "arg" => {
-                cx.shape(c, 1..=1, Some(&["range", "index"]), false);
+                cx.node(c, "message/arg");
                 let arg = ArgDecl {
                     meta: cx.meta(c),
                     name: cx.name(c),
@@ -1202,7 +1169,7 @@ fn message(cx: &mut Cx, n: &RawNode) -> Message {
                 m.args.push(arg);
             }
             "send" => {
-                cx.shape(c, 0..=1, Some(&["pattern"]), false);
+                cx.node(c, "message/send");
                 if let Some((t, _)) = template_or_pattern(cx, c) {
                     if let Some(p) = t.pieces.iter().find(|p| p.is_pattern_only()) {
                         cx.err(c.pos, format!("`send`: `{p}` matches replies only"));
@@ -1211,12 +1178,7 @@ fn message(cx: &mut Cx, n: &RawNode) -> Message {
                 }
             }
             "reply" => {
-                cx.shape(
-                    c,
-                    0..=1,
-                    Some(&["timeout", "variant", "pattern", "ok-when"]),
-                    false,
-                );
+                cx.node(c, "message/reply");
                 if let Some((pattern, pattern_name)) = template_or_pattern(cx, c) {
                     m.replies.push(Reply {
                         meta: cx.meta(c),
@@ -1229,7 +1191,7 @@ fn message(cx: &mut Cx, n: &RawNode) -> Message {
                 }
             }
             "ok-when" => {
-                cx.shape(c, 1..=1, Some(&[]), false);
+                cx.node(c, "message/ok-when");
                 if let Some(expr) = cx.arg_str(c, 0) {
                     once(cx, c, &mut m.ok_when, expr);
                 }
@@ -1285,7 +1247,7 @@ fn template_or_pattern(cx: &mut Cx, n: &RawNode) -> Option<(Template, Option<Str
 }
 
 fn procedure(cx: &mut Cx, n: &RawNode) -> Procedure {
-    cx.shape(n, 1..=1, Some(&["kind", "transport"]), true);
+    cx.node(n, "procedure");
     Procedure {
         meta: cx.meta(n),
         name: cx.name(n),
@@ -1321,7 +1283,7 @@ fn step(cx: &mut Cx, parent: &str, n: &RawNode) -> Option<Step> {
         "send" | "exchange" => {
             // Every property but these is a message argument.
             const RESERVED: &[&str] = &["into", "from", "timeout"];
-            cx.shape(n, 1..=1, None, false);
+            cx.node(n, "step send|exchange");
             let s = MessageStep {
                 message: cx.name(n),
                 args: cx.args(n, RESERVED),
@@ -1337,7 +1299,7 @@ fn step(cx: &mut Cx, parent: &str, n: &RawNode) -> Option<Step> {
             }
         }
         "repeat" => {
-            cx.shape(n, 2..=2, Some(&["size"]), true);
+            cx.node(n, "step repeat");
             let var = cx.name(n);
             let over = cx.arg_with(n, 1, |s| {
                 if s.trim_start()
@@ -1361,7 +1323,7 @@ fn step(cx: &mut Cx, parent: &str, n: &RawNode) -> Option<Step> {
             }
         }
         "read-into" => {
-            cx.shape(n, 1..=1, Some(&["from"]), false);
+            cx.node(n, "step read-into");
             let target = cx.arg_with(n, 0, Path::parse)?;
             let from = cx.prop_str(n, "from");
             Step::ReadInto {
@@ -1371,7 +1333,7 @@ fn step(cx: &mut Cx, parent: &str, n: &RawNode) -> Option<Step> {
             }
         }
         "delay" => {
-            cx.shape(n, 1..=1, Some(&[]), false);
+            cx.node(n, "step delay");
             let ms = cx.arg_int(n, 0)?;
             let Ok(ms) = u32::try_from(ms) else {
                 cx.err(n.args[0].pos, format!("`delay`: {ms} ms is out of range"));
@@ -1380,7 +1342,7 @@ fn step(cx: &mut Cx, parent: &str, n: &RawNode) -> Option<Step> {
             Step::Delay { ms, meta }
         }
         "verify" => {
-            cx.shape(n, 1..=1, Some(&["compare"]), false);
+            cx.node(n, "step verify");
             Step::Verify {
                 procedure: cx.name(n),
                 compare: cx
@@ -1390,7 +1352,7 @@ fn step(cx: &mut Cx, parent: &str, n: &RawNode) -> Option<Step> {
             }
         }
         "gate" => {
-            cx.shape(n, 1..=1, Some(&["text"]), false);
+            cx.node(n, "step gate");
             Step::Gate {
                 gate: cx.arg_with(n, 0, keyword)?,
                 text: cx.prop_str(n, "text"),
@@ -1398,14 +1360,14 @@ fn step(cx: &mut Cx, parent: &str, n: &RawNode) -> Option<Step> {
             }
         }
         "restore-point" => {
-            cx.shape(n, 1..=usize::MAX, Some(&[]), false);
+            cx.node(n, "step restore-point");
             let paths = (0..n.args.len())
                 .filter_map(|i| cx.arg_with(n, i, Path::parse))
                 .collect();
             Step::RestorePoint { paths, meta }
         }
         "require" | "ok-when" => {
-            cx.shape(n, 1..=1, Some(&[]), false);
+            cx.node(n, "step require|ok-when");
             let expr = cx.arg_str(n, 0)?;
             if n.name == "require" {
                 Step::Require { expr, meta }
@@ -1414,14 +1376,14 @@ fn step(cx: &mut Cx, parent: &str, n: &RawNode) -> Option<Step> {
             }
         }
         "call" => {
-            cx.shape(n, 1..=1, Some(&[]), false);
+            cx.node(n, "step call");
             Step::Call {
                 procedure: cx.name(n),
                 meta,
             }
         }
         "driver" => {
-            cx.shape(n, 1..=1, Some(&["step"]), false);
+            cx.node(n, "step driver");
             let step = cx.prop_str(n, "step");
             Step::Driver {
                 driver: cx.name(n),
@@ -1430,7 +1392,7 @@ fn step(cx: &mut Cx, parent: &str, n: &RawNode) -> Option<Step> {
             }
         }
         "expect-identity" => {
-            cx.shape(n, 0..=0, Some(&["product", "timeout"]), false);
+            cx.node(n, "step expect-identity");
             Step::ExpectIdentity {
                 product: cx.prop_i64(n, "product"),
                 timeout: cx.prop_u32(n, "timeout"),
@@ -1446,7 +1408,7 @@ fn step(cx: &mut Cx, parent: &str, n: &RawNode) -> Option<Step> {
 }
 
 fn firmware(cx: &mut Cx, n: &RawNode) -> Firmware {
-    cx.shape(n, 0..=0, Some(&[]), true);
+    cx.node(n, "firmware");
     let mut f = Firmware {
         meta: cx.meta(n),
         image: None,
@@ -1458,7 +1420,7 @@ fn firmware(cx: &mut Cx, n: &RawNode) -> Firmware {
     for c in &n.children {
         match c.name.as_str() {
             "image" => {
-                cx.shape(c, 0..=0, Some(&["format", "magic", "driver"]), false);
+                cx.node(c, "firmware/image");
                 let format = cx.prop_str(c, "format");
                 let image = Image {
                     meta: cx.meta(c),
@@ -1469,7 +1431,7 @@ fn firmware(cx: &mut Cx, n: &RawNode) -> Firmware {
                 once(cx, c, &mut f.image, image);
             }
             "version-from" => {
-                cx.shape(c, 1..=1, Some(&["field"]), false);
+                cx.node(c, "firmware/version-from");
                 let field = cx.prop_str(c, "field");
                 let v = VersionFrom {
                     meta: cx.meta(c),
@@ -1479,11 +1441,11 @@ fn firmware(cx: &mut Cx, n: &RawNode) -> Firmware {
                 once(cx, c, &mut f.version_from, v);
             }
             "require" => {
-                cx.shape(c, 1..=1, Some(&[]), false);
+                cx.node(c, "firmware/require");
                 f.requires.extend(cx.arg_str(c, 0));
             }
             "stage" => {
-                cx.shape(c, 1..=1, Some(&["kind"]), true);
+                cx.node(c, "firmware/stage");
                 f.stages.push(Stage {
                     meta: cx.meta(c),
                     name: cx.name(c),
@@ -1492,7 +1454,7 @@ fn firmware(cx: &mut Cx, n: &RawNode) -> Firmware {
                 });
             }
             "recovery" => {
-                cx.shape(c, 1..=1, Some(&[]), false);
+                cx.node(c, "firmware/recovery");
                 if let Some(text) = cx.arg_str(c, 0) {
                     once(cx, c, &mut f.recovery, text);
                 }
@@ -1508,7 +1470,7 @@ fn firmware(cx: &mut Cx, n: &RawNode) -> Firmware {
 }
 
 fn lbmt(cx: &mut Cx, n: &RawNode) -> Lbmt {
-    cx.shape(n, 2..=2, Some(&["from", "to", "enabled"]), false);
+    cx.node(n, "lbmt");
     Lbmt {
         meta: cx.meta(n),
         name: cx.name(n),
@@ -1520,14 +1482,14 @@ fn lbmt(cx: &mut Cx, n: &RawNode) -> Lbmt {
 }
 
 fn driver(cx: &mut Cx, n: &RawNode) -> Driver {
-    cx.shape(n, 1..=1, Some(&["provides", "from"]), true);
+    cx.node(n, "driver");
     let mut owns = Vec::new();
     for c in &n.children {
         if c.name != "owns" {
             cx.unknown_child("driver", c, &["owns"]);
             continue;
         }
-        cx.shape(c, 1..=1, Some(&["bytes", "frame"]), false);
+        cx.node(c, "driver/owns");
         let bytes = match cx.prop_str(c, "bytes") {
             Some(s) => cx.send_template(c.prop("bytes").map_or(c.pos, |v| v.pos), "bytes", &s),
             None => None,
@@ -1549,12 +1511,7 @@ fn driver(cx: &mut Cx, n: &RawNode) -> Driver {
 }
 
 fn test_vector(cx: &mut Cx, n: &RawNode) -> TestVector {
-    cx.shape(
-        n,
-        1..=1,
-        Some(&["message", "block", "file", "sha256", "reply", "variant"]),
-        true,
-    );
+    cx.node(n, "test-vector");
     let mut t = TestVector {
         meta: cx.meta(n),
         name: cx.name(n),
@@ -1571,17 +1528,17 @@ fn test_vector(cx: &mut Cx, n: &RawNode) -> TestVector {
     for c in &n.children {
         match c.name.as_str() {
             "args" => {
-                cx.shape(c, 0..=0, None, false);
+                cx.node(c, "test-vector/args");
                 t.args.extend(cx.args(c, &[]));
             }
             "bytes" => {
-                cx.shape(c, 1..=1, Some(&[]), false);
+                cx.node(c, "test-vector/bytes");
                 if let Some(bytes) = cx.arg_with(c, 0, parse_hex_bytes) {
                     once(cx, c, &mut t.bytes, bytes);
                 }
             }
             "data" => {
-                cx.shape(c, 2..=2, Some(&[]), false);
+                cx.node(c, "test-vector/data");
                 let name = cx.name(c);
                 if let Some(bytes) = cx.arg_with(c, 1, parse_hex_bytes) {
                     t.data.push(ByteArg { name, bytes });

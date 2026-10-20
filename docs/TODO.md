@@ -78,8 +78,9 @@ Last updated: 2026-10-20 (ctrl-cdl landed).
   `cdl-parse` (2b99ab8)
 - [ ] platform: `ctrl-cli check` compiles LBMT once `lbmt` is a dependency
 - [ ] platform: tree-sitter query file, LBMT injection
-- [ ] platform: `cdl-schema.md`: one table per node with every property,
-  generated from the IR types
+- [x] platform: `cdl-schema.md`: one entry per node with every property,
+  generated from the converter's node table (`schema.rs`, `ctrl-cli
+  schema`); a test fails when it is stale (HASH)
 
 ## P2 Prove CDL on the DB-1; KORG stays intact
 

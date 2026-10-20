@@ -14,6 +14,7 @@ const USAGE: &str = "\
 usage: ctrl-cli check <file>...
        ctrl-cli explain <file> <message> [name=value]...
        ctrl-cli trace <file> [--matched] <capture>...
+       ctrl-cli schema > docs/cdl-schema.md
 
 check    load and validate each descriptor, check its images, run its test
          vectors and list send paths that are not measured or decoded
@@ -25,7 +26,9 @@ trace    decode captures with the descriptor. A capture is text, one frame
          (`OUT … data=…`, `IN … data=…`); or a binary .syx/.bin MIDI
          stream. A reply is matched to the message sent just before it
          when that message accepts it. --matched hides frames that match
-         nothing";
+         nothing
+schema   print docs/cdl-schema.md: every CDL node, its arguments, properties
+         and children";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -40,6 +43,10 @@ fn main() -> ExitCode {
                 .cloned()
                 .collect();
             trace(&args[1], &rest, matched_only)
+        }
+        Some("schema") if args.len() == 1 => {
+            print!("{}", ctrl_cdl::schema::markdown());
+            Ok(true)
         }
         Some("-h" | "--help" | "help") => {
             println!("{USAGE}");

@@ -16,6 +16,7 @@ pub mod expr;
 mod ir;
 mod path;
 mod raw;
+pub mod schema;
 mod template;
 mod validate;
 
