@@ -183,8 +183,18 @@ config transport (KORG over USB and BLE), one carries `preferred=#true`,
 and the user's port choice overrides it. Without a preferred transport the
 engine asks the user to choose and never picks one silently.
 
-`port-match` is a case-sensitive substring of the port name. The matches
-of one device's transports must not overlap: "nanoKEY Studio" also matches
+`port-match` is a case-sensitive substring of the port name, used for both
+directions. When the input and output ports have different names, use
+`port-match-in` and `port-match-out` instead; a transport has either
+`port-match` or both directional matches. The nanoKEY Studio over USB is
+the case in point: input "nanoKEY Studio KEYBOARD/CTRL", output "nanoKEY
+Studio CTRL".
+
+```kdl
+transport "usb" kind="midi" role="config" port-match-in="nanoKEY Studio KEYBOARD/CTRL" port-match-out="nanoKEY Studio CTRL"
+```
+
+The matches of one device's transports must not overlap, per direction: "nanoKEY Studio" also matches
 "nanoKEY Studio Bluetooth", so the USB transport must name its port fully.
 `ctrl-cli check` reports overlapping matches, and the engine refuses a port
 that more than one transport matches.
@@ -256,8 +266,9 @@ SysEx is a set of `message` nodes (§6) plus the `procedure`s that use them
 (§11). Two helpers make vendor framing short:
 
 ```kdl
-// from korg-sysex: F0 42 4d, where d is the device id from the identity
-// reply (00 over USB, 0F over BLE; not a MIDI channel), then the model id
+// from korg-sysex: F0 42 4d, where d is the device id read from the
+// identity reply (a stored device setting, not tied to the transport and
+// not a MIDI channel), then the model id
 // (one byte below 0x80, otherwise 00 hi lo, so 0x137 is 00 01 37), then
 // the command
 sysex-frame "korg-native" status="decoded" evidence="KORG crates/korg-sysex push_model, encode" {

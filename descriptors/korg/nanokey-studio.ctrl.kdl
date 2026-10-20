@@ -20,12 +20,10 @@ identify {
 
 // USB is preferred; the user's port choice overrides it. A scene-set
 // receive over Bluetooth took 158 s (60-implementation-todo.md).
-// "nanoKEY Studio" alone would also match the Bluetooth port. The USB config
-// port has direction-specific names: input "nanoKEY Studio KEYBOARD/CTRL",
-// output "nanoKEY Studio CTRL". A single port-match cannot select both, so
-// CDL needs separate in/out matches; until then the engine's directional
-// fallback resolves " CTRL" to " KEYBOARD/CTRL" for input.
-transport "usb" kind="midi" port-match="nanoKEY Studio CTRL" role="config" preferred=#true status="measured" evidence="CoreMIDI listing 2026-10-20; receive and byte-identical write on USB (KORG b2775a1)" {
+// The USB config port has direction-specific names (CDL §5). The KORG
+// editor resolves them with a directional " CTRL" <-> " KEYBOARD/CTRL"
+// fallback (KORG fbf74bc).
+transport "usb" kind="midi" port-match-in="nanoKEY Studio KEYBOARD/CTRL" port-match-out="nanoKEY Studio CTRL" role="config" preferred=#true status="measured" evidence="CoreMIDI listing with cable, 2026-10-20; global and scene-set receive and unchanged write byte-identical over USB (KORG fbf74bc)" {
     capture "device-id" from="identity"
 }
 // Port name as in the original's preferences (docs/app-architecture.md).

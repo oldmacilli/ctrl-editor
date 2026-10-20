@@ -106,9 +106,13 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
 - [x] user+korg: global write captured over BLE (data header `14 01 00 51`,
   ack 23, no commit) and implemented in korg-app, Slint, TUI and CLI;
   byte-identical round trip on X14802 (KORG eba516b)
-- [ ] user+korg: attach the nanoKEY Studio over USB and confirm its CoreMIDI
-  port name ("nanoKEY Studio CTRL" is inferred); then mark the usb
-  transport measured in `descriptors/korg/nanokey-studio.ctrl.kdl`
+- [x] user+korg: nanoKEY Studio over USB verified with a cable: input
+  "nanoKEY Studio KEYBOARD/CTRL", output "nanoKEY Studio CTRL"; receive and
+  unchanged write byte-identical (KORG fbf74bc; ctrl-editor 8f9aaea). CDL
+  got `port-match-in`/`port-match-out`. The identity device id is 0x0F
+  over USB too: a stored setting, not tied to the transport
+- [ ] user+korg: check whether the nanoKONTROL Studio's USB input port also
+  has its own name; its descriptor uses one `port-match` today
 - [ ] platform: `ctrl-cli check` reports overlapping `port-match` strings
   within a device (CDL §5)
 - [ ] korg: nanoKEY Studio calibration (`X14800_Calib`). blocked: capture
