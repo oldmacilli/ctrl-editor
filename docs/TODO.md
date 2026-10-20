@@ -15,12 +15,13 @@ editor lane (OMP, w5:p2) · **db1** / **tec** = whoever owns those repos ·
 **zigtact** = the LBMT owners · **user** = needs the owner's decision or
 hardware.
 
-Last updated: 2026-10-20 (global write landed).
+Last updated: 2026-10-20 (repo pushed to GitHub).
 
 ## P0 Agree the concept
 
-- [ ] user: approve the concept, the working name `ctrl-editor` and a
-  GitHub repo (nothing is pushed yet)
+- [x] user: GitHub repo `oldmacilli/ctrl-editor` (private) created and
+  pushed (196eb94)
+- [ ] user: approve the concept
 - [ ] korg: review CONCEPT §3 and §4 (crate moves out of the KORG repo)
 - [ ] db1, tec: review CONCEPT and their descriptors
   (`descriptors/oceanbeach/db1.ctrl.kdl`, `descriptors/tecontrol/breath.ctrl.kdl`)
