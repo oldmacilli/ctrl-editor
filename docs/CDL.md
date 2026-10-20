@@ -139,7 +139,22 @@ original editor does (the jog panel shows CW/CCW CC only for Inc/Dec). A
 `field` without `offset` in a block whose size is unknown is allowed only
 when the block is never written.
 
-### 4.4 Parameters
+### 4.4 Paths
+
+Procedures, `verify`, `restore-point` and bindings name data with paths:
+
+```text
+path   = block [ "[" index "]" ] { "." name [ "[" index "]" ] }
+index  = expr | expr ".." expr          // a range is half-open
+expr   = an LBMT expression over procedure arguments, e.g. i, s, p * 6
+```
+
+Examples: `scene[scene].jog.channel`, `sensor[s].shaping`,
+`sensor[s].curve[p * 6 .. p * 6 + 6]`. A block without an index means all
+of its elements. `compare=` takes paths separated by spaces; without
+`compare`, `verify` compares everything the procedure wrote.
+
+### 4.5 Parameters
 
 Parameters are what the UI shows. Most map 1:1 to a field and need no extra
 node. Add `param` when the label, group or UI differs:
@@ -159,7 +174,13 @@ transport "bulk" kind="usb-bulk" interface=1 ep-out=0x02 ep-in=0x81 status="unkn
 ```
 
 Messages and procedures name the transport they use. `role="config"` marks
-the port that the write policy guards.
+the port that the write policy guards. When a device has more than one
+config transport (KORG over USB and BLE), one carries `preferred=#true`,
+and the user's port choice overrides it. Without a preferred transport the
+engine asks the user to choose and never picks one silently.
+
+A transport can capture values from the identity exchange for later
+messages: `capture "device-id" from="identity-reply.device"`.
 
 ## 6. Message templates
 
@@ -225,10 +246,12 @@ SysEx is a set of `message` nodes (§6) plus the `procedure`s that use them
 (§11). Two helpers make vendor framing short:
 
 ```kdl
-// from korg-sysex: F0 42 4c, then the model id (one byte below 0x80,
-// otherwise 00 hi lo, so 0x137 is 00 02 37), then the command
+// from korg-sysex: F0 42 4d, where d is the device id from the identity
+// reply (00 over USB, 0F over BLE; not a MIDI channel), then the model id
+// (one byte below 0x80, otherwise 00 hi lo, so 0x137 is 00 01 37), then
+// the command
 sysex-frame "korg-native" status="decoded" evidence="KORG crates/korg-sysex push_model, encode" {
-    prefix "F0 42 {0x40 | channel} {model:korg-model}"
+    prefix "F0 42 {0x40 | device-id} {model:korg-model}"
     suffix "F7"
 }
 message "scene-dump-request" frame="korg-native" { send "{cmd.scene_data_request} {scene}" }
@@ -328,7 +351,7 @@ A procedure is an ordered list of steps:
 | `repeat "i" "0..=8" { … }` | loop with a counter (no other loops exist) |
 | `read-into "block" from="capture"` | store reply captures into a block |
 | `delay 20` | milliseconds |
-| `verify "procedure" compare="block"` | read back and compare; report the first differing byte |
+| `verify "procedure" compare="path…"` | run the read procedure and compare the paths (§4.4); report the first differing byte |
 | `gate "arm"` / `gate "confirm"` | write policy (below) |
 | `restore-point "block…"` | snapshot before writing |
 | `require #"firmware >= 0x0210"#` | precondition, LBMT expression |
@@ -413,6 +436,19 @@ yet". `kind`: `knob`, `fader`, `button`, `pad`, `key`, `touchpad`, `jog`,
 ```kdl
 driver "tec-curve" provides="block:curve" from="param:bending param:symmetry"
 driver "korg-nktrl-file" provides="file:nktrl_st_set file:nktrl_st_data"
+```
+
+`provides` names the procedures, blocks or files the driver implements,
+using the same IDs as the descriptor (`procedure:receive-scene-set` needs a
+`procedure "receive-scene-set"` node whose step calls the driver). A driver
+that sends bytes the descriptor does not yet describe lists them as
+`owns` children with their evidence, so the bytes are on record even before
+they become CDL messages:
+
+```kdl
+driver "korg-measured" provides="procedure:write-scene" {
+    owns "scene-write-header" bytes="01 05 00 40" status="measured" evidence="korg-devices measured_layout(0x137)"
+}
 ```
 
 A driver is a Rust type that implements `ctrl_engine::Driver`. It is

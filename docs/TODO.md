@@ -34,6 +34,10 @@ Last updated: 2026-10-20.
   firmware template; all four parse as KDL 2.0 (`tools/cdl-parse`)
 - [x] platform: the DB-1 LBMT example parses, compiles and runs in
   zigtact's `lbmt` crate
+- [x] platform: KORG lane review applied: model id `00 01 37`, device id
+  from the identity reply, preferred transport, procedure IDs aligned,
+  driver-owned bytes on record (`owns`), path grammar for `verify` (CDL
+  §4.4), protocol-regression risk
 - [ ] platform: `ctrl-cdl` crate: KDL → typed IR (serde), with errors that
   point at line and column
 - [ ] platform: validator: unknown names, ranges, `status` rules (CDL §4.1),
@@ -47,19 +51,25 @@ Last updated: 2026-10-20.
 - [ ] platform: `cdl-schema.md`: one table per node with every property,
   generated from the IR types
 
-## P2 Platform crates from KORG
+## P2 Prove CDL on the DB-1; KORG stays intact
 
-Order matters: rename and generalise; do not rewrite.
+Order (CONCEPT §4, revised after the KORG lane's review): new small crates
+first, DB-1 on them, KORG behind adapters. No rename of working crates.
 
-- [ ] korg+platform: `ctrl-transport` from `korg-midi` (`MidiTransport`,
-  `MockTransport`) plus a `HidDevice` trait from `tec-device`
-- [ ] korg+platform: `ctrl-core` from `korg-core`; `EditorController` and
-  `ViewModel` over CDL blocks instead of Korg scenes. **API change: korg owner
-  acks first.**
-- [ ] platform: `ctrl-engine`: procedure runner (exchange, repeat, verify,
-  gates, restore points, tx log from `db1-session`)
-- [ ] korg+platform: `ctrl-app` from `korg-app`; `DeviceJob` becomes "run
-  procedure"; `panel` loaded from CDL
+- [ ] platform: `ctrl-transport`: MIDI trait (shape of `korg-midi` and
+  `db1-midi`), `HidDevice` trait (shape of `tec-device`), mocks that replay
+  captures
+- [ ] platform: `ctrl-engine`: procedure runner (exchange, repeat, verify
+  with paths, gates, restore points, tx log from `db1-session`)
+- [ ] platform+db1: DB-1 runs on `ctrl-engine` from its descriptor; every
+  `db1-protocol` test vector reproduced byte for byte
+- [ ] platform+korg: adapters so the engine and front ends can drive
+  `korg-core` unchanged (`EditorController`, `MeasuredSession`, `run_job`)
+- [ ] korg: first KORG device on CDL (nanoKONTROL Studio): its CDL vectors
+  reproduce `korg-sysex` and `MeasuredSession` output byte for byte; hardware
+  checklist on USB and BLE
+- [ ] korg+platform: generalise `EditorController`/`ViewModel` into
+  `ctrl-core` only after that. **API change: korg owner acks first.**
 - [ ] platform: `ctrl-tui` from `korg-tui`, with no device-specific code
 - [ ] korg: `ctrl-slint` from `korg-slint` (at `c98ded8`: tabs, browse,
   copy/paste, New from factory, prefs, measured jobs)
@@ -82,7 +92,8 @@ Order matters: rename and generalise; do not rewrite.
 ### KORG
 
 - [ ] korg: nanoKONTROL Studio descriptor complete: SysEx exchanges as CDL
-  messages instead of the `korg-measured` driver
+  messages instead of the `korg-measured` driver; identity reply as a CDL
+  pattern that captures the device id
 - [ ] korg: Strings XML from the vendor application (`the local capture archive`)
   → control lists and value labels for all 14 devices
 - [ ] korg: parameter schemas for the 12 devices without one (getters)

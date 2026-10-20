@@ -74,7 +74,7 @@ Rules carried over from the KORG workspace:
 
 | Platform piece | Taken from | Change |
 |---|---|---|
-| `ctrl-core` EditorController, undo, view model | `korg-core` | parameter model generalised from Korg scenes to CDL `blocks` |
+| `ctrl-core` EditorController, undo, view model | `korg-core` | later; first behind an adapter (§4), generalised only after DB-1 and one KORG device run on CDL |
 | `ctrl-app` jobs, panels, document helpers | `korg-app` | `DeviceJob` becomes "run CDL procedure X" |
 | `ctrl-tui` | `korg-tui` | no device-specific code; panels and fields come from CDL |
 | `ctrl-slint` | `korg-slint` (tabs, browse, copy/paste, prefs) + `tec-ui` (live meters, curve view) | one window; device pack picks the tabs |
@@ -134,16 +134,20 @@ binaries and extracted content stay out of every repo, as now.
 
 Order:
 
-1. KORG first. It has the most mature core and both front ends. Its crates
-   become `ctrl-*` by renaming and generalising, not by rewriting.
-   `KORG_Kontrol_Editor` then depends on `ctrl-editor` until its product
-   code has moved over.
-2. DB-1 second. Its protocol is small and fully measured, so it is the
-   proof that a descriptor alone can carry a device. `db1-session` brings
-   restore points and the tx log.
+1. Prove CDL on the DB-1 first. Its protocol is small and fully measured.
+   New, small platform crates (`ctrl-cdl`, `ctrl-engine`,
+   `ctrl-transport`) run the DB-1 descriptor; `db1-session` brings
+   restore points and the tx log. The KORG editor is not touched.
+2. Put the KORG editor behind adapters, not a rename. `korg-core` and its
+   `EditorController` stay as they are; adapters let the platform engine
+   and front ends drive them, and the shared pieces that already exist
+   (`korg_app::panel`, `run_job`) are reused. KORG devices then move to CDL
+   one at a time, each behind its hardware checklist.
 3. TEC third. It adds HID, the per-device hub and the arm gate, and is the
    first device with a driver (the curve).
-4. Firmware update last, starting with a decoded, captured procedure. No
+4. The front ends: `ctrl-tui` and `ctrl-slint` grow out of `korg-tui` and
+   `korg-slint` once two device families run on the engine.
+5. Firmware update last, starting with a decoded, captured procedure. No
    device has one yet.
 
 Each step keeps the old editor working until the new one passes the same
@@ -153,6 +157,7 @@ hardware checklist.
 
 | Risk | Mitigation |
 |---|---|
+| Protocol regression while KORG code moves to the platform (framing, length style, device id, write header, commit) | No rename of working crates; KORG stays behind adapters (§4). Before a KORG device moves, its CDL test vectors must reproduce `korg-sysex` and `MeasuredSession` output byte for byte, and the hardware checklist (receive, write, read-back) must pass on USB and BLE |
 | A generic engine hides device quirks that the hand-written code got right | Every descriptor ships test vectors from real captures; the old crate's tests must pass against the descriptor before the old crate is retired |
 | The descriptor language grows into a programming language | Hard limit: no loops beyond `repeat`, no recursion; complex logic goes to LBMT or a driver |
 | Bricking hardware (TEC incident 2026-10-13, firmware) | One write policy: dry run by default, confirm, arm for flash and firmware, restore point, read-back verify (CDL §11) |
