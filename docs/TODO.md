@@ -106,6 +106,11 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
 - [x] user+korg: global write captured over BLE (data header `14 01 00 51`,
   ack 23, no commit) and implemented in korg-app, Slint, TUI and CLI;
   byte-identical round trip on X14802 (KORG eba516b)
+- [ ] user+korg: attach the nanoKEY Studio over USB and confirm its CoreMIDI
+  port name ("nanoKEY Studio CTRL" is inferred); then mark the usb
+  transport measured in `descriptors/korg/nanokey-studio.ctrl.kdl`
+- [ ] platform: `ctrl-cli check` reports overlapping `port-match` strings
+  within a device (CDL §5)
 - [ ] korg: nanoKEY Studio calibration (`X14800_Calib`). blocked: capture
 - [x] korg: `docs/rewrite/72-feature-parity.md` updated with the Slint
   state (KORG eba516b)

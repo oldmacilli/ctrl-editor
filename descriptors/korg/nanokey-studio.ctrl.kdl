@@ -20,7 +20,9 @@ identify {
 
 // USB is preferred; the user's port choice overrides it. A scene-set
 // receive over Bluetooth took 158 s (60-implementation-todo.md).
-transport "usb" kind="midi" port-match="nanoKEY Studio" role="config" preferred=#true {
+// "nanoKEY Studio" alone would also match the Bluetooth port. The USB name
+// follows the nanoKONTROL Studio's "… CTRL"; verify it with USB attached.
+transport "usb" kind="midi" port-match="nanoKEY Studio CTRL" role="config" preferred=#true status="inferred" evidence="by analogy with nanoKONTROL Studio CTRL; not seen in a CoreMIDI listing yet" {
     capture "device-id" from="identity"
 }
 // Port name as in the original's preferences (docs/app-architecture.md).

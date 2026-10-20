@@ -183,6 +183,12 @@ config transport (KORG over USB and BLE), one carries `preferred=#true`,
 and the user's port choice overrides it. Without a preferred transport the
 engine asks the user to choose and never picks one silently.
 
+`port-match` is a case-sensitive substring of the port name. The matches
+of one device's transports must not overlap: "nanoKEY Studio" also matches
+"nanoKEY Studio Bluetooth", so the USB transport must name its port fully.
+`ctrl-cli check` reports overlapping matches, and the engine refuses a port
+that more than one transport matches.
+
 A transport can capture values from the identity exchange for later
 messages: `capture "device-id" from="identity-reply.device"`.
 
