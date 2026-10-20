@@ -24,7 +24,7 @@ transport "usb" kind="midi" port-match="nanoKEY Studio" role="config" preferred=
     capture "device-id" from="identity"
 }
 // Port name as in the original's preferences (docs/app-architecture.md).
-transport "ble" kind="midi" port-match="nanoKEY Studio - Bluetooth" role="config" status="measured" evidence="60-implementation-todo.md: Bluetooth receive, 158 s; port name from the original's preference file" {
+transport "ble" kind="midi" port-match="nanoKEY Studio Bluetooth" role="config" status="measured" evidence="CoreMIDI listing, 2026-10-20" {
     capture "device-id" from="identity"
 }
 
