@@ -78,7 +78,7 @@ Last updated: 2026-10-20 (ctrl-cdl landed).
   `cdl-parse` (2b99ab8)
 - [ ] platform: `ctrl-cli check` compiles LBMT once `lbmt` is a dependency
 - [x] platform: tree-sitter queries (highlights, LBMT injection) on
-  tree-sitter-kdl, checked against the grammar and the node table (HASH)
+  tree-sitter-kdl, checked against the grammar and the node table (5d3a71c)
 - [ ] zigtact: a tree-sitter grammar for LBMT, so the injection highlights
 - [x] platform: `cdl-schema.md`: one entry per node with every property,
   generated from the converter's node table (`schema.rs`, `ctrl-cli
