@@ -70,7 +70,7 @@ Last updated: 2026-10-20 (ctrl-cdl landed).
 - [ ] platform: a vendor-encoding registry entry only when no generic part
   fits; none needed so far
 - [x] platform: `ctrl-cli check | explain | trace` (CDL §16); replaces
-  `cdl-parse` (HASH)
+  `cdl-parse` (2b99ab8)
 - [ ] platform: `ctrl-cli check` compiles LBMT once `lbmt` is a dependency
 - [ ] platform: tree-sitter query file, LBMT injection
 - [ ] platform: `cdl-schema.md`: one table per node with every property,
