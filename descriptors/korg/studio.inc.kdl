@@ -9,7 +9,11 @@ sysex-frame "korg-native" status="measured" evidence="byte-identical with the ca
 message "identity" status="measured" evidence="replies captured from both Studios over USB and Bluetooth (korg-sysex identity_replies_parse_for_both_studios)"
 
 // Shared reply shapes and named acknowledgement statuses (korg-sysex
-// AckStatus). The scene-data pattern is per device because its header differs.
+// AckStatus). The `01 00 00` prefix is captured for both observed statuses:
+// 23 in 31 frames from X14800 and 8 from X14802, and 21 in the X14802
+// scene-write sequence (docs/midi-sysex.md). Statuses 22 and 24 are
+// unobserved, so the prefix is not claimed for them.
+// The scene-data pattern is per device because its header differs.
 pattern "korg-ack" "01 00 00 {status}"
 pattern "global-data" "14 01 00 51 {data:packed7}"
 const "data-received" 0x23
