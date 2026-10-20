@@ -66,7 +66,7 @@ Last updated: 2026-10-20 (ctrl-cdl landed).
   patterns for read-block, a scene-read reply vector from a capture, then
   the procedures off `korg-measured` (2a475d4)
 - [x] platform+db1: DB-1 vectors from `db1-protocol` tests, the app's
-  frames and the hardware ping reply: 10; drawbar `arg` index 0..=8 (HASH)
+  frames and the hardware ping reply: 10; drawbar `arg` index 0..=8 (f583a07)
 - [x] platform+tec: TEC vectors from the HID captures: 16, and every
   transaction in the 10 TECcontrol traces decodes to one message (725a2c8)
 - [x] platform: KORG and TEC descriptors in one style: `arg` ranges (CDL
