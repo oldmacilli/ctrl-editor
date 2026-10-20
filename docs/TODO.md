@@ -15,7 +15,7 @@ editor lane (OMP, w5:p2) · **db1** / **tec** = whoever owns those repos ·
 **zigtact** = the LBMT owners · **user** = needs the owner's decision or
 hardware.
 
-Last updated: 2026-10-20.
+Last updated: 2026-10-20 (global write landed).
 
 ## P0 Agree the concept
 
@@ -98,10 +98,14 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
   → control lists and value labels for all 14 devices
 - [ ] korg: parameter schemas for the 12 devices without one (getters)
 - [ ] korg: exact click areas from the component code
-- [ ] user: global write capture. blocked: user
+- [x] user+korg: global write captured over BLE (data header `14 01 00 51`,
+  ack 23, no commit) and implemented in korg-app, Slint, TUI and CLI;
+  byte-identical round trip on X14802 (KORG eba516b)
 - [ ] korg: nanoKEY Studio calibration (`X14800_Calib`). blocked: capture
-- [ ] platform: update `KORG_Kontrol_Editor/docs/rewrite/72-feature-parity.md`
-  to `c98ded8` (most menus now ✅ in Slint)
+- [x] korg: `docs/rewrite/72-feature-parity.md` updated with the Slint
+  state (KORG eba516b)
+- [ ] korg: global schema; the editors show the global block's raw length
+  only
 
 ### DB-1
 

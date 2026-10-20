@@ -95,12 +95,18 @@ procedure "write-scene-set" kind="write" status="measured" {
     driver "korg-measured" step="write-scene-set"
     verify "receive-scene-set" compare="scene"
 }
-procedure "write-global" kind="write" status="unknown" evidence="waits for the global write capture"
+procedure "write-global" kind="write" status="measured" evidence="BLE capture and byte-identical round trip, KORG eba516b" {
+    gate "confirm" text="Write the global settings to the device?"
+    restore-point "global"
+    driver "korg-measured" step="write-global"
+    verify "receive-global" compare="global"
+}
 
-driver "korg-measured" provides="procedure:receive-scene-set procedure:receive-global procedure:write-scene procedure:write-scene-set" {
+driver "korg-measured" provides="procedure:receive-scene-set procedure:receive-global procedure:write-scene procedure:write-scene-set procedure:write-global" {
     owns "identity-request" bytes="F0 7E 7F 06 01 F7" status="measured" evidence="korg-sysex IDENTITY_REQUEST"
     owns "device-id" note="low nibble of the identity reply: 00 USB, 0F BLE" status="measured" evidence="Slint lane review 2026-10-20"
     owns "scene-write-header" bytes="01 05 00 40" status="measured" evidence="korg-devices measured_layout(0x137), korg-sysex X14802_SCENE_WRITE_HEADER"
+    owns "global-write-header" bytes="14 01 00 51" status="measured" evidence="korg-sysex X14802_GLOBAL_WRITE_HEADER; ack 23, no commit (KORG eba516b)"
     owns "scene-commit" bytes="02 00 00 11 {scene}" frame="korg-native" status="measured" evidence="korg-sysex build_commit, korg-core MeasuredSession::write_scene"
 }
 driver "korg-nktrl-file" provides="file:nktrl_st_set file:nktrl_st_data file:nktrl_st_glob"
