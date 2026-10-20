@@ -116,7 +116,7 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
   (device, decoded model id, scene and global block sizes, file types,
   thumbnails, a MIDI transport found by identity scan); the Studios' hand
   files override it; shared facts split into `common.inc.kdl` (decoded) and
-  `studio.inc.kdl` (measured) (COMMIT)
+  `studio.inc.kdl` (measured) (45a2fe2)
 - [ ] platform: labels and panel pictures in the generator, once the
   resource names map to classes (lookup ``; in progress)
 - [ ] korg: parameter schemas for the 12 devices without one (getters)
