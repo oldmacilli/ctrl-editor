@@ -9,6 +9,7 @@ device "korg.nanokontrol2" {
     class "X10840"
     file-key "0840"
     image "assets/nanokontrol2/thumbnail.png" role="thumbnail"
+    image "assets/nanokontrol2/list-icon.png" role="list-icon"
 }
 
 const "model" 0x113 status="decoded" evidence="KORG analysis/sysex/descriptors.json: X10840SysExGenerator descriptor, length style short_or_long"
@@ -22,3 +23,111 @@ transport "midi" kind="midi" role="config" scan="identity" status="decoded" evid
 block "scene" size=339 count=1 status="decoded" evidence="KORG analysis/products/catalog.json (factory data)"
 
 driver "korg-file" provides="file:nktrl2_data" status="decoded" evidence="KORG analysis/products/catalog.json (Info.plist document types)"
+
+types {
+    enum "assign-type" status="inferred" evidence="KORG UI strings AssignType; item index as stored value not verified" {
+        value 0 "No Assign"
+        value 1 "Control Change"
+        value 2 "Note"
+    }
+    enum "sw-type" status="inferred" evidence="KORG UI strings SwType; item index as stored value not verified" {
+        value 0 "Momentary"
+        value 1 "Toggle"
+    }
+    enum "function-command" status="inferred" evidence="KORG UI strings FunctionCommand; item index as stored value not verified" {
+        value 0 "Stop"
+        value 1 "Play"
+        value 2 "Deffered Play"
+        value 3 "Fast Forward"
+        value 4 "Rewind"
+        value 5 "Record Strobe"
+        value 6 "Record Exit"
+        value 7 "Record Pause"
+        value 8 "Pause"
+        value 9 "Eject"
+        value 10 "Chase"
+        value 11 "Command Error Reset"
+        value 12 "MMC Reset"
+    }
+    enum "daw-mode" status="inferred" evidence="KORG UI strings DAWMode; item index as stored value not verified" {
+        value 0 "Cubase"
+        value 1 "DP"
+        value 2 "Live"
+        value 3 "Pro Tools"
+        value 4 "Sonar"
+    }
+    enum "key-mode" status="inferred" evidence="KORG UI strings KeyMode; item index as stored value not verified" {
+        value 0 "Single"
+        value 1 "Layer"
+        value 2 "Split"
+    }
+}
+
+labels "en" source="KORG KONTROL EDITOR UI strings" {
+    list "controller-names" {
+        item 0 "Common"
+        item 1 "Group Common"
+        item 2 "Knob"
+        item 3 "Slider"
+        item 4 "Solo Button"
+        item 5 "Mute Button"
+        item 6 "Rec Button"
+        item 7 "Transport Common"
+        item 8 "Transport"
+    }
+    list "parameter-names" {
+        item 0 "Scene MIDI Channel"
+        item 1 "Group MIDI Channel"
+        item 2 "Slider Enable"
+        item 3 "CC Number"
+        item 4 "Upper Value"
+        item 5 "Lower Value"
+        item 6 "Knob Enable"
+        item 7 "CC Number"
+        item 8 "Left Value"
+        item 9 "Right Value"
+        item 10 "Assign Type"
+        item 11 "CC/Note Number"
+        item 12 "Off Value"
+        item 13 "On Value"
+        item 14 "Button Behavior"
+        item 16 "CC/Note Number"
+        item 17 "Off Value"
+        item 18 "On Value"
+        item 19 "Transport MIDI Channel"
+    }
+    list "parameter-types" {
+        item 0 "MIDI Channel"
+        item 1 "Assign Type"
+        item 2 "Button Behavior"
+        item 3 "CC/Note Number"
+        item 4 "Left/Lower Value"
+        item 5 "Right/Upper Value"
+        item 6 "Off Value"
+        item 7 "On Value"
+    }
+    list "edit-types" {
+        item 0 "None"
+        item 1 "Common"
+        item 2 "Group Common"
+        item 3 "Knob/Slider"
+        item 4 "Button"
+        item 5 "Transport Common"
+        item 6 "Transport"
+    }
+    list "transport-button-names" {
+        item 0 "Track Rew"
+        item 1 "Track FF"
+        item 2 "CYCLE"
+        item 3 "Set"
+        item 4 "Marker Rew"
+        item 5 "Marker FF"
+        item 6 "REW"
+        item 7 "FF"
+        item 8 "STOP"
+        item 9 "PLAY"
+        item 10 "REC"
+    }
+}
+
+panel picture="780x210" image="assets/nanokontrol2/panel.png" source="KORG KONTROL EDITOR panel picture" status="decoded" evidence="KORG KONTROL EDITOR panel picture"

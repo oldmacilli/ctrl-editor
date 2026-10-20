@@ -9,8 +9,114 @@ device "korg.microkey-25" {
     class "X11810"
     file-key "1181"
     image "assets/microkey-25/thumbnail.png" role="thumbnail"
+    image "assets/microkey-25/list-icon.png" role="list-icon"
 }
 
 block "scene" size=256 count=1 status="decoded" evidence="KORG analysis/products/catalog.json (factory data)"
 
 driver "korg-file" provides="file:microkey25_data" status="decoded" evidence="KORG analysis/products/catalog.json (Info.plist document types)"
+
+types {
+    enum "velocity-curve" status="inferred" evidence="KORG UI strings VelocityCurve; item index as stored value not verified" {
+        value 0 "Curve 1"
+        value 1 "Curve 2"
+        value 2 "Curve 3"
+        value 3 "Curve 4"
+        value 4 "Curve 5"
+        value 5 "Curve 6"
+        value 6 "Curve 7"
+        value 7 "Curve 8"
+        value 8 "Const"
+    }
+    enum "assign-type" status="inferred" evidence="KORG UI strings AssignType; item index as stored value not verified" {
+        value 0 "Disable"
+        value 1 "Enable"
+    }
+    enum "button-behavior" status="inferred" evidence="KORG UI strings ButtonBehavior; item index as stored value not verified" {
+        value 0 "Momentary"
+        value 1 "Toggle"
+    }
+    enum "octave-range" status="inferred" evidence="KORG UI strings OctaveRange; item index as stored value not verified" {
+        value 0 "Octave1"
+        value 1 "Octave2"
+        value 2 "Octave3"
+        value 3 "Octave4"
+    }
+    enum "key-sync" status="inferred" evidence="KORG UI strings KeySync; item index as stored value not verified" {
+        value 0 "Off"
+        value 1 "On"
+    }
+    enum "midi-clock" status="inferred" evidence="KORG UI strings MidiClock; item index as stored value not verified" {
+        value 0 "Auto"
+        value 1 "Internal"
+        value 2 "External"
+    }
+    enum "arp-type" status="inferred" evidence="KORG UI strings ArpType; item index as stored value not verified" {
+        value 0 "Joystick"
+        value 1 "Trigger"
+        value 2 "Up"
+        value 3 "Down"
+    }
+}
+
+labels "en" source="KORG KONTROL EDITOR UI strings" {
+    list "controller-names" {
+        item 0 "Common"
+        item 1 "Keyboard"
+        item 2 "Joystick Upper"
+        item 3 "Joystick Lower"
+        item 4 "Joystick Button"
+        item 5 "Sustain Button"
+        item 6 "Arpeggiator"
+    }
+    list "parameter-names" {
+        item 0 "MIDI Channel"
+        item 1 "Transpose"
+        item 2 "Velocity Curve"
+        item 3 "Const Velocity Value"
+        item 4 "Assign Type"
+        item 5 "CC Number"
+        item 6 "Center Value"
+        item 7 "Top Value"
+        item 8 "Assign Type"
+        item 9 "CC Number"
+        item 10 "Center Value"
+        item 11 "Top Value"
+        item 12 "Assign Type"
+        item 13 "CC Number"
+        item 14 "Button Behavior"
+        item 15 "Off Value"
+        item 16 "On Value"
+        item 17 "Assign Type"
+        item 18 "CC Number"
+        item 19 "Button Behavior"
+        item 20 "Off Value"
+        item 21 "On Value"
+        item 22 "Resolution"
+        item 23 "Octave Range"
+        item 24 "Key Sync"
+        item 25 "Swing"
+        item 26 "MIDI Clock"
+        item 27 "BPM "
+        item 28 "Arpeggiator Type"
+    }
+    list "parameter-types" {
+        item 0 "Assign Type"
+        item 1 "CC Number"
+        item 2 "Button Behavior"
+        item 3 "Off/Center Value"
+        item 4 "On/Bottom/Top Value"
+    }
+    list "edit-types" {
+        item 0 "None"
+        item 1 "Common"
+        item 2 "Keyboard"
+        item 3 "Joystick Upper"
+        item 4 "Joystick Lower"
+        item 5 "Joystick Button"
+        item 6 "Sustain Button"
+        item 7 "Arpeggiator"
+    }
+}
+
+panel picture="598x211" image="assets/microkey-25/panel.png" source="KORG KONTROL EDITOR panel picture" status="decoded" evidence="KORG KONTROL EDITOR panel picture"

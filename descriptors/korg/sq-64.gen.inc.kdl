@@ -7,7 +7,7 @@ device "korg.sq-64" {
     vendor "KORG"
     model "SQ-64"
     class "X19210"
-    image "assets/sq-64/thumbnail.png" role="thumbnail"
+    image "assets/sq-64/list-icon.png" role="list-icon"
 }
 
 driver "korg-file" provides="file:sq64 file:sq64ctrl file:sq64proj file:sq64scale" status="decoded" evidence="KORG analysis/products/catalog.json (Info.plist document types)"

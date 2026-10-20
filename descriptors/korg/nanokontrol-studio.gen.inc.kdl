@@ -9,6 +9,7 @@ device "korg.nanokontrol-studio" {
     class "X14802"
     file-key "1482"
     image "assets/nanokontrol-studio/thumbnail.png" role="thumbnail"
+    image "assets/nanokontrol-studio/list-icon.png" role="list-icon"
 }
 
 const "model" 0x137 status="decoded" evidence="KORG analysis/sysex/descriptors.json: X14802SysExGenerator descriptor, length style short_or_long"
@@ -17,3 +18,74 @@ block "scene" size=560 count=5 status="decoded" evidence="KORG analysis/products
 block "global" size=128 status="decoded" evidence="KORG analysis/products/catalog.json (factory data)"
 
 driver "korg-file" provides="file:nktrl_st_data file:nktrl_st_glob file:nktrl_st_set" status="decoded" evidence="KORG analysis/products/catalog.json (Info.plist document types)"
+
+types {
+    enum "assign-type" status="inferred" evidence="KORG UI strings AssignType; item index as stored value not verified" {
+        value 0 "No Assign"
+        value 1 "Control Change"
+        value 2 "Note"
+    }
+    enum "sw-type" status="inferred" evidence="KORG UI strings SwType; item index as stored value not verified" {
+        value 0 "Momt"
+        value 1 "Tgl"
+    }
+    enum "jog-dial-value-type" status="inferred" evidence="KORG UI strings JogDialValueType; item index as stored value not verified" {
+        value 0 "No Assign"
+        value 1 "Sign Magnitude"
+        value 2 "Inc/Dec"
+        value 3 "Contiunous"
+    }
+    enum "auto-power-off-type" status="inferred" evidence="KORG UI strings AutoPowerOffType; item index as stored value not verified" {
+        value 0 "Disable"
+        value 1 "30 min"
+        value 2 "1 hour"
+        value 3 "2 hours"
+        value 4 "4 hours"
+    }
+}
+
+labels "en" source="KORG KONTROL EDITOR UI strings" {
+    list "controller-names" {
+        item 0 "Common"
+        item 1 "Knob"
+        item 2 "Slider"
+        item 3 "Track  Solo"
+        item 4 "Track  Mute"
+        item 5 "Track Rec"
+        item 6 "Track Select"
+        item 7 "Transport "
+        item 8 "Jog Wheel"
+    }
+    list "parameter-types" {
+        item 0 "MIDI Channel"
+        item 1 "Assign Type"
+        item 2 "Button Behavior"
+        item 3 "Note/CC Number"
+        item 4 "Left/Off Value"
+        item 5 "Right/On Value"
+    }
+    list "edit-types" {
+        item 0 "None"
+        item 1 "Knob"
+        item 2 "Slider"
+        item 3 "Track "
+        item 4 "Transport "
+        item 5 "Jog Dial"
+    }
+    list "transport-button-names" {
+        item 0 "Play"
+        item 1 "Stop"
+        item 2 "Rec"
+        item 3 "Rewind"
+        item 4 "Forward"
+        item 5 "Cycle"
+        item 6 "Return to Zero"
+        item 7 "Marker Set"
+        item 8 "Marker Rew"
+        item 9 "Marker FF"
+        item 10 "Track Rew"
+        item 11 "Track FF"
+    }
+}
+
+panel picture="550x329" image="assets/nanokontrol-studio/panel.png" source="KORG KONTROL EDITOR panel picture" status="decoded" evidence="KORG KONTROL EDITOR panel picture"

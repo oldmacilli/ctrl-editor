@@ -9,6 +9,7 @@ device "korg.nanokey-fold" {
     class "X20880"
     file-key "2088"
     image "assets/nanokey-fold/thumbnail.png" role="thumbnail"
+    image "assets/nanokey-fold/list-icon.png" role="list-icon"
 }
 
 const "model" 0x16a status="decoded" evidence="KORG analysis/sysex/descriptors.json: X20880SysExGenerator descriptor, length style short_or_long"
@@ -23,3 +24,51 @@ block "scene" size=304 count=15 status="decoded" evidence="KORG analysis/product
 block "global" size=72 status="decoded" evidence="KORG analysis/products/catalog.json (factory data)"
 
 driver "korg-file" provides="file:nanokey_fold_data file:nanokey_fold_glob file:nanokey_fold_set" status="decoded" evidence="KORG analysis/products/catalog.json (Info.plist document types)"
+
+types {
+    enum "assign-type" status="inferred" evidence="KORG UI strings AssignType; item index as stored value not verified" {
+        value 0 "Control Change"
+        value 1 "Note"
+        value 2 "No Assign"
+    }
+    enum "sw-type" status="inferred" evidence="KORG UI strings SwType; item index as stored value not verified" {
+        value 0 "Momt"
+        value 1 "Tgl"
+    }
+}
+
+labels "en" source="KORG KONTROL EDITOR UI strings" {
+    list "controller-names" {
+        item 0 "Common"
+        item 1 "Keyboard"
+        item 2 "CC/PC"
+        item 3 "Pitch/Mod"
+        item 4 "Touch KBD"
+        item 5 "Touch CC"
+        item 6 "Sus Button"
+        item 7 "Scale"
+        item 8 "Arpeggiator"
+    }
+    list "parameter-types" {
+        item 0 "MIDI Channel"
+        item 1 "Assign Type"
+        item 2 "Button Behavior"
+        item 3 "Note/CC/Prog Number"
+        item 4 "Left/Off Value"
+        item 5 "Right/On Value"
+    }
+    list "edit-types" {
+        item 0 "None"
+        item 1 "Common"
+        item 2 "Keyboard"
+        item 3 "CcPc"
+        item 4 "Pitch/Mod"
+        item 5 "Touch KBD"
+        item 6 "Touch Cc"
+        item 7 "Button"
+        item 8 "Scale"
+        item 9 "Arpeggiator"
+    }
+}
+
+panel picture="700x183" image="assets/nanokey-fold/panel.png" source="KORG KONTROL EDITOR panel picture" status="decoded" evidence="KORG KONTROL EDITOR panel picture"

@@ -9,6 +9,7 @@ device "korg.nanokey-studio" {
     class "X14800"
     file-key "1480"
     image "assets/nanokey-studio/thumbnail.png" role="thumbnail"
+    image "assets/nanokey-studio/list-icon.png" role="list-icon"
 }
 
 const "model" 0x136 status="decoded" evidence="KORG analysis/sysex/descriptors.json: X14800SysExGenerator descriptor, length style short_or_long"
@@ -17,3 +18,58 @@ block "scene" size=240 count=8 status="decoded" evidence="KORG analysis/products
 block "global" size=128 status="decoded" evidence="KORG analysis/products/catalog.json (factory data)"
 
 driver "korg-file" provides="file:nanokey_st_data file:nanokey_st_glob file:nanokey_st_set" status="decoded" evidence="KORG analysis/products/catalog.json (Info.plist document types)"
+
+types {
+    enum "assign-type" status="inferred" evidence="KORG UI strings AssignType; item index as stored value not verified" {
+        value 0 "Control Change"
+        value 1 "Note"
+        value 2 "No Assign"
+    }
+    enum "sw-type" status="inferred" evidence="KORG UI strings SwType; item index as stored value not verified" {
+        value 0 "Momt"
+        value 1 "Tgl"
+    }
+    enum "auto-power-off-type" status="inferred" evidence="KORG UI strings AutoPowerOffType; item index as stored value not verified" {
+        value 0 "Disable"
+        value 1 "30 min"
+        value 2 "1 hour"
+        value 3 "2 hours"
+        value 4 "4 hours"
+    }
+}
+
+labels "en" source="KORG KONTROL EDITOR UI strings" {
+    list "controller-names" {
+        item 0 "Common"
+        item 1 "Keyboard"
+        item 2 "Trigger Pad"
+        item 3 "Chord Pad"
+        item 4 "Knob"
+        item 5 "X-Y"
+        item 6 "Pitch/Mod"
+        item 7 "Touch Scale"
+        item 8 "Sustain"
+    }
+    list "parameter-types" {
+        item 0 "MIDI Channel"
+        item 1 "Assign Type"
+        item 2 "Pad/Button Behavior"
+        item 3 "Note/CC/Prog Number"
+        item 4 "Left/Lower/Off Value"
+        item 5 "Right/Upper/On Value"
+    }
+    list "edit-types" {
+        item 0 "None"
+        item 1 "Common"
+        item 2 "Keyboard"
+        item 3 "Trigger Pad"
+        item 4 "Chord Scale "
+        item 5 "Knob"
+        item 6 "Touch Pad"
+        item 7 "Pitch/Mod"
+        item 8 "Touch Scale"
+        item 9 "Button"
+    }
+}
+
+panel picture="500x294" image="assets/nanokey-studio/panel.png" source="KORG KONTROL EDITOR panel picture" status="decoded" evidence="KORG KONTROL EDITOR panel picture"

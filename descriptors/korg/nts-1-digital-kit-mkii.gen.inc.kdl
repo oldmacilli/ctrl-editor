@@ -7,6 +7,7 @@ device "korg.nts-1-digital-kit-mkii" {
     vendor "KORG"
     model "NTS-1 digital kit mkII"
     class "X21212"
+    image "assets/nts-1-digital-kit-mkii/list-icon.png" role="list-icon"
 }
 
 driver "korg-file" provides="file:nts1mkii file:nts1mkiiprog file:nts1mkiiunit" status="decoded" evidence="KORG analysis/products/catalog.json (Info.plist document types)"

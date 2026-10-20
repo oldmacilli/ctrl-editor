@@ -9,8 +9,83 @@ device "korg.microkey2-air" {
     class "X14810"
     file-key "14810"
     image "assets/microkey2-air/thumbnail.png" role="thumbnail"
+    image "assets/microkey2-air/list-icon.png" role="list-icon"
 }
 
 block "scene" size=256 count=1 status="decoded" evidence="KORG analysis/products/catalog.json (factory data)"
 
 driver "korg-file" provides="file:microkey2_data" status="decoded" evidence="KORG analysis/products/catalog.json (Info.plist document types)"
+
+types {
+    enum "velocity-curve" status="inferred" evidence="KORG UI strings VelocityCurve; item index as stored value not verified" {
+        value 0 "Curve 1"
+        value 1 "Curve 2"
+        value 2 "Curve 3"
+        value 3 "Curve 4"
+        value 4 "Curve 5"
+        value 5 "Curve 6"
+        value 6 "Curve 7"
+        value 7 "Curve 8"
+        value 8 "Const"
+    }
+    enum "assign-type" status="inferred" evidence="KORG UI strings AssignType; item index as stored value not verified" {
+        value 0 "Disable"
+        value 1 "Enable"
+    }
+    enum "pedal-polarity" status="inferred" evidence="KORG UI strings PedalPolarity; item index as stored value not verified" {
+        value 0 "Auto"
+        value 1 "Minus"
+        value 2 "Plus"
+    }
+    enum "auto-power-off" status="inferred" evidence="KORG UI strings AutoPowerOff; item index as stored value not verified" {
+        value 0 "Disable"
+        value 1 "Enable"
+    }
+    enum "battery-type" status="inferred" evidence="KORG UI strings BatteryType; item index as stored value not verified" {
+        value 0 "Alkaline"
+        value 1 "Ni-MH"
+    }
+    enum "encryption" status="inferred" evidence="KORG UI strings Encryption; item index as stored value not verified" {
+        value 0 "Off"
+        value 1 "On"
+    }
+}
+
+labels "en" source="KORG KONTROL EDITOR UI strings" {
+    list "controller-names" {
+        item 0 "Common"
+        item 1 "Keyboard"
+        item 2 "Mod Wheel"
+        item 3 "Assignable Switch"
+        item 4 "Wireless"
+    }
+    list "parameter-names" {
+        item 0 "MIDI Channel"
+        item 1 "Transpose"
+        item 2 "Velocity Curve"
+        item 3 "Const Velocity Value"
+        item 4 "Wheel Enable"
+        item 5 "CC Number"
+        item 6 "Bottom Value"
+        item 7 "Top Value"
+        item 8 "Pedal Polarity"
+        item 9 "Auto Power Off"
+        item 10 "Battery Type"
+        item 11 "Device Name"
+        item 12 "Encryption"
+    }
+    list "parameter-types" {
+        item 0 "Wheel Enable"
+        item 1 "Control Change Number"
+        item 2 "Lower Value"
+        item 3 "Upper Value"
+    }
+    list "edit-types" {
+        item 0 "None"
+        item 1 "Common"
+        item 2 "Keyboard"
+        item 3 "Mod Wheel"
+    }
+}
+
+panel picture="705x183" image="assets/microkey2-air/panel.png" source="KORG KONTROL EDITOR panel picture" status="decoded" evidence="KORG KONTROL EDITOR panel picture"

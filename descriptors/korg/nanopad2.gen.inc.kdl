@@ -9,6 +9,7 @@ device "korg.nanopad2" {
     class "X10830"
     file-key "0830"
     image "assets/nanopad2/thumbnail.png" role="thumbnail"
+    image "assets/nanopad2/list-icon.png" role="list-icon"
 }
 
 const "model" 0x112 status="decoded" evidence="KORG analysis/sysex/descriptors.json: X10830SysExGenerator descriptor, length style short_or_long"
@@ -23,3 +24,86 @@ block "scene" size=97 count=4 status="decoded" evidence="KORG analysis/products/
 block "global" size=47 status="decoded" evidence="KORG analysis/products/catalog.json (factory data)"
 
 driver "korg-file" provides="file:nanopad2_data file:nanopad2_glob file:nanopad2_set" status="decoded" evidence="KORG analysis/products/catalog.json (Info.plist document types)"
+
+types {
+    enum "touch-assign-type" status="inferred" evidence="KORG UI strings TouchAssignType; item index as stored value not verified" {
+        value 0 "Disable"
+        value 1 "Enable"
+    }
+    enum "xy-assign-type" status="inferred" evidence="KORG UI strings XyAssignType; item index as stored value not verified" {
+        value 0 "No Assign"
+        value 1 "Control Change"
+        value 2 "Pitch Bend"
+    }
+    enum "polarity" status="inferred" evidence="KORG UI strings Polarity; item index as stored value not verified" {
+        value 0 "Normal"
+        value 1 "Reverse"
+    }
+    enum "pad-assign-type" status="inferred" evidence="KORG UI strings PadAssignType; item index as stored value not verified" {
+        value 0 "No Assign"
+        value 1 "Control Change"
+        value 2 "Note"
+    }
+    enum "ena-dis" status="inferred" evidence="KORG UI strings EnaDis; item index as stored value not verified" {
+        value 0 "Disable"
+        value 1 "Enable"
+    }
+    enum "speed" status="inferred" evidence="KORG UI strings Speed; item index as stored value not verified" {
+        value 0 "sixty fourth"
+        value 1 "thirty second"
+        value 2 "sixteenth"
+        value 3 "eigth triplets"
+        value 4 "eigth"
+        value 5 "quarter triplets"
+        value 6 "dotted eigth"
+        value 7 "quarter"
+        value 8 "dotted quarter"
+        value 9 "half"
+    }
+}
+
+labels "en" source="KORG KONTROL EDITOR UI strings" {
+    list "controller-names" {
+        item 0 "None"
+        item 1 "Trigger Pad"
+    }
+    list "parameter-names" {
+        item 0 "MIDI Channel"
+        item 1 "X-Y Pad Touch/Release Enable"
+        item 2 "Control Change Number"
+        item 3 "On Value"
+        item 4 "Off Value"
+        item 5 "Assign Type"
+        item 6 "Control Change Number"
+        item 7 "Polarity"
+        item 8 "MIDI Channel"
+        item 9 "Assign Type"
+        item 10 "Note/CC/Prog Number 1"
+        item 11 "Note/CC/Prog Number 2"
+        item 12 "Note/CC/Prog Number 3"
+        item 13 "Note/CC/Prog Number 4"
+        item 14 "Pad Behavior"
+        item 15 "Off Value"
+        item 16 "On Value"
+        item 17 "Global MIDI Channel"
+        item 18 "Velocity Curve"
+        item 19 "Const Velocity Value"
+    }
+    list "parameter-types" {
+        item 0 "MIDI Channel"
+        item 1 "Assign Type"
+        item 2 "Pad Behavior"
+        item 3 "Note/CC/Prog Number1"
+        item 4 "Note/CC/Prog Number2"
+        item 5 "Note/CC/Prog Number3"
+        item 6 "Note/CC/Prog Number4"
+        item 7 "Gate Arp Enable"
+        item 8 "Touch Scale Gate Arp Enable"
+    }
+    list "edit-types" {
+        item 0 "None"
+        item 1 "Trigger Pad"
+    }
+}
+
+panel picture="705x190" image="assets/nanopad2/panel.png" source="KORG KONTROL EDITOR panel picture" status="decoded" evidence="KORG KONTROL EDITOR panel picture"

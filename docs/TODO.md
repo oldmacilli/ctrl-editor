@@ -117,8 +117,10 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
   thumbnails, a MIDI transport found by identity scan); the Studios' hand
   files override it; shared facts split into `common.inc.kdl` (decoded) and
   `studio.inc.kdl` (measured) (45a2fe2)
-- [ ] platform: labels and panel pictures in the generator, once the
-  resource names map to classes (lookup ``; in progress)
+- [x] platform: labels, enums, panel pictures, thumbnails and list icons in
+  the generator, from the resource mapping: names come from the vendor's resource table; 13 devices with labels and panels, 16 with images (COMMIT)
+- [ ] korg: check generated enums against getters (item index = stored
+  value?) and promote them from `inferred`
 - [ ] korg: parameter schemas for the 12 devices without one (getters)
 - [ ] korg: exact click areas from the component code
 - [x] korg: nanoKEY Studio (X14800) global write measured: same header

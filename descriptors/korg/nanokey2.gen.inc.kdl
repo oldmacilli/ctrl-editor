@@ -9,6 +9,7 @@ device "korg.nanokey2" {
     class "X10820"
     file-key "0820"
     image "assets/nanokey2/thumbnail.png" role="thumbnail"
+    image "assets/nanokey2/list-icon.png" role="list-icon"
 }
 
 const "model" 0x111 status="decoded" evidence="KORG analysis/sysex/descriptors.json: X10820SysExGenerator descriptor, length style short_or_long"
@@ -22,3 +23,65 @@ transport "midi" kind="midi" role="config" scan="identity" status="decoded" evid
 block "scene" size=64 count=1 status="decoded" evidence="KORG analysis/products/catalog.json (factory data)"
 
 driver "korg-file" provides="file:nanokey2_data" status="decoded" evidence="KORG analysis/products/catalog.json (Info.plist document types)"
+
+types {
+    enum "pitch-bend-speed" status="inferred" evidence="KORG UI strings PitchBendSpeed; item index as stored value not verified" {
+        value 0 "No"
+        value 1 "Fast"
+        value 2 "Nomal"
+        value 3 "Slow"
+    }
+    enum "velocity-curve" status="inferred" evidence="KORG UI strings VelocityCurve; item index as stored value not verified" {
+        value 0 "Light"
+        value 1 "Normal"
+        value 2 "Heavy"
+        value 3 "Const"
+    }
+    enum "assign-type" status="inferred" evidence="KORG UI strings AssignType; item index as stored value not verified" {
+        value 0 "No Assign"
+        value 1 "Control Change"
+    }
+    enum "button-behavior" status="inferred" evidence="KORG UI strings ButtonBehavior; item index as stored value not verified" {
+        value 0 "Momentary"
+        value 1 "Toggle"
+    }
+}
+
+labels "en" source="KORG KONTROL EDITOR UI strings" {
+    list "controller-names" {
+        item 0 "Common"
+        item 1 "Keyboard"
+        item 2 "Mod Button"
+        item 3 "Sustain Button"
+        item 4 "Pitch Button"
+    }
+    list "parameter-names" {
+        item 0 "Key Mode MIDI Channel"
+        item 1 "Pitch Bend Speed"
+        item 2 "Transpose"
+        item 3 "Velocity Curve"
+        item 4 "Const Velocity Value"
+        item 5 "Assign Type"
+        item 6 "CC Number"
+        item 7 "Button Behavior"
+        item 8 "Off Value"
+        item 9 "On Value"
+        item 10 "OnOffSpeed"
+    }
+    list "parameter-types" {
+        item 0 "Button Enable"
+        item 1 "Button Behavior"
+        item 2 "CC Number"
+        item 3 "On Value"
+        item 4 "Off Value"
+        item 5 "Switch Speed"
+    }
+    list "edit-types" {
+        item 0 "None"
+        item 1 "Common"
+        item 2 "Keyboard"
+        item 3 "Keys"
+    }
+}
+
+panel picture="705x185" image="assets/nanokey2/panel.png" source="KORG KONTROL EDITOR panel picture" status="decoded" evidence="KORG KONTROL EDITOR panel picture"
