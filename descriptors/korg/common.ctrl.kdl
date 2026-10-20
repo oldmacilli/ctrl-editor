@@ -2,8 +2,10 @@
 // Evidence: KORG_Kontrol_Editor crates/korg-sysex, korg-devices, korg-core.
 cdl "0.1"
 
-// F0 42 4d, where d is the device id from the identity reply (00 over
-// USB, 0F over BLE; not a MIDI channel), then the model id (one byte
+// F0 42 4d, where d is the device id from the identity reply. It is a
+// stored device setting, not fixed by transport: nanoKONTROL Studio 00
+// over USB, nanoKEY Studio 0F over both USB and Bluetooth. It is not a MIDI
+// channel. Then the model id (one byte
 // below 0x80, otherwise 00 hi lo), then the command.
 sysex-frame "korg-native" status="decoded" evidence="korg-sysex push_model, encode" {
     prefix "F0 42 {0x40 | device-id} {model:korg-model}"
@@ -23,7 +25,7 @@ types {
 // record here; each device adds its own `owns` entries.
 driver "korg-measured" {
     owns "identity-request" bytes="F0 7E 7F 06 01 F7" status="measured" evidence="korg-sysex IDENTITY_REQUEST"
-    owns "device-id" note="low nibble of the identity reply: 00 USB, 0F BLE" status="measured" evidence="Slint lane review 2026-10-20"
+    owns "device-id" note="byte 2 of the identity reply; stored in the device (nanoKONTROL 00 on USB, nanoKEY 0F on USB and Bluetooth), not fixed by transport" status="measured" evidence="USB and Bluetooth captures, 2026-10-20"
     owns "global-write-header" bytes="14 01 00 51" status="measured" evidence="korg-devices global_write_header for 0x136 and 0x137; ack 23, no commit; byte-identical write and re-receive on X14802 (KORG eba516b) and X14800 (KORG aaa4f36)"
     owns "scene-commit" bytes="02 00 00 11 {scene}" frame="korg-native" status="measured" evidence="korg-sysex build_commit, korg-core MeasuredSession::write_scene"
 }
