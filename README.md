@@ -5,15 +5,20 @@ Editor, the Ocean Beach DB-1 editor and the TEControl breath controller
 editor. Devices are described in CDL (`*.ctrl.kdl`); Rust drivers cover
 what data cannot express.
 
-Status: concept. No platform crates yet.
+Status: concept; P1 has started. `crates/ctrl-cdl` reads descriptors into a
+typed IR.
 
 - [docs/CONCEPT.md](docs/CONCEPT.md): why and how
 - [docs/CDL.md](docs/CDL.md): the descriptor language
 - [docs/TODO.md](docs/TODO.md): the living plan
 - `descriptors/`: example descriptors (DB-1, TEC, nanoKONTROL Studio,
   firmware template)
-- `tools/cdl-parse`: KDL 2.0 syntax check for descriptors
+- `crates/ctrl-cdl`: CDL loader: KDL 2.0 into a typed IR, includes merged,
+  errors as `file:line:col`
+- `tools/cdl-parse`: loads descriptors with `ctrl-cdl` and prints a summary
+  or the errors
 
 ```bash
-cargo run --manifest-path tools/cdl-parse/Cargo.toml -- descriptors/*/*.kdl
+cargo run -p cdl-parse -- descriptors/*/*.ctrl.kdl
+cargo test --workspace
 ```

@@ -1,4 +1,4 @@
-// Shared by the KORG device descriptors (include "common.ctrl.kdl").
+// Shared by the KORG device descriptors (include "common.inc.kdl").
 // Evidence: KORG_Kontrol_Editor crates/korg-sysex, korg-devices, korg-core.
 cdl "0.1"
 

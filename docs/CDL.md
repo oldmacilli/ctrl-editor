@@ -57,12 +57,15 @@ driver "tec-curve"                        // Rust escape hatch (§14)
 test-vector "set-drawbar-0" { … }         // bytes that must round-trip (§15)
 ```
 
-`include "common.ctrl.kdl"` merges shared definitions, with the path
-relative to the including file. Nodes merge by kind and name: a local node
+`include "common.inc.kdl"` merges shared definitions, with the path
+relative to the including file. Shared files are named `*.inc.kdl` and have
+no `device` node; only `*.ctrl.kdl` files are device descriptors. Nodes merge by kind and name: a local node
 with the same kind and name as an included one adds its properties and
 children, and a child with the same kind and name replaces the included
 child. So a device can extend a shared `driver` with its own `owns`
-entries.
+entries. Nodes without a name (`types`, `identify`, `send`, `vendor`) merge
+by kind alone, and `value` by its number. A procedure or stage's steps are
+an ordered list: local steps replace the included list as a whole. Two nodes with the same kind and name in one file are an error.
 
 ## 3. Identity
 
@@ -74,7 +77,7 @@ device "tecontrol.breath" {
     manual "TEC manual v5"                         // a reference, not a file
 }
 identify {
-    usb vid=0 pid=0 status="unknown"               // fill in from a capture
+    usb vid=0x2B06 pid=0x0018 bcd=0x0500 status="measured"   // bcd: firmware version
     midi-port match="Breath" direction="both"
     // the universal identity reply (MIDI 1.0), for devices that answer it
     sysex-identity reply="F0 7E {ch} 06 02 {manufacturer} {family:u14le} {member:u14le} {version*}"
@@ -82,8 +85,11 @@ identify {
 }
 ```
 
-The matchers combine with OR; the strongest match wins. `serial` from USB
-keys the device hub (several controllers at once).
+The matchers combine with OR; the strongest match wins. A `hid` usage page
+alone is weak (0x0C also matches media-key interfaces), so a HID device
+names its USB ids. `bcd` pins the firmware version the descriptor was
+measured on; on any other version the engine reads but does not write.
+`key "usb-serial"` keys the device hub (several controllers at once).
 
 ## 4. Evidence, blocks and fields
 
@@ -231,6 +237,11 @@ within `timeout` milliseconds is an error, and so is one that matches but
 fails `ok-when`. Error texts come from an enum:
 `errors "status" { value 7 "Non-volatile write error" }`.
 
+A placeholder whose content is a name (letters, digits, `_`, `-`, `.`, `$`;
+a letter, `_` or `$` first) is a field or argument; anything else, such as
+`{0x40 | device-id}`, is an LBMT expression, the same as `{=…}`. `..` and
+`{name*}` are allowed in replies only.
+
 ### 6.1 Checksums
 
 Built in: `sum7` (two's complement of the sum, low 7 bits), `roland`
@@ -253,7 +264,9 @@ midi-map transport="main" {
 ```
 
 `kind`: `cc`, `cc14` (MSB/LSB pair), `nrpn`, `rpn`, `note`, `pc`, `pb`,
-`at`, `poly-at`, `clock`. The editor uses `midi-map` to:
+`at`, `poly-at`, `clock`, and `from-field` when the kind is itself a
+setting named by `message=` (the TEC sensors send CC, aftertouch or pitch
+bend by setting). The editor uses `midi-map` to:
 
 - show live values (meters, the TEC sensor view);
 - send live parameter changes when a device takes CC or NRPN for its

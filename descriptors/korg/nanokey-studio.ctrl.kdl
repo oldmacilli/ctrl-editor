@@ -4,7 +4,7 @@
 // Partial: the exchanges run in the `korg-measured` driver; the scene
 // layout inside the 240 bytes is not decoded beyond the name.
 cdl "0.1"
-include "common.ctrl.kdl"
+include "common.inc.kdl"
 
 device "korg.nanokey-studio" {
     vendor "KORG"
@@ -55,7 +55,7 @@ procedure "write-scene-set" kind="write" status="measured" evidence="verified un
     verify "receive-scene-set" compare="scene"
 }
 // receive-global and write-global (measured, header 14 01 00 51, ack 23,
-// no commit) come from common.ctrl.kdl.
+// no commit) come from common.inc.kdl.
 
 driver "korg-measured" provides="procedure:receive-scene-set procedure:receive-global procedure:write-scene procedure:write-scene-set procedure:write-global" {
     owns "scene-write-header" bytes="14 02 00 40" status="measured" evidence="korg-devices measured_layout(0x136)"

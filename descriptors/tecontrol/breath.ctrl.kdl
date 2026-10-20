@@ -10,6 +10,10 @@ device "tecontrol.breath" {
 }
 
 identify {
+    // Usage page 0x0C alone also matches media-key interfaces; the USB ids
+    // decide. TECcontrol writes only to this exact VID/PID/bcd (allow-list in
+    // tec-device transport.rs); other firmware stays read-only.
+    usb vid=0x2B06 pid=0x0018 bcd=0x0500 status="measured" evidence="TECcontrol HANDOVER.md 'Device identity', tec-device/src/transport.rs TEC_VENDOR_ID, TEC_PRODUCT_ID, TEC_PRODUCT_VERSION_5"
     hid usage-page=0x0C report-size=8 status="measured" evidence="firmware/descriptors-2026-10-14.txt"
     midi-port match="Breath" direction="out"
     key "usb-serial"                         // several controllers at once
@@ -59,7 +63,8 @@ message "poll" transport="hid" status="measured" {
 }
 message "read-meta" transport="hid" status="measured" {
     send "{0x10 + s}"
-    reply "{cc} {channel} {message} {const-09} {attack} {decay} 00" timeout=200
+    // byte 3 must be 09, or it is not a metadata reply (protocol.rs Metadata::parse)
+    reply "{cc} {channel} {message} 09 {attack} {decay} .. .." timeout=200
 }
 message "write-meta" transport="hid" kind="write" status="measured" {
     send "{0x20 + s} {cc} {channel} {message} 09 {attack} {decay} 00"
@@ -67,13 +72,17 @@ message "write-meta" transport="hid" kind="write" status="measured" {
 }
 message "read-shaping" transport="hid" status="measured" {
     send "{0x14 + s}"
-    reply "{bending} {symmetry} {sensor-min} {sensor-max} {midi-min} {midi-max} 00" timeout=200
+    reply "{bending} {symmetry} {sensor-min} {sensor-max} {midi-min} {midi-max} .. .." timeout=200
 }
 message "write-shaping" transport="hid" kind="write" status="measured" {
     send "{0x24 + s} {bending} {symmetry} {sensor-min} {sensor-max} {midi-min} {midi-max} 00"
     reply "00 00 00 00 00 00 00 00" timeout=200
 }
-// The curve table cannot be read back.
+// The curve table cannot be read back. 32 values go out as 6 pages of 6:
+// byte 1 is the start index (0, 6, … 30), and the last page pads indexes
+// 32..35 with 7F (tec-device write.rs curve_frames). CDL cannot yet fill
+// v0..v5 from an array slice with padding, so the tec-curve driver sends
+// the pages (TODO P1).
 message "write-curve-page" transport="hid" kind="write" status="measured" {
     send "{0x40 + s} {page} {v0} {v1} {v2} {v3} {v4} {v5}"
     reply "00 00 00 00 00 00 00 00" timeout=200
@@ -99,9 +108,7 @@ procedure "write-sensor" kind="write" transport="hid" {
     restore-point "sensor[s]"
     exchange "write-meta" from="sensor[s].meta"
     exchange "write-shaping" from="sensor[s].shaping"
-    repeat "p" "0..=5" {
-        exchange "write-curve-page" page="{p * 6}" from="sensor[s].curve[p * 6 ..]"
-    }
+    driver "tec-curve" step="write-curve-pages"
     verify "read-all" compare="sensor[s].meta sensor[s].shaping"
 }
 
@@ -121,7 +128,9 @@ panel source="drawn from the original's window" status="inferred" {
     control "tilt" kind="meter" bind="sensor[3]" live="poll.tilt"
 }
 
-driver "tec-curve" provides="block:sensor.curve" from="sensor.shaping"
+driver "tec-curve" provides="block:sensor.curve" from="sensor.shaping" {
+    owns "curve-pages" bytes="{0x40 + s} {start} {v0} {v1} {v2} {v3} {v4} {v5}" status="measured" evidence="tec-device write.rs curve_frames: 6 frames, start = page * 6, padding 7F"
+}
 
 firmware status="unknown" evidence="firmware/README.md: no DFU or bootloader in the vendor app" {
     recovery "No update path exists."

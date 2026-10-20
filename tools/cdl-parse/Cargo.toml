@@ -1,9 +1,10 @@
 [package]
 name = "cdl-parse"
-version = "0.1.0"
-edition = "2021"
-publish = false
-description = "Syntax check for CDL descriptors (KDL 2.0). Not the validator; see docs/CDL.md section 16."
+description = "Load CDL descriptors with ctrl-cdl and print a summary or the errors. Not the validator; see docs/CDL.md section 16."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
 
 [dependencies]
-kdl = "6"
+ctrl-cdl.workspace = true

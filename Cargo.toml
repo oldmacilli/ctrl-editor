@@ -1,0 +1,15 @@
+[workspace]
+resolver = "2"
+members = ["crates/ctrl-cdl", "tools/cdl-parse"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+publish = false
+
+[workspace.dependencies]
+kdl = "6"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ctrl-cdl = { path = "crates/ctrl-cdl" }

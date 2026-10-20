@@ -15,7 +15,7 @@ editor lane (OMP, w5:p2) · **db1** / **tec** = whoever owns those repos ·
 **zigtact** = the LBMT owners · **user** = needs the owner's decision or
 hardware.
 
-Last updated: 2026-10-20 (repo pushed to GitHub).
+Last updated: 2026-10-20 (ctrl-cdl landed).
 
 ## P0 Agree the concept
 
@@ -39,8 +39,12 @@ Last updated: 2026-10-20 (repo pushed to GitHub).
   from the identity reply, preferred transport, procedure IDs aligned,
   driver-owned bytes on record (`owns`), path grammar for `verify` (CDL
   §4.4), protocol-regression risk
-- [ ] platform: `ctrl-cdl` crate: KDL → typed IR (serde), with errors that
-  point at line and column
+- [x] platform: `ctrl-cdl` crate: KDL → typed IR (serde), with errors that
+  point at line and column; includes merge (`*.inc.kdl`); templates, paths
+  and ranges parsed; all descriptors load (COMMIT)
+- [ ] platform: array slices in templates, with a pad byte, so that the TEC
+  curve pages (`{0x40 + s} {start} v0..v5`, last page padded with 7F) need
+  no driver step
 - [ ] platform: validator: unknown names, ranges, `status` rules (CDL §4.1),
   `unknown` on send paths
 - [ ] platform: template codec: encode and decode `send`/`reply` (CDL §6),
@@ -103,7 +107,7 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
   `14 01 00 51`, ack 23, no commit; write and re-receive byte-identical;
   scene-set write verified unchanged (KORG aaa4f36). Descriptor
   `descriptors/korg/nanokey-studio.ctrl.kdl`; shared facts in
-  `descriptors/korg/common.ctrl.kdl`
+  `descriptors/korg/common.inc.kdl`
 - [x] user+korg: global write captured over BLE (data header `14 01 00 51`,
   ack 23, no commit) and implemented in korg-app, Slint, TUI and CLI;
   byte-identical round trip on X14802 (KORG eba516b)
@@ -135,6 +139,12 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
 
 ### TEC
 
+- [ ] korg (OMP, asked 2026-10-20): TEC USB gaps from the analysis and
+  read-only checks on the connected unit: VID/PID/bcd, poll format, reply
+  bytes 6-7, curve padding, calibrate, the 0x51 read, the 09 constant,
+  firmware path. No writes
+- [x] platform: TEC descriptor: USB ids with bcd from HANDOVER.md, 8-byte
+  read replies, curve pages driver-owned (COMMIT)
 - [ ] tec: `ctrl-hid-iokit` from `tec-device/src/macos.rs` (Seize, report
   id 0, 8-byte frames)
 - [ ] tec: hub (one thread per device, keyed by serial) in `ctrl-engine`

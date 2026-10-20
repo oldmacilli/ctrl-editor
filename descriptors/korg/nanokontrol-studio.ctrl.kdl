@@ -4,7 +4,7 @@
 // Partial: the SysEx exchanges still run in the `korg-measured` driver
 // (korg-core MeasuredSession) until they are written as CDL messages.
 cdl "0.1"
-include "common.ctrl.kdl"
+include "common.inc.kdl"
 
 device "korg.nanokontrol-studio" {
     vendor "KORG"
@@ -44,7 +44,7 @@ types {
     }
 }
 
-// Frame, identity, global read/write: common.ctrl.kdl. 0x137 encodes as 00 01 37.
+// Frame, identity, global read/write: common.inc.kdl. 0x137 encodes as 00 01 37.
 
 block "scene" size=560 count=5 status="measured" evidence="measured_layout(0x137)" {
     field "name" offset=0 type="ascii(16)"
