@@ -41,7 +41,7 @@ Last updated: 2026-10-20 (ctrl-cdl landed).
   §4.4), protocol-regression risk
 - [x] platform: `ctrl-cdl` crate: KDL → typed IR (serde), with errors that
   point at line and column; includes merge (`*.inc.kdl`); templates, paths
-  and ranges parsed; all descriptors load (COMMIT)
+  and ranges parsed; all descriptors load (e44a6e1)
 - [ ] platform: array slices in templates, with a pad byte, so that the TEC
   curve pages (`{0x40 + s} {start} v0..v5`, last page padded with 7F) need
   no driver step
@@ -144,7 +144,7 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
   bytes 6-7, curve padding, calibrate, the 0x51 read, the 09 constant,
   firmware path. No writes
 - [x] platform: TEC descriptor: USB ids with bcd from HANDOVER.md, 8-byte
-  read replies, curve pages driver-owned (COMMIT)
+  read replies, curve pages driver-owned (e44a6e1)
 - [ ] tec: `ctrl-hid-iokit` from `tec-device/src/macos.rs` (Seize, report
   id 0, 8-byte frames)
 - [ ] tec: hub (one thread per device, keyed by serial) in `ctrl-engine`
