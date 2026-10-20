@@ -54,18 +54,20 @@ fn trace_pairs_replies_and_prefers_literal_matches() {
     let cap = capture(
         "tec.txt",
         "# synthetic\n> 50 00 00 00 00 00 00 00\n< 00 00 00 00 00 00 00 00\n\
-         > 00\n< 40 3F 00 00 01 00 00 00\n",
+         > 00\n< 40 3F 00 00 01 00 00 00\n< 40 3F 00 00 00 00 00 00\n",
     );
     let (ok, out) = run(&["trace", file.to_str().unwrap(), cap.to_str().unwrap()]);
     assert!(ok, "{out}");
     // `50` is commit, not `{0x40 + s}` with s = 16.
     assert!(out.contains("    > commit\n"), "{out}");
-    assert!(out.contains("< commit  ok  (reply to #0)"), "{out}");
+    assert!(out.contains("< commit[ack]  ok  (reply to #0)"), "{out}");
     // The poll reply pairs with the poll, although read-meta's pattern has
     // more literal bytes.
-    assert!(out.contains("< poll  bite=63/0x3F"), "{out}");
+    assert!(out.contains("< poll[values]  bite=63/0x3F"), "{out}");
     assert!(out.contains("(reply to #2)"), "{out}");
-    assert!(out.contains("4 of 4 matched, 0 ambiguous"), "{out}");
+    // A second input report for one request is a repeat, not a guess.
+    assert!(out.contains("(repeated reply to #2)"), "{out}");
+    assert!(out.contains("5 of 5 matched, 0 ambiguous"), "{out}");
 }
 
 #[test]

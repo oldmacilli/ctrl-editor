@@ -518,6 +518,38 @@ pub struct Message {
     /// None: the message is send-only.
     pub replies: Vec<Reply>,
     pub ok_when: Option<String>,
+    /// Declared arguments with their allowed values (§6.5).
+    pub args: Vec<ArgDecl>,
+}
+
+/// `arg "s" index="sensor"` or `arg "x" range="0..=3"`: the values a
+/// message argument may take. The codec refuses others when it encodes and
+/// does not match them when it decodes, so `{0x10 + s}` is not any byte.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ArgDecl {
+    pub meta: Meta,
+    pub name: String,
+    pub range: Option<IntRange>,
+    /// An element index of this block: `0..count`.
+    pub index: Option<String>,
+}
+
+impl Descriptor {
+    /// The inclusive range of a message argument, if it declares one.
+    pub fn arg_range(&self, m: &Message, name: &str) -> Option<IntRange> {
+        let a = m.args.iter().find(|a| a.name == name)?;
+        match (&a.range, &a.index) {
+            (Some(r), _) => Some(*r),
+            (None, Some(block)) => {
+                let count = self.block(block)?.count?;
+                Some(IntRange {
+                    lo: 0,
+                    hi: i64::from(count) - 1,
+                })
+            }
+            (None, None) => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

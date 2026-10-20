@@ -480,3 +480,32 @@ fn identify_finds_sends_and_replies() {
     let other = codec.identify(&sent, None, &args(&[("device-id", int(1))]));
     assert!(other.is_empty());
 }
+
+#[test]
+fn args_out_of_range_neither_encode_nor_match() {
+    let d = descriptor("tecontrol/breath.ctrl.kdl");
+    let codec = Codec::new(&d);
+    assert_eq!(
+        codec.encode("read-meta", &args(&[("s", int(3))])).unwrap()[0],
+        0x13
+    );
+    let e = codec
+        .encode("read-meta", &args(&[("s", int(4))]))
+        .unwrap_err();
+    assert!(e.to_string().contains("outside 0..=3"), "{e}");
+    // `10 00 …` is read-meta for sensor 0, not write-meta with s = -16.
+    let frame = [0x10, 0, 0, 0, 0, 0, 0, 0];
+    assert!(codec
+        .decode_send("write-meta", &frame, &Bindings::new())
+        .is_err());
+    let found = codec.identify(&frame, Some(Direction::Out), &Bindings::new());
+    let names: Vec<_> = found.iter().map(|m| m.message.as_str()).collect();
+    assert_eq!(names, ["read-meta"]);
+
+    // The KORG scene index follows each device's block count.
+    let small = descriptor("korg/nanokontrol-studio.ctrl.kdl");
+    let big = descriptor("korg/nanokey-studio.ctrl.kdl");
+    let seven = args(&[("scene", int(7)), ("device-id", int(0))]);
+    assert!(Codec::new(&small).encode("select-scene", &seven).is_err());
+    assert!(Codec::new(&big).encode("select-scene", &seven).is_ok());
+}

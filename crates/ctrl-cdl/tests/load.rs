@@ -556,3 +556,39 @@ fn error_at_names_the_file() {
     assert!(e.file.ends_with("studio.inc.kdl"));
     assert!(e.line > 1);
 }
+
+#[test]
+fn message_args_take_a_range_or_a_block_index() {
+    let d = load_ok("tecontrol/breath.ctrl.kdl");
+    let m = d.message("read-meta").unwrap();
+    assert_eq!(d.arg_range(m, "s"), Some(IntRange { lo: 0, hi: 3 }));
+    let page = d.message("write-curve-page").unwrap();
+    assert_eq!(d.arg_range(page, "start"), Some(IntRange { lo: 0, hi: 30 }));
+    // The shared KORG message takes each device's own scene count.
+    for (file, hi) in [
+        ("korg/nanokontrol-studio.ctrl.kdl", 4),
+        ("korg/nanokey-studio.ctrl.kdl", 7),
+    ] {
+        let d = load_ok(file);
+        let m = d.message("select-scene").unwrap();
+        assert_eq!(
+            d.arg_range(m, "scene"),
+            Some(IntRange { lo: 0, hi }),
+            "{file}"
+        );
+    }
+
+    let found = errors(&format!(
+        "{HEAD}message \"m\" {{ arg \"a\"; arg \"b\" range=\"0..=1\" index=\"x\"; arg \"b\" range=\"0..=1\"; send \"{{a}}\" }}"
+    ));
+    assert_eq!(found.len(), 3, "{found:#?}");
+    assert!(
+        found[0].contains("one of `range=` and `index=`"),
+        "{found:#?}"
+    );
+    assert!(
+        found[1].contains("one of `range=` and `index=`"),
+        "{found:#?}"
+    );
+    assert!(found[2].contains("appears twice"), "{found:#?}");
+}

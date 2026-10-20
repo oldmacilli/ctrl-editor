@@ -441,3 +441,24 @@ firmware status="decoded" {
         "firmware stage `erase` sends message `erase`, which is unknown",
     );
 }
+
+#[test]
+fn message_args_are_used_and_index_a_counted_block() {
+    let found = errors(
+        r#"
+block "one" status="measured"
+message "m" status="measured" {
+    arg "a" range="0..=3"
+    arg "b" index="none"
+    arg "c" index="one"
+    send "{b} {c}"
+}"#,
+    );
+    assert_eq!(found.len(), 3, "{found:#?}");
+    assert!(
+        found[0].contains("`arg \"a\"` does not appear in `send`"),
+        "{found:#?}"
+    );
+    assert!(found[1].contains("unknown block `none`"), "{found:#?}");
+    assert!(found[2].contains("the block has no `count`"), "{found:#?}");
+}

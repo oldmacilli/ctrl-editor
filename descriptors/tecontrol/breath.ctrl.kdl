@@ -22,7 +22,7 @@ identify {
 }
 
 // Configuration is HID only. The firmware emits MIDI by itself.
-transport "hid" kind="hid" usage-page=0x0C frame=8 report-id=0 seize=#true status="measured"
+transport "hid" kind="hid" usage-page=0x0C frame=8 report-id=0 seize=#true role="config" status="measured" evidence="firmware/descriptors-2026-10-14.txt; HANDOVER.md Framing (hidapi strips the report id)"
 transport "midi" kind="midi" port-match="Breath" role="performance"
 
 types {
@@ -62,62 +62,91 @@ block "sensor" count=4 names="Breath Bite Nod Tilt" status="measured" {
     array "curve" count=32 type="u7" driver="tec-curve"
 }
 
+// Every frame is one 8-byte output report `[opcode + s, 7 data bytes]`
+// answered by one 8-byte input report (HANDOVER.md "Framing"); short sends
+// are padded with 00 (transport frame=8). The sensor index `s` is 0..=3
+// (Breath, Bite, Nod, Tilt): `arg "s" index="sensor"`.
+
+// Every write is acknowledged with eight zero bytes: 877 of 877 write
+// replies in the 2026-10-13 traces.
+pattern "tec-ack" "00 00 00 00 00 00 00 00"
+
 // 4 sensor values (7-bit) and 4 changed flags (0 or 1).
 message "poll" transport="hid" status="measured" evidence="1947 + 89 polls, 352/352 flags matched; vendor analysis" {
     send "00"
-    reply "{breath} {bite} {nod} {tilt} {breath-changed} {bite-changed} {nod-changed} {tilt-changed}" timeout=200
+    reply "{breath} {bite} {nod} {tilt} {breath-changed} {bite-changed} {nod-changed} {tilt-changed}" variant="values" timeout=200
+}
+// Byte 0 is 01 (Breath, Bite) or 03 (Nod, Tilt); the original sets the
+// sensor's present bit from it. The name is zero-padded.
+message "read-name" transport="hid" status="measured" evidence="13 replies per sensor in the traces; vendor analysis; tec-device protocol.rs ReadCommand::SensorName" {
+    arg "s" index="sensor"
+    send "{0xF0 + s}"
+    reply "{type} {name:raw} 00" variant="name" timeout=200
 }
 // Bytes 6 and 7 of the read replies are 00 (65 meta and 8 shaping replies).
 message "read-meta" transport="hid" status="measured" evidence="TECcontrol findings" {
+    arg "s" index="sensor"
     send "{0x10 + s}"
-    reply "{cc} {channel} {message} {param} {attack} {decay} 00 00" timeout=200
+    reply "{cc} {channel} {message} {param} {attack} {decay} 00 00" variant="meta" timeout=200
     // TECcontrol rejects any other byte 3 (protocol.rs Metadata::parse)
     ok-when "param == 9"
 }
-message "write-meta" transport="hid" kind="write" status="measured" {
+message "write-meta" transport="hid" kind="write" status="measured" evidence="gate-5 capture; HANDOVER.md opcode table" {
+    arg "s" index="sensor"
     send "{0x20 + s} {cc} {channel} {message} {param} {attack} {decay} 00"
-    reply "00 00 00 00 00 00 00 00" timeout=200
+    reply pattern="tec-ack" variant="ack" timeout=200
 }
 message "read-shaping" transport="hid" status="measured" evidence="TECcontrol findings" {
+    arg "s" index="sensor"
     send "{0x14 + s}"
-    reply "{bending} {symmetry} {sensor-min} {sensor-max} {midi-min} {midi-max} 00 00" timeout=200
+    reply "{bending} {symmetry} {sensor-min} {sensor-max} {midi-min} {midi-max} 00 00" variant="shaping" timeout=200
 }
-message "write-shaping" transport="hid" kind="write" status="measured" {
+message "write-shaping" transport="hid" kind="write" status="measured" evidence="gate-5 capture; HANDOVER.md opcode table" {
+    arg "s" index="sensor"
     send "{0x24 + s} {bending} {symmetry} {sensor-min} {sensor-max} {midi-min} {midi-max} 00"
-    reply "00 00 00 00 00 00 00 00" timeout=200
+    reply pattern="tec-ack" variant="ack" timeout=200
 }
 // 32 values go out as 6 pages of 6: byte 1 is the start index (0, 6, … 30),
 // and the last page pads indexes 32..35 with 7F.
 message "write-curve-page" transport="hid" kind="write" status="measured" evidence="tec-device write.rs curve_frames; vendor analysis" {
+    arg "s" index="sensor"
+    arg "start" range="0..=30"
     send "{0x40 + s} {start} {curve[6] pad=7F}"
-    reply "00 00 00 00 00 00 00 00" timeout=200
+    reply pattern="tec-ack" variant="ack" timeout=200
 }
 message "commit" transport="hid" kind="commit" status="measured" evidence="gate-5, gate-6: ack after 621 ms" {
     send "50"
-    reply "00 00 00 00 00 00 00 00" timeout=2000
+    reply pattern="tec-ack" variant="ack" timeout=2000
 }
 // Never sent by this editor yet. The original sends it only for a sensor
 // whose present bit is set, reads one reply and ignores it, then waits 3 s;
 // no verify and no commit follow.
 message "calibrate" transport="hid" kind="commit" status="decoded" evidence="vendor analysis" {
+    arg "s" index="sensor"
     send "{0x60 + s}"
-    reply ".. .. .. .. .. .. .. .." timeout=3000
+    reply ".. .. .. .. .. .. .. .." variant="ignored" timeout=3000
 }
-// Sent by the original after the baseline reads. Its reply byte only drives
-// a UI boolean (00 and 01 seen; 00 live); nothing may gate on it.
-message "status-51" transport="hid" status="measured" evidence="vendor analysis; captures 2026-10-13 and 2026-10-20" {
+// Sent by the original after the baseline reads. Its first reply byte only
+// drives a UI boolean (01 nine times, 00 four times; 00 live); nothing may
+// gate on it.
+message "status-51" transport="hid" status="measured" evidence="vendor analysis; 13 replies in the traces of 2026-10-13 and 2026-10-20" {
     send "51"
+    reply "{flag} 00 00 00 00 00 00 00" variant="flag" timeout=200
 }
 
-procedure "read-all" kind="read" transport="hid" {
+// The original's connect sequence: name, meta and shaping per sensor, then
+// 51 (the read-only trace has the same order).
+procedure "read-all" kind="read" transport="hid" status="measured" evidence="hid-trace-2026-10-20-read-only.log; TECcontrol findings" {
     repeat "s" "0..=3" {
+        exchange "read-name" s="{s}"
         exchange "read-meta" s="{s}" into="sensor[s].meta"
         exchange "read-shaping" s="{s}" into="sensor[s].shaping"
     }
+    exchange "status-51"
 }
 
 // The original sends meta, shaping and the 6 curve pages per sensor.
-procedure "write-sensor" kind="write" transport="hid" {
+procedure "write-sensor" kind="write" transport="hid" status="measured" evidence="gate-5 capture: 0x20+s, 0x24+s and 6 curve pages per changed control (HANDOVER.md)" {
     gate "confirm" text="Write sensor {s} to the controller's RAM?"
     restore-point "sensor[s]"
     exchange "write-meta" from="sensor[s].meta"
@@ -129,7 +158,7 @@ procedure "write-sensor" kind="write" transport="hid" {
     verify "read-all" compare="sensor[s].meta sensor[s].shaping"
 }
 
-procedure "make-permanent" kind="commit" transport="hid" {
+procedure "make-permanent" kind="commit" transport="hid" status="measured" evidence="gate-5, gate-6: 50, ack after 621 ms" {
     gate "arm" text="Store the current RAM settings in the controller's flash?"
     exchange "commit"
 }
@@ -153,6 +182,66 @@ firmware status="unknown" evidence="firmware/README.md; TECcontrol findings: no 
     recovery "No update path exists."
 }
 
+// Byte for byte from the HID traces in TECcontrol tec-device/.
 test-vector "commit" message="commit" status="measured" evidence="hid-trace gate-5" {
     bytes "50 00 00 00 00 00 00 00"
+}
+test-vector "commit-ack" message="commit" reply=#true variant="ack" status="measured" evidence="hid-trace-2026-10-13-gate6-commit.log, after 622 ms" {
+    bytes "00 00 00 00 00 00 00 00"
+}
+test-vector "poll" message="poll" status="measured" evidence="hid-trace-2026-10-20-read-only.log" {
+    bytes "00 00 00 00 00 00 00 00"
+}
+test-vector "poll-reply" message="poll" reply=#true variant="values" status="measured" evidence="hid-trace-2026-10-20-read-only.log" {
+    args breath=0 bite=0 nod=0x47 tilt=0x26 breath-changed=1 bite-changed=1 nod-changed=1 tilt-changed=1
+    bytes "00 00 47 26 01 01 01 01"
+}
+test-vector "read-name-nod" message="read-name" status="measured" evidence="hid-trace-2026-10-20-read-only.log" {
+    args s=2
+    bytes "F2 00 00 00 00 00 00 00"
+}
+test-vector "name-nod" message="read-name" reply=#true variant="name" status="measured" evidence="hid-trace-2026-10-20-read-only.log" {
+    // zero-padded, not ascii(6), which pads with spaces
+    args type=3
+    data "name" "4E 6F 64 00 00 00"
+    bytes "03 4E 6F 64 00 00 00 00"
+}
+test-vector "read-meta-tilt" message="read-meta" status="measured" evidence="hid-trace-2026-10-20-read-only.log" {
+    args s=3
+    bytes "13 00 00 00 00 00 00 00"
+}
+test-vector "meta-tilt" message="read-meta" reply=#true variant="meta" status="measured" evidence="hid-trace-2026-10-20-read-only.log" {
+    args cc=0x11 channel=0x0E message=0 param=9 attack=0 decay=0
+    bytes "11 0E 00 09 00 00 00 00"
+}
+test-vector "read-shaping-tilt" message="read-shaping" status="measured" evidence="hid-trace-2026-10-20-read-only.log" {
+    args s=3
+    bytes "17 00 00 00 00 00 00 00"
+}
+test-vector "shaping-tilt" message="read-shaping" reply=#true variant="shaping" status="measured" evidence="hid-trace-2026-10-20-read-only.log" {
+    args bending=0x7F symmetry=0x7F sensor-min=0x3C sensor-max=0xBA midi-min=0 midi-max=0xFE
+    bytes "7F 7F 3C BA 00 FE 00 00"
+}
+test-vector "write-meta-breath" message="write-meta" status="measured" evidence="hid-trace-2026-10-13-gate5.log" {
+    args s=0 cc=2 channel=0x0E message=1 param=9 attack=0 decay=0xA5
+    bytes "20 02 0E 01 09 00 A5 00"
+}
+test-vector "write-shaping-breath" message="write-shaping" status="measured" evidence="hid-trace-2026-10-13-gate5.log" {
+    args s=0 bending=0xA4 symmetry=0xAB sensor-min=0 sensor-max=0xB0 midi-min=0 midi-max=0xFE
+    bytes "24 A4 AB 00 B0 00 FE 00"
+}
+test-vector "curve-page-0" message="write-curve-page" status="measured" evidence="hid-trace-2026-10-13-gate5.log" {
+    args s=0 start=0
+    data "curve" "00 01 03 05 09 0D"
+    bytes "40 00 00 01 03 05 09 0D"
+}
+test-vector "write-ack" message="write-meta" reply=#true variant="ack" status="measured" evidence="877 of 877 write replies in the 2026-10-13 traces" {
+    bytes "00 00 00 00 00 00 00 00"
+}
+test-vector "status-51" message="status-51" status="measured" evidence="hid-trace-2026-10-20-read-only.log" {
+    bytes "51 00 00 00 00 00 00 00"
+}
+test-vector "status-51-flag" message="status-51" reply=#true variant="flag" status="measured" evidence="hid-trace-2026-10-13*.log (nine of thirteen)" {
+    args flag=1
+    bytes "01 00 00 00 00 00 00 00"
 }

@@ -318,6 +318,7 @@ impl<'d> Codec<'d> {
         body: &'d Template,
         args: &Bindings,
     ) -> Result<(Vec<u8>, Vec<Span>), CodecError> {
+        self.check_args(m, args)?;
         let medium = self.medium(m);
         let layout = self.layout(m, body);
         let mut chunks: Vec<(Chunk, Region, String)> = Vec::new();
@@ -784,7 +785,30 @@ impl<'d> Codec<'d> {
                 });
             }
         }
+        self.check_args(m, &bound)?;
         Ok(bound)
+    }
+
+    /// Declared arguments (`arg`) must lie in their range (CDL §6.5).
+    fn check_args(&self, m: &Message, bound: &Bindings) -> Result<(), CodecError> {
+        for a in &m.args {
+            let (Some(v), Some(r)) = (bound.get(&a.name), self.d.arg_range(m, &a.name)) else {
+                continue;
+            };
+            match v {
+                Val::Int(i) if (r.lo..=r.hi).contains(i) => {}
+                v => {
+                    return Err(CodecError::Range(format!(
+                        "`{}` = {} is outside {}..={}",
+                        a.name,
+                        show(v),
+                        r.lo,
+                        r.hi
+                    )))
+                }
+            }
+        }
+        Ok(())
     }
 
     /// The fixed byte width of `pieces`, or `None` when one varies.

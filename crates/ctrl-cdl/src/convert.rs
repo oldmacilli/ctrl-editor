@@ -1181,9 +1181,26 @@ fn message(cx: &mut Cx, n: &RawNode) -> Message {
         send: None,
         replies: Vec::new(),
         ok_when: None,
+        args: Vec::new(),
     };
     for c in &n.children {
         match c.name.as_str() {
+            "arg" => {
+                cx.shape(c, 1..=1, Some(&["range", "index"]), false);
+                let arg = ArgDecl {
+                    meta: cx.meta(c),
+                    name: cx.name(c),
+                    range: cx.prop_with(c, "range", parse_range),
+                    index: cx.prop_str(c, "index"),
+                };
+                if arg.range.is_some() == arg.index.is_some() {
+                    cx.err(c.pos, "`arg` takes one of `range=` and `index=`");
+                }
+                if m.args.iter().any(|a| a.name == arg.name) {
+                    cx.err(c.pos, format!("`arg \"{}\"` appears twice", arg.name));
+                }
+                m.args.push(arg);
+            }
             "send" => {
                 cx.shape(c, 0..=1, Some(&["pattern"]), false);
                 if let Some((t, _)) = template_or_pattern(cx, c) {
@@ -1217,7 +1234,7 @@ fn message(cx: &mut Cx, n: &RawNode) -> Message {
                     once(cx, c, &mut m.ok_when, expr);
                 }
             }
-            _ => cx.unknown_child("message", c, &["send", "reply", "ok-when"]),
+            _ => cx.unknown_child("message", c, &["arg", "send", "reply", "ok-when"]),
         }
     }
     // Several replies are variants: each is named, once.

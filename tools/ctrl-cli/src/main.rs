@@ -21,7 +21,8 @@ explain  print the bytes a message would send, piece by piece (dry run).
          Values: 12, 0x0F, hex:AA55, text:Name, @file (bytes)
 trace    decode captures with the descriptor. A capture is text, one frame
          per line, optionally prefixed `>` (to the device) or `<` (from
-         it); JSON lines with a \"hex\" field; or a binary .syx/.bin MIDI
+         it); JSON lines with a \"hex\" field; HID trace logs
+         (`OUT … data=…`, `IN … data=…`); or a binary .syx/.bin MIDI
          stream. A reply is matched to the message sent just before it
          when that message accepts it. --matched hides frames that match
          nothing";
@@ -464,6 +465,10 @@ fn read_capture(path: &str) -> Result<Vec<Frame>, String> {
                 .find_map(|k| v.get(*k).and_then(|x| x.as_str()))
                 .and_then(direction_word);
             (dir, parse_hex(h).map_err(err)?)
+        } else if let Some((head, data)) = line.split_once("data=") {
+            // A HID trace log: `<time> OUT id=0 len=8 … data=10 00 …`.
+            let dir = head.split_whitespace().find_map(direction_word);
+            (dir, parse_hex(data).map_err(err)?)
         } else {
             let (first, rest) = line.split_once(char::is_whitespace).unwrap_or((line, ""));
             let (dir, hexpart) = match direction_word(first) {
@@ -541,8 +546,11 @@ fn trace(path: &str, captures: &[String], matched_only: bool) -> Result<bool, St
     for capture in captures {
         let frames = read_capture(capture)?;
         let mut known = Bindings::new();
-        // The last frame that matched exactly one send: replies pair with it.
-        let mut last_sent: Option<(usize, String)> = None;
+        // The last frame that matched exactly one send, and whether a reply
+        // already paired with it: replies pair with it. A device may send a
+        // report twice (one poll answered by two input reports), so a
+        // second reply pairs too, as a repeat.
+        let mut last_sent: Option<(usize, String, bool)> = None;
         let (mut matched, mut ambiguous) = (0, 0);
         println!("{capture}: {} frame(s)", frames.len());
         for (n, f) in frames.iter().enumerate() {
@@ -571,14 +579,15 @@ fn trace(path: &str, captures: &[String], matched_only: bool) -> Result<bool, St
             }
             println!("{head}");
             let mut paired = None;
-            if let Some((at, sent)) = &last_sent {
+            if let Some((at, sent, answered)) = &mut last_sent {
                 if found.len() > 1
                     && found
                         .iter()
                         .any(|m| m.direction == Direction::In && &m.message == sent)
                 {
                     found.retain(|m| m.direction == Direction::In && &m.message == sent);
-                    paired = Some(*at);
+                    paired = Some((*at, *answered));
+                    *answered = true;
                 }
             }
             // Keep the most specific matches: the most literal bytes, then
@@ -611,9 +620,11 @@ fn trace(path: &str, captures: &[String], matched_only: bool) -> Result<bool, St
                 } else {
                     format!("{note}{})", show_values(&known))
                 };
-                let reply_to = paired
-                    .map(|at| format!("  (reply to #{at})"))
-                    .unwrap_or_default();
+                let reply_to = match paired {
+                    Some((at, false)) => format!("  (reply to #{at})"),
+                    Some((at, true)) => format!("  (repeated reply to #{at})"),
+                    None => String::new(),
+                };
                 println!("    {}{reply_to}{carried_note}", show_match(m));
             }
             if loose > 0 {
@@ -624,10 +635,7 @@ fn trace(path: &str, captures: &[String], matched_only: bool) -> Result<bool, St
                 .filter(|m| m.direction == Direction::Out)
                 .collect();
             if let [only] = sends.as_slice() {
-                last_sent = Some((n, only.message.clone()));
-            } else if paired.is_some() {
-                // One reply per request.
-                last_sent = None;
+                last_sent = Some((n, only.message.clone(), false));
             }
             if found.len() == 1 {
                 for (k, v) in &found[0].values {

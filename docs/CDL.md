@@ -376,6 +376,29 @@ as `00` while the sum is computed. So a Roland-style body
 `12 {address:u14be} {value} {sum:roland(1,-1)}` sums the address and the
 value. Anything else is a `compute` LBMT snippet or a driver.
 
+### 6.5 Argument ranges
+
+An index argument says which values it takes, with `arg`:
+
+```kdl
+message "select-scene" frame="korg-native" transport="selected" {
+    arg "scene" index="scene"          // 0..count-1 of block "scene"
+    send "02 00 00 14 {scene}"
+}
+message "write-curve-page" transport="hid" kind="write" {
+    arg "s" index="sensor"             // 0..=3
+    arg "start" range="0..=30"
+    send "{0x40 + s} {start} {curve[6] pad=7F}"
+}
+```
+
+`index=` takes the range from the block's `count`, so a shared KORG message
+gets 0..=4 on the nanoKONTROL Studio and 0..=7 on the nanoKEY Studio.
+`range=` is inclusive. An `arg` must appear in `send`. The codec refuses to
+encode a value outside the range, and a frame whose decoded value falls
+outside does not match. Without it, `{0x10 + s}` matches any byte: a trace
+read the TEC read-meta request `10 00 …` as write-meta with `s = -16`.
+
 ## 7. Classic MIDI patching
 
 `midi-map` states what the device sends and receives in performance use,
@@ -479,28 +502,50 @@ engine splits and joins multi-message dumps when the block says `chunk=…`.
 
 ## 9. USB parameter patching
 
-HID and bulk frames use the same templates, with 8-bit bytes. Fixed-size
-frames are padded with `00`:
+HID and bulk frames use the same messages as SysEx, with 8-bit bytes. The
+differences are in the transport, not in the messages:
+
+| | SysEx (KORG) | HID (TEC) |
+|---|---|---|
+| framing | `sysex-frame`: `F0 42 {0x40 \| device-id} {model:midi-id}` … `F7` | none: the transport's `frame=8` report; sends are padded with `00` |
+| addressing | the device id, captured from the identity reply | the USB device (`identify usb vid= pid= bcd=`), one per `usb-serial` |
+| command | literal bytes after the frame (`02 00 00 14`) | byte 0: an opcode plus the sensor index, `{0x10 + s}` |
+| index | `arg "scene" index="scene"` | `arg "s" index="sensor"` |
+| ack | `pattern "korg-ack" "01 00 00 {status}"`, `ok-when` on the status | `pattern "tec-ack" "00 00 00 00 00 00 00 00"` |
+| reply pairing | one reply per request; acks share a pattern | one input report per output report |
+
+The TEC descriptor (`descriptors/tecontrol/breath.ctrl.kdl`):
 
 ```kdl
-message "write-meta" transport="hid" status="measured" evidence="TECcontrol HANDOVER.md:399-434, hid-trace-2026-10-13" {
-    send "{0x20 + sensor} {cc} {channel} {msg} 09 {attack} {decay} 00"
-    reply "00 00 00 00 00 00 00 00"           // every write is acked with 8 zeros
+transport "hid" kind="hid" usage-page=0x0C frame=8 report-id=0 seize=#true role="config" status="measured"
+pattern "tec-ack" "00 00 00 00 00 00 00 00"
+message "read-meta" transport="hid" status="measured" evidence="TECcontrol findings" {
+    arg "s" index="sensor"
+    send "{0x10 + s}"                         // 13 00 00 00 00 00 00 00 for s = 3
+    reply "{cc} {channel} {message} {param} {attack} {decay} 00 00" variant="meta" timeout=200
+    ok-when "param == 9"
 }
-message "poll" transport="hid" { send "00"; reply "{breath} {bite} {nod} {tilt} .. .. .. .." }
+message "write-meta" transport="hid" kind="write" status="measured" {
+    arg "s" index="sensor"
+    send "{0x20 + s} {cc} {channel} {message} {param} {attack} {decay} 00"
+    reply pattern="tec-ack" variant="ack" timeout=200
+}
 ```
 
-`{0x20 + sensor}` is a computed byte (an expression in braces, §10.1). HID
-reports have no SysEx framing; the transport sets the report ID (none for
-TEC). A send must fit the frame, and a reply must fill it.
+`{0x20 + s}` is a computed byte (an expression in braces, §10.1). The
+transport sets the report ID (`report-id=0`: hidapi strips it, so the wire
+frame is the 8 bytes). A send must fit the frame, and a reply must fill
+it.
 
 An array goes out in pages with a slice placeholder. The TEC curve is 32
 values in 6 pages of 6, and the last page is padded with 7F:
 
 ```kdl
 message "write-curve-page" transport="hid" kind="write" {
+    arg "s" index="sensor"
+    arg "start" range="0..=30"
     send "{0x40 + s} {start} {curve[6] pad=7F}"
-    reply "00 00 00 00 00 00 00 00"
+    reply pattern="tec-ack" variant="ack" timeout=200
 }
 procedure "write-sensor" kind="write" {
     …
@@ -776,10 +821,12 @@ String arguments are text (`ascii`). `ctrl-codec` runs them
   against every `send` and reply (`Codec::identify`). A capture is text,
   one frame per line with an optional `>` (to the device) or `<` (from
   it), `#` comments; JSON lines with `hex` and `dir`; or a binary
-  `.syx`/`.bin` MIDI stream, split into messages. Several SysEx messages on
+  `.syx`/`.bin` MIDI stream, split into messages; and HID trace logs
+  (`<time> OUT … data=…`, `IN … data=…`, as TECcontrol's tracer writes). Several SysEx messages on
   one line are split; other lines, such as HID reports, stay whole.
   - A reply pairs with the message sent just before it when that message
-    accepts it, once per request.
+    accepts it. A second reply to the same request is shown as a repeat
+    (a device may send one input report twice).
   - Otherwise the most specific matches win: the most literal bytes, then
     no negative values, then the fewest captured values. So `50` on the
     TEC is `commit`, not `{0x40 + s}` with `s = 16`. The others are

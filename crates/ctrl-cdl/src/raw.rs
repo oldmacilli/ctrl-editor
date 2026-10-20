@@ -85,6 +85,7 @@ const NAMED: &[&str] = &[
     "labels",
     "list",
     "pattern",
+    "arg",
 ];
 
 /// Kinds whose children are an ordered step list; a local list replaces the

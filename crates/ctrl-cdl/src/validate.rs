@@ -538,6 +538,25 @@ impl<'d> V<'d> {
             if let Some(send) = &m.send {
                 self.template_exprs(m.meta.pos, "send", send);
             }
+            let sent = m.send.as_ref().map(template_names).unwrap_or_default();
+            for a in &m.args {
+                if !sent.contains(&a.name) {
+                    self.error(
+                        a.meta.pos,
+                        format!("`arg \"{}\"` does not appear in `send`", a.name),
+                    );
+                }
+                if let Some(block) = &a.index {
+                    match self.d.block(block) {
+                        None => self.error(a.meta.pos, format!("unknown block `{block}`")),
+                        Some(b) if b.count.is_none() => self.error(
+                            a.meta.pos,
+                            format!("`index=\"{block}\"`: the block has no `count`"),
+                        ),
+                        Some(_) => {}
+                    }
+                }
+            }
             for reply in &m.replies {
                 self.template_exprs(reply.meta.pos, "reply", &reply.pattern);
                 if let Some(when) = &reply.ok_when {

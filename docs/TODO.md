@@ -66,7 +66,11 @@ Last updated: 2026-10-20 (ctrl-cdl landed).
   patterns for read-block, a scene-read reply vector from a capture, then
   the procedures off `korg-measured`
 - [ ] platform+db1: more DB-1 vectors from `db1-protocol` tests (one today)
-- [ ] platform+tec: TEC vectors from the HID captures (one today)
+- [x] platform+tec: TEC vectors from the HID captures: 16, and every
+  transaction in the 10 TECcontrol traces decodes to one message (HASH)
+- [x] platform: KORG and TEC descriptors in one style: `arg` ranges (CDL
+  §6.5), named ack patterns, reply variants, evidence on every message and
+  procedure; TEC `read-name` and the `51` reply added (HASH)
 - [ ] platform: a vendor-encoding registry entry only when no generic part
   fits; none needed so far
 - [x] platform: `ctrl-cli check | explain | trace` (CDL §16); replaces

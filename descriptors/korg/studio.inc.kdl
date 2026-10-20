@@ -28,6 +28,8 @@ message "scene-set-info-request" frame="korg-native" transport="selected" status
     reply "02 00 00 42 {info}" variant="info" timeout=1000
 }
 message "select-scene" frame="korg-native" transport="selected" status="measured" evidence="korg-sysex Request::SelectScene; capture" {
+    // 0..count-1 of this device's scene block (5 or 8 scenes)
+    arg "scene" index="scene"
     send "02 00 00 14 {scene}"
     reply pattern="korg-ack" variant="ack" timeout=2000
     ok-when "status == data-received"
@@ -41,6 +43,8 @@ message "global-data-request" frame="korg-native" transport="selected" status="m
     reply pattern="global-data" variant="global" timeout=2000
 }
 message "commit-scene" frame="korg-native" transport="selected" kind="write" status="measured" evidence="korg-sysex build_commit, korg-core MeasuredSession::write_scene; ack 21 captured" {
+    // 0..count-1 of this device's scene block (5 or 8 scenes)
+    arg "scene" index="scene"
     send "02 00 00 11 {scene}"
     reply pattern="korg-ack" variant="ack" timeout=2000
     ok-when "status == write-complete"
