@@ -75,6 +75,7 @@ pub struct Descriptor {
     pub drivers: Vec<Driver>,
     pub test_vectors: Vec<TestVector>,
     pub consts: Vec<Const>,
+    pub labels: Vec<Labels>,
 }
 
 impl Descriptor {
@@ -129,6 +130,15 @@ pub struct Device {
     pub aka: Vec<String>,
     pub manual: Option<String>,
     pub replaces: Option<String>,
+    /// `image "assets/x.png" role="thumbnail"`, relative to the descriptor.
+    pub images: Vec<Picture>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Picture {
+    pub meta: Meta,
+    pub path: String,
+    pub role: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -367,6 +377,8 @@ pub struct Param {
 pub struct Panel {
     pub meta: Meta,
     pub picture: Option<Size>,
+    /// The panel picture's file, relative to the descriptor.
+    pub image: Option<String>,
     pub source: Option<String>,
     pub items: Vec<PanelItem>,
 }
@@ -704,6 +716,23 @@ pub struct TestVector {
 pub struct ByteArg {
     pub name: String,
     pub bytes: Vec<u8>,
+}
+
+/// `labels "en" { list "controller-names" { item 0 "Common" } }`: UI texts
+/// by language, as numbered lists (§13.1).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Labels {
+    pub meta: Meta,
+    pub language: String,
+    pub source: Option<String>,
+    pub lists: Vec<LabelList>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LabelList {
+    pub meta: Meta,
+    pub name: String,
+    pub items: Vec<Special>,
 }
 
 /// `const "model" 0x137`: a named number the device's templates use (§8.1).

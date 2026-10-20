@@ -1,0 +1,5 @@
+// KORG taktile-25/49 (X11850). The generated base is
+// taktile-25-49.gen.inc.kdl; measured facts written here override it.
+cdl "0.1"
+include "common.inc.kdl"
+include "taktile-25-49.gen.inc.kdl"

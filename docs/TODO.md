@@ -112,6 +112,13 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
   pattern for the receive (header and packed payload)
 - [ ] korg: Strings XML from the vendor application (`the local capture archive`)
   → control lists and value labels for all 14 devices
+- [x] platform: `KORG_Kontrol_Editor/tools/gen-korg-cdl`: a generated base for all 16 devices
+  (device, decoded model id, scene and global block sizes, file types,
+  thumbnails, a MIDI transport found by identity scan); the Studios' hand
+  files override it; shared facts split into `common.inc.kdl` (decoded) and
+  `studio.inc.kdl` (measured) (COMMIT)
+- [ ] platform: labels and panel pictures in the generator, once the
+  resource names map to classes (lookup ``; in progress)
 - [ ] korg: parameter schemas for the 12 devices without one (getters)
 - [ ] korg: exact click areas from the component code
 - [x] korg: nanoKEY Studio (X14800) global write measured: same header

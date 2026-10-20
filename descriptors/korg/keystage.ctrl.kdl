@@ -1,0 +1,5 @@
+// KORG Keystage (X20870). The generated base is
+// keystage.gen.inc.kdl; measured facts written here override it.
+cdl "0.1"
+include "common.inc.kdl"
+include "keystage.gen.inc.kdl"

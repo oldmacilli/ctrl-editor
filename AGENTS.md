@@ -11,6 +11,10 @@ Shared platform for three device editors. Read docs/CONCEPT.md first.
   capture or code; use `status="unknown"` instead.
 - Do not commit vendor binaries, firmware images, manuals or extracted
   vendor content. Test data lives under `the local capture archive`.
+  Exception, approved by the owner on 2026-10-20: KORG labels and device
+  images, converted into our own layer (CDL `labels` and `enum` nodes,
+  `descriptors/korg/assets/`) by `KORG_Kontrol_Editor/tools/gen-korg-cdl`. Generated
+  `*.gen.inc.kdl` files are not edited by hand; rerun the generator.
 - The evidence for each device stays in its own repo
   (`KORG_Kontrol_Editor`, `OceanBeach_DB-1`, `TECcontrol`); link to it.
 - `lbmt` belongs to zigtact. Use it as a dependency; do not copy or patch

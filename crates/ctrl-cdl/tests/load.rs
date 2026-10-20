@@ -114,8 +114,30 @@ fn db1_messages_and_procedures() {
 #[test]
 fn includes_merge_by_kind_and_name() {
     let d = load_ok("korg/nanokey-studio.ctrl.kdl");
-    assert_eq!(d.files.len(), 2);
+    assert_eq!(d.files.len(), 4);
     assert!(d.files[1].ends_with("common.inc.kdl"));
+    assert!(d.files[2].ends_with("studio.inc.kdl"));
+    assert!(d.files[3].ends_with("nanokey-studio.gen.inc.kdl"));
+
+    // studio.inc.kdl raises the common frame to measured; local facts win
+    // over the generated base.
+    assert_eq!(d.frames[0].meta.status, Some(Status::Measured));
+    assert_eq!(d.frames[0].prefix.as_ref().unwrap().pieces.len(), 4);
+    assert_eq!(
+        d.constant("model").unwrap().meta.status,
+        Some(Status::Measured)
+    );
+    assert_eq!(
+        d.block("scene").unwrap().meta.status,
+        Some(Status::Measured)
+    );
+    assert_eq!(d.device.images.len(), 1);
+    let generic = load_ok("korg/nanokey2.ctrl.kdl");
+    assert_eq!(generic.frames[0].meta.status, Some(Status::Decoded));
+    assert_eq!(
+        generic.transport("midi").unwrap().scan.as_deref(),
+        Some("identity")
+    );
 
     // The local driver extends the shared one: the shared `owns` entry
     // stays, the local `provides` is added.
@@ -130,7 +152,7 @@ fn includes_merge_by_kind_and_name() {
         "14 02 00 40 {data:packed7}"
     );
     assert_eq!(write.meta.pos.file, 0);
-    assert_eq!(d.message("commit-scene").unwrap().meta.pos.file, 1);
+    assert_eq!(d.message("commit-scene").unwrap().meta.pos.file, 2);
     assert_eq!(d.constant("model").unwrap().value, 0x136);
     assert_eq!(d.constant("manufacturer").unwrap().value, 0x42);
 
@@ -494,6 +516,6 @@ fn error_at_names_the_file() {
     let d = load_ok("korg/nanokey-studio.ctrl.kdl");
     let commit = d.message("commit-scene").unwrap();
     let e = d.error_at(commit.meta.pos, "x");
-    assert!(e.file.ends_with("common.inc.kdl"));
+    assert!(e.file.ends_with("studio.inc.kdl"));
     assert!(e.line > 1);
 }

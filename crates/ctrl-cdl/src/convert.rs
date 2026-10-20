@@ -65,6 +65,7 @@ pub(crate) fn convert(
             drivers: b.drivers,
             test_vectors: b.test_vectors,
             consts: b.consts,
+            labels: b.labels,
         }),
         _ => Err(Errors(cx.errors)),
     }
@@ -419,6 +420,7 @@ struct Builder {
     drivers: Vec<Driver>,
     test_vectors: Vec<TestVector>,
     consts: Vec<Const>,
+    labels: Vec<Labels>,
 }
 
 const TOP: &[&str] = &[
@@ -440,6 +442,7 @@ const TOP: &[&str] = &[
     "driver",
     "test-vector",
     "const",
+    "labels",
 ];
 
 impl Builder {
@@ -484,6 +487,7 @@ impl Builder {
             "lbmt" => self.lbmt.push(lbmt(cx, n)),
             "driver" => self.drivers.push(driver(cx, n)),
             "test-vector" => self.test_vectors.push(test_vector(cx, n)),
+            "labels" => self.labels.push(labels(cx, n)),
             "const" => {
                 cx.shape(n, 2..=2, Some(&[]), false);
                 let name = cx.name(n);
@@ -593,6 +597,13 @@ impl Builder {
             "const",
             self.consts.iter().map(|c| (c.name.as_str(), c.meta.pos)),
         );
+        dups(
+            cx,
+            "labels",
+            self.labels
+                .iter()
+                .map(|l| (l.language.as_str(), l.meta.pos)),
+        );
     }
 }
 
@@ -616,8 +627,19 @@ fn device(cx: &mut Cx, n: &RawNode) -> Device {
         aka: Vec::new(),
         manual: None,
         replaces: None,
+        images: Vec::new(),
     };
     for c in &n.children {
+        if c.name == "image" {
+            cx.shape(c, 1..=1, Some(&["role"]), false);
+            let path = cx.arg_with(c, 0, asset_path);
+            d.images.push(Picture {
+                meta: cx.meta(c),
+                path: path.unwrap_or_default(),
+                role: cx.prop_str(c, "role"),
+            });
+            continue;
+        }
         cx.shape(c, 1..=1, Some(&[]), false);
         let value = cx.arg_str(c, 0);
         let slot = match c.name.as_str() {
@@ -637,6 +659,7 @@ fn device(cx: &mut Cx, n: &RawNode) -> Device {
                     c,
                     &[
                         "vendor", "model", "class", "file-key", "aka", "manual", "replaces",
+                        "image",
                     ],
                 );
                 continue;
@@ -944,12 +967,64 @@ fn param(cx: &mut Cx, n: &RawNode) -> Param {
 }
 
 fn panel(cx: &mut Cx, n: &RawNode) -> Panel {
-    cx.shape(n, 0..=0, Some(&["picture", "source"]), true);
+    cx.shape(n, 0..=0, Some(&["picture", "image", "source"]), true);
     Panel {
         meta: cx.meta(n),
         picture: cx.prop_with(n, "picture", parse_size),
+        image: cx.prop_with(n, "image", asset_path),
         source: cx.prop_str(n, "source"),
         items: panel_items(cx, &n.children),
+    }
+}
+
+/// A file next to the descriptor: relative, inside its directory.
+fn asset_path(s: &str) -> Result<String, String> {
+    let path = std::path::Path::new(s);
+    let escapes = path
+        .components()
+        .any(|c| !matches!(c, std::path::Component::Normal(_)));
+    if s.is_empty() || escapes {
+        return Err(format!(
+            "`{s}`: a relative path below the descriptor, without `..`"
+        ));
+    }
+    Ok(s.to_string())
+}
+
+fn labels(cx: &mut Cx, n: &RawNode) -> Labels {
+    cx.shape(n, 1..=1, Some(&["source"]), true);
+    let mut lists = Vec::new();
+    for c in &n.children {
+        if c.name != "list" {
+            cx.unknown_child("labels", c, &["list"]);
+            continue;
+        }
+        cx.shape(c, 1..=1, Some(&[]), true);
+        let mut items = Vec::new();
+        for i in &c.children {
+            if i.name != "item" {
+                cx.unknown_child("list", i, &["item"]);
+                continue;
+            }
+            cx.shape(i, 2..=2, Some(&[]), false);
+            if let (Some(value), Some(label)) = (cx.arg_int(i, 0), cx.arg_str(i, 1)) {
+                if items.iter().any(|s: &Special| s.value == value) {
+                    cx.err(i.pos, format!("item {value} appears twice"));
+                }
+                items.push(Special { value, label });
+            }
+        }
+        lists.push(LabelList {
+            meta: cx.meta(c),
+            name: cx.name(c),
+            items,
+        });
+    }
+    Labels {
+        meta: cx.meta(n),
+        language: cx.name(n),
+        source: cx.prop_str(n, "source"),
+        lists,
     }
 }
 

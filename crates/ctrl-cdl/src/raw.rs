@@ -39,7 +39,9 @@ impl RawNode {
         let first = self.args.first().map(|a| &a.value);
         let name = match (NAMED.contains(&self.name.as_str()), first) {
             (true, Some(Value::String(s))) => Some(s.clone()),
-            (_, Some(Value::Int(i))) if self.name == "value" => Some(i.to_string()),
+            (_, Some(Value::Int(i))) if self.name == "value" || self.name == "item" => {
+                Some(i.to_string())
+            }
             _ => None,
         };
         (&self.name, name)
@@ -72,6 +74,8 @@ const NAMED: &[&str] = &[
     "test-vector",
     "const",
     "data",
+    "labels",
+    "list",
 ];
 
 /// Kinds whose children are an ordered step list; a local list replaces the

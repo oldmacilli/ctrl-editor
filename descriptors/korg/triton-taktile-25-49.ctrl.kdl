@@ -1,0 +1,5 @@
+// KORG TRITON taktile-25/49 (X12880). The generated base is
+// triton-taktile-25-49.gen.inc.kdl; measured facts written here override it.
+cdl "0.1"
+include "common.inc.kdl"
+include "triton-taktile-25-49.gen.inc.kdl"

@@ -1,0 +1,7 @@
+// KORG SQ-64 (X19210). The generated base is
+// sq-64.gen.inc.kdl; measured facts written here override it.
+cdl "0.1"
+include "sq-64.gen.inc.kdl"
+
+// No KORG native SysEx descriptor was decoded for this device; its
+// protocol is not described yet.

@@ -1,0 +1,7 @@
+// KORG NTS-3 kaoss pad kit (X21210). The generated base is
+// nts-3-kaoss-pad-kit.gen.inc.kdl; measured facts written here override it.
+cdl "0.1"
+include "nts-3-kaoss-pad-kit.gen.inc.kdl"
+
+// No KORG native SysEx descriptor was decoded for this device; its
+// protocol is not described yet.

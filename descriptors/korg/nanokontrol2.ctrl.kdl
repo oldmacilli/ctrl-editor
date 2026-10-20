@@ -1,0 +1,5 @@
+// KORG nanoKONTROL2 (X10840). The generated base is
+// nanokontrol2.gen.inc.kdl; measured facts written here override it.
+cdl "0.1"
+include "common.inc.kdl"
+include "nanokontrol2.gen.inc.kdl"

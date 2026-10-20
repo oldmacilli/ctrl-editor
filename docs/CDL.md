@@ -77,6 +77,7 @@ device "tecontrol.breath" {
     model "USB MIDI Breath Controller"
     aka "TECMidiBreathCtrl"
     manual "TEC manual v5"                         // a reference, not a file
+    image "assets/breath/thumbnail.png" role="thumbnail"   // a file next to the descriptor
 }
 identify {
     usb vid=0x2B06 pid=0x0018 bcd=0x0500 status="measured"   // bcd: firmware version
@@ -619,7 +620,7 @@ Rules:
 The panel is `korg_app::panel` written as data:
 
 ```kdl
-panel picture="550x329" source="editor panel picture, measured by eye" {
+panel picture="550x329" image="assets/nanokontrol-studio/panel.png" source="editor panel picture, measured by eye" {
     control "jog" kind="jog" label="Jog Wheel" group="Jog Wheel" box="36,199,92,92" bind="scene.jog"
     repeat "n" "1..=8" {
         control "knob{n}" kind="knob" group="Knob" box="{135.5 + 44.5 * n},146,28,28"
@@ -630,6 +631,29 @@ panel picture="550x329" source="editor panel picture, measured by eye" {
 `bind` names a block, group or field; an unbound control shows "not decoded
 yet". `kind`: `knob`, `fader`, `button`, `pad`, `key`, `touchpad`, `jog`,
 `meter` (live value from `midi-map` or a poll).
+
+Image paths (`image` on `device` and `panel`) are relative to the file that
+names them, below its directory (no `..`). `cdl-parse` reports a missing
+file.
+
+### 13.1 Labels
+
+`labels` holds UI texts for one language as numbered lists: the names of
+controls, parameters, edit pages, and value lists too long for an `enum`.
+Value lists that are settings become `enum` types (§4.2) instead.
+
+```kdl
+labels "en" source="KORG KONTROL EDITOR Strings XML, resource …" {
+    list "controller-names" {
+        item 0 "Common"
+        item 1 "Keyboard"
+    }
+}
+```
+
+Item numbers need not be contiguous. Lists merge by name, items by number
+(§2), so a hand-written descriptor can correct one label of a generated
+list.
 
 ## 14. Drivers
 

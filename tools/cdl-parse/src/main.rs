@@ -24,6 +24,32 @@ fn main() -> ExitCode {
                 for finding in &report.findings {
                     println!("  {finding}");
                 }
+                // Images resolve against the file that names them.
+                let images = d
+                    .device
+                    .images
+                    .iter()
+                    .map(|i| (i.meta.pos, i.path.as_str()))
+                    .chain(
+                        d.panel
+                            .iter()
+                            .filter_map(|p| Some((p.meta.pos, p.image.as_deref()?))),
+                    );
+                for (pos, image) in images {
+                    let declared = std::path::Path::new(&d.files[pos.file as usize]);
+                    let file = declared
+                        .parent()
+                        .unwrap_or(std::path::Path::new(""))
+                        .join(image);
+                    if !file.is_file() {
+                        failed = true;
+                        println!(
+                            "  {}: error: image {} not found",
+                            d.error_at(pos, "").file,
+                            file.display()
+                        );
+                    }
+                }
                 for v in ctrl_codec::Codec::new(&d).run_vectors() {
                     match v.outcome {
                         ctrl_codec::Outcome::Pass => println!("  vector {}: pass", v.name),

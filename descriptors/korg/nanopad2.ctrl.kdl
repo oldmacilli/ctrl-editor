@@ -1,0 +1,5 @@
+// KORG nanoPAD2 (X10830). The generated base is
+// nanopad2.gen.inc.kdl; measured facts written here override it.
+cdl "0.1"
+include "common.inc.kdl"
+include "nanopad2.gen.inc.kdl"

@@ -5,6 +5,8 @@
 // (korg-core MeasuredSession) until they are written as CDL messages.
 cdl "0.1"
 include "common.inc.kdl"
+include "studio.inc.kdl"
+include "nanokontrol-studio.gen.inc.kdl"
 
 device "korg.nanokontrol-studio" {
     vendor "KORG"
@@ -98,7 +100,6 @@ procedure "write-scene-set" kind="write" status="measured" {
 }
 
 driver "korg-measured" provides="procedure:receive-scene-set procedure:receive-global procedure:write-scene procedure:write-scene-set procedure:write-global"
-driver "korg-nktrl-file" provides="file:nktrl_st_set file:nktrl_st_data file:nktrl_st_glob"
 
 // Panel: korg_app::panel nanokontrol_studio(), picture 550 x 329.
 panel picture="550x329" source="measured by eye from the editor's panel picture" {

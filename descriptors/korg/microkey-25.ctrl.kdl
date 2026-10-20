@@ -1,0 +1,7 @@
+// KORG microKEY-25 (X11810). The generated base is
+// microkey-25.gen.inc.kdl; measured facts written here override it.
+cdl "0.1"
+include "microkey-25.gen.inc.kdl"
+
+// No KORG native SysEx descriptor was decoded for this device; its
+// protocol is not described yet.

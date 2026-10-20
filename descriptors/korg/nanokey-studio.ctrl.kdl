@@ -5,6 +5,8 @@
 // layout inside the 240 bytes is not decoded beyond the name.
 cdl "0.1"
 include "common.inc.kdl"
+include "studio.inc.kdl"
+include "nanokey-studio.gen.inc.kdl"
 
 device "korg.nanokey-studio" {
     vendor "KORG"
@@ -68,7 +70,6 @@ message "scene-write" frame="korg-native" transport="selected" kind="write" stat
 }
 
 driver "korg-measured" provides="procedure:receive-scene-set procedure:receive-global procedure:write-scene procedure:write-scene-set procedure:write-global"
-driver "korg-nktrl-file" provides="file:nanokey_st_set file:nanokey_st_data file:nanokey_st_glob"
 
 // Panel: korg_app::panel nanokey_studio(), picture 500 x 294.
 panel picture="500x294" source="measured by eye from the editor's panel picture" {

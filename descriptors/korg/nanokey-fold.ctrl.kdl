@@ -1,0 +1,5 @@
+// KORG nanoKEY Fold (X20880). The generated base is
+// nanokey-fold.gen.inc.kdl; measured facts written here override it.
+cdl "0.1"
+include "common.inc.kdl"
+include "nanokey-fold.gen.inc.kdl"
