@@ -50,13 +50,13 @@ Last updated: 2026-10-20 (ctrl-cdl landed).
 - [x] platform: CDL §5.1 `scan` and `listen` for DIN-only devices; DB-1
   found by scanning with its revision request (5bd7d4a)
 - [x] platform: CDL expressions (§10.1), parsed by the validator; LBMT stays
-  for compute and translators (COMMIT)
+  for compute and translators (3179136)
 - [x] platform: `ctrl-codec`: encode and decode `send`/`reply` (CDL §6),
   checksums (§6.1), lengths, `midi-id`, `packed7`, HID frame padding, reply
-  captures through expressions; test-vector runner in `cdl-parse` (COMMIT)
+  captures through expressions; test-vector runner in `cdl-parse` (3179136)
 - [x] platform: KORG framing from generic parts (CDL §8.1): `const`,
   `midi-id`, `{0x40 | device-id}`; 10 KORG vectors byte for byte with
-  `korg-sysex`'s captures (COMMIT)
+  `korg-sysex`'s captures (3179136)
 - [ ] platform+db1: more DB-1 vectors from `db1-protocol` tests (one today)
 - [ ] platform+tec: TEC vectors from the HID captures (one today)
 - [ ] platform: a vendor-encoding registry entry only when no generic part
@@ -108,7 +108,7 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
 
 - [ ] korg: nanoKONTROL Studio descriptor complete: procedures that use the
   CDL messages (identity, requests, scene write, commit, global write, acks;
-  in place since COMMIT) instead of the `korg-measured` driver; data reply
+  in place since 3179136) instead of the `korg-measured` driver; data reply
   pattern for the receive (header and packed payload)
 - [ ] korg: Strings XML from the vendor application (`the local capture archive`)
   → control lists and value labels for all 14 devices
