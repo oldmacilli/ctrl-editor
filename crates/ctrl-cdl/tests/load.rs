@@ -131,7 +131,7 @@ fn includes_merge_by_kind_and_name() {
         d.block("scene").unwrap().meta.status,
         Some(Status::Measured)
     );
-    assert_eq!(d.device.images.len(), 1);
+    assert_eq!(d.device.images.len(), 2);
     let generic = load_ok("korg/nanokey2.ctrl.kdl");
     assert_eq!(generic.frames[0].meta.status, Some(Status::Decoded));
     assert_eq!(
@@ -181,7 +181,20 @@ fn nanokontrol_types_block_and_panel() {
     let d = load_ok("korg/nanokontrol-studio.ctrl.kdl");
     // `types` merges: the shared "channel" and "ack" plus the local enums.
     let names: Vec<_> = d.types.iter().map(TypeDef::name).collect();
-    assert_eq!(names, ["channel", "ack", "jog-type", "jog-accel"]);
+    // The generated value lists merge in before the hand-written enums.
+    assert_eq!(
+        names,
+        [
+            "channel",
+            "ack",
+            "assign-type",
+            "sw-type",
+            "jog-dial-value-type",
+            "auto-power-off-type",
+            "jog-type",
+            "jog-accel"
+        ]
+    );
     let TypeDef::Int(channel) = &d.types[0] else {
         panic!();
     };
