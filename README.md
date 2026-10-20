@@ -20,6 +20,8 @@ typed IR.
 - `tools/ctrl-cli`: `check` (validate, images, test vectors, send paths
   without evidence), `explain` (the bytes of a message, piece by piece) and
   `trace` (decode a capture) (CDL §16)
+- `editors/tree-sitter`: CDL highlight and LBMT injection queries for
+  tree-sitter-kdl; `tools/cdl-queries` tests them
 - `KORG_Kontrol_Editor/tools/gen-korg-cdl`: generates a CDL base for every device of the KORG
   KONTROL EDITOR from the KORG repo's analysis, with labels and images
   (`python3 KORG_Kontrol_Editor/tools/gen-korg-cdl/gen_korg_cdl.py`, `--check` for staleness)

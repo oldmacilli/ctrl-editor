@@ -841,5 +841,6 @@ it is stale.
   - Transport captures (`device-id`) carry over from the first frame that
     shows them; a frame that only matches with another value says so.
   - Values print as decimal, and from 10 up also as hex (`35/0x23`).
-- A tree-sitter query file for CDL on top of the KDL grammar, with
-  injection of the LBMT grammar into `#"…"#` strings.
+- Tree-sitter queries for CDL on top of tree-sitter-kdl, with LBMT
+  injected as language `lbmt`: `editors/tree-sitter/` (README there),
+  checked by `cargo test -p cdl-queries`.
