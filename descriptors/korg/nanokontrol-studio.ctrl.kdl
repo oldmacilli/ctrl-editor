@@ -4,6 +4,7 @@
 // Partial: the SysEx exchanges still run in the `korg-measured` driver
 // (korg-core MeasuredSession) until they are written as CDL messages.
 cdl "0.1"
+include "common.ctrl.kdl"
 
 device "korg.nanokontrol-studio" {
     vendor "KORG"
@@ -15,12 +16,6 @@ device "korg.nanokontrol-studio" {
 identify {
     midi-port match="nanoKONTROL Studio" direction="both"
     sysex-identity manufacturer=0x42 model=0x137 status="measured"
-}
-
-// The device id is the low nibble of the identity reply: 00 over USB,
-// 0F over BLE. It is not a MIDI channel.
-message "identity" transport="selected" status="measured" evidence="korg-sysex IDENTITY_REQUEST" {
-    send "F0 7E 7F 06 01 F7"
 }
 
 // Two config transports: USB is preferred; the user's port choice (p in
@@ -47,14 +42,9 @@ types {
         value 1 "2"
         value 2 "Const"
     }
-    int "channel" storage="u7" range="0..=15" display="{v + 1}" parse="{v - 1}"
 }
 
-// 0x137 encodes as 00 01 37
-sysex-frame "korg-native" status="decoded" evidence="korg-sysex push_model, encode" {
-    prefix "F0 42 {0x40 | device-id} {model:korg-model}"
-    suffix "F7"
-}
+// Frame, identity, global read/write: common.ctrl.kdl. 0x137 encodes as 00 01 37.
 
 block "scene" size=560 count=5 status="measured" evidence="measured_layout(0x137)" {
     field "name" offset=0 type="ascii(16)"
@@ -80,9 +70,6 @@ block "global" size=128 status="measured" evidence="measured_layout(0x137)"
 procedure "receive-scene-set" kind="read" status="measured" {
     driver "korg-measured" step="receive-scene-set"
 }
-procedure "receive-global" kind="read" status="measured" {
-    driver "korg-measured" step="receive-global"
-}
 procedure "write-scene" kind="write" status="measured" {
     gate "confirm" text="Write scene {scene} to the device?"
     restore-point "scene[scene]"
@@ -95,19 +82,9 @@ procedure "write-scene-set" kind="write" status="measured" {
     driver "korg-measured" step="write-scene-set"
     verify "receive-scene-set" compare="scene"
 }
-procedure "write-global" kind="write" status="measured" evidence="BLE capture and byte-identical round trip, KORG eba516b" {
-    gate "confirm" text="Write the global settings to the device?"
-    restore-point "global"
-    driver "korg-measured" step="write-global"
-    verify "receive-global" compare="global"
-}
 
 driver "korg-measured" provides="procedure:receive-scene-set procedure:receive-global procedure:write-scene procedure:write-scene-set procedure:write-global" {
-    owns "identity-request" bytes="F0 7E 7F 06 01 F7" status="measured" evidence="korg-sysex IDENTITY_REQUEST"
-    owns "device-id" note="low nibble of the identity reply: 00 USB, 0F BLE" status="measured" evidence="Slint lane review 2026-10-20"
     owns "scene-write-header" bytes="01 05 00 40" status="measured" evidence="korg-devices measured_layout(0x137), korg-sysex X14802_SCENE_WRITE_HEADER"
-    owns "global-write-header" bytes="14 01 00 51" status="measured" evidence="korg-sysex X14802_GLOBAL_WRITE_HEADER; ack 23, no commit (KORG eba516b)"
-    owns "scene-commit" bytes="02 00 00 11 {scene}" frame="korg-native" status="measured" evidence="korg-sysex build_commit, korg-core MeasuredSession::write_scene"
 }
 driver "korg-nktrl-file" provides="file:nktrl_st_set file:nktrl_st_data file:nktrl_st_glob"
 

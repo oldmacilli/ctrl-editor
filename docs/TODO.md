@@ -98,6 +98,11 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
   → control lists and value labels for all 14 devices
 - [ ] korg: parameter schemas for the 12 devices without one (getters)
 - [ ] korg: exact click areas from the component code
+- [x] korg: nanoKEY Studio (X14800) global write measured: same header
+  `14 01 00 51`, ack 23, no commit; write and re-receive byte-identical;
+  scene-set write verified unchanged (KORG aaa4f36). Descriptor
+  `descriptors/korg/nanokey-studio.ctrl.kdl`; shared facts in
+  `descriptors/korg/common.ctrl.kdl`
 - [x] user+korg: global write captured over BLE (data header `14 01 00 51`,
   ack 23, no commit) and implemented in korg-app, Slint, TUI and CLI;
   byte-identical round trip on X14802 (KORG eba516b)

@@ -57,8 +57,12 @@ driver "tec-curve"                        // Rust escape hatch (§14)
 test-vector "set-drawbar-0" { … }         // bytes that must round-trip (§15)
 ```
 
-`include "common/korg-native.ctrl.kdl"` merges shared definitions; a later
-node with the same name replaces an earlier one.
+`include "common.ctrl.kdl"` merges shared definitions, with the path
+relative to the including file. Nodes merge by kind and name: a local node
+with the same kind and name as an included one adds its properties and
+children, and a child with the same kind and name replaces the included
+child. So a device can extend a shared `driver` with its own `owns`
+entries.
 
 ## 3. Identity
 

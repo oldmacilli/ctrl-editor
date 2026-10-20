@@ -1,0 +1,76 @@
+// KORG nanoKEY Studio (class X14800, file key 1480, SysEx model 0x136).
+// Evidence: KORG_Kontrol_Editor crates/korg-devices (measured_layout 0x136),
+// korg-sysex, docs/rewrite/60-implementation-todo.md; KORG aaa4f36.
+// Partial: the exchanges run in the `korg-measured` driver; the scene
+// layout inside the 240 bytes is not decoded beyond the name.
+cdl "0.1"
+include "common.ctrl.kdl"
+
+device "korg.nanokey-studio" {
+    vendor "KORG"
+    model "nanoKEY Studio"
+    class "X14800"
+    file-key "1480"
+}
+
+identify {
+    midi-port match="nanoKEY Studio" direction="both"
+    sysex-identity manufacturer=0x42 model=0x136 status="measured"
+}
+
+// USB is preferred; the user's port choice overrides it. A scene-set
+// receive over Bluetooth took 158 s (60-implementation-todo.md).
+transport "usb" kind="midi" port-match="nanoKEY Studio" role="config" preferred=#true {
+    capture "device-id" from="identity"
+}
+// Port name as in the original's preferences (docs/app-architecture.md).
+transport "ble" kind="midi" port-match="nanoKEY Studio - Bluetooth" role="config" status="measured" evidence="60-implementation-todo.md: Bluetooth receive, 158 s; port name from the original's preference file" {
+    capture "device-id" from="identity"
+}
+
+// 0x136 encodes as 00 01 36.
+block "scene" size=240 count=8 status="measured" evidence="measured_layout(0x136)" {
+    field "name" offset=0 type="ascii(16)"
+    array "knob" count=8 status="unknown"
+    array "pad" count=8 status="unknown"
+}
+block "global" size=128 status="measured" evidence="measured_layout(0x136)"
+
+procedure "receive-scene-set" kind="read" status="measured" {
+    driver "korg-measured" step="receive-scene-set"
+}
+procedure "write-scene" kind="write" status="measured" {
+    gate "confirm" text="Write scene {scene} to the device?"
+    restore-point "scene[scene]"
+    driver "korg-measured" step="write-scene"
+    verify "receive-scene-set" compare="scene[scene]"
+}
+procedure "write-scene-set" kind="write" status="measured" evidence="verified unchanged on X14800, KORG aaa4f36" {
+    gate "confirm" text="Write all 8 scenes to the device?"
+    restore-point "scene"
+    driver "korg-measured" step="write-scene-set"
+    verify "receive-scene-set" compare="scene"
+}
+// receive-global and write-global (measured, header 14 01 00 51, ack 23,
+// no commit) come from common.ctrl.kdl.
+
+driver "korg-measured" provides="procedure:receive-scene-set procedure:receive-global procedure:write-scene procedure:write-scene-set procedure:write-global" {
+    owns "scene-write-header" bytes="14 02 00 40" status="measured" evidence="korg-devices measured_layout(0x136)"
+}
+driver "korg-nktrl-file" provides="file:nanokey_st_set file:nanokey_st_data file:nanokey_st_glob"
+
+// Panel: korg_app::panel nanokey_studio(), picture 500 x 294.
+panel picture="500x294" source="measured by eye from the editor's panel picture" {
+    control "xy" kind="touchpad" label="X-Y Pad" group="X-Y Pad" box="190,42,108,80"
+    control "knob1" kind="knob" label="Knob 1" group="Knob" box="24,41,28,28"
+    control "knob2" kind="knob" label="Knob 2" group="Knob" box="63,41,28,28"
+    control "knob3" kind="knob" label="Knob 3" group="Knob" box="102,41,28,28"
+    control "knob4" kind="knob" label="Knob 4" group="Knob" box="142,41,28,28"
+    control "knob5" kind="knob" label="Knob 5" group="Knob" box="24,86,28,28"
+    control "knob6" kind="knob" label="Knob 6" group="Knob" box="63,86,28,28"
+    control "knob7" kind="knob" label="Knob 7" group="Knob" box="102,86,28,28"
+    control "knob8" kind="knob" label="Knob 8" group="Knob" box="142,86,28,28"
+}
+
+firmware status="unknown"
+procedure "calibrate-touch-pad" kind="commit" status="unknown" evidence="X14800_Calib class in the vendor application; needs a capture"
