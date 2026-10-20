@@ -76,6 +76,7 @@ pub struct Descriptor {
     pub test_vectors: Vec<TestVector>,
     pub consts: Vec<Const>,
     pub labels: Vec<Labels>,
+    pub patterns: Vec<Pattern>,
 }
 
 impl Descriptor {
@@ -513,16 +514,40 @@ pub struct Message {
     pub frame: Option<String>,
     pub kind: Option<Access>,
     pub send: Option<Template>,
-    pub reply: Option<Reply>,
+    /// Reply variants, tried in order; the first that matches wins (§6.1).
+    /// None: the message is send-only.
+    pub replies: Vec<Reply>,
     pub ok_when: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Reply {
     pub meta: Meta,
+    /// The variant's name; required when a message has several replies.
+    pub variant: Option<String>,
     pub pattern: Template,
+    /// The named `pattern` this reply uses, if any (§6.2).
+    pub pattern_name: Option<String>,
     /// Milliseconds.
     pub timeout: Option<u32>,
+    /// Overrides the message's `ok-when` for this variant.
+    pub ok_when: Option<String>,
+}
+
+impl Message {
+    /// The first reply variant.
+    pub fn reply(&self) -> Option<&Reply> {
+        self.replies.first()
+    }
+}
+
+/// `pattern "korg-ack" "01 00 00 {status}"`: a template that messages reuse
+/// with `send pattern=` or `reply pattern=` (§6.2).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Pattern {
+    pub meta: Meta,
+    pub name: String,
+    pub template: Template,
 }
 
 /// `procedure "write-all" kind="write" { steps }` (§11).
@@ -707,6 +732,8 @@ pub struct TestVector {
     pub args: Vec<Arg>,
     /// Decode `bytes` with the reply pattern instead of encoding the send.
     pub reply: bool,
+    /// With `reply`: the variant that must match.
+    pub variant: Option<String>,
     /// Byte-array arguments: `data "payload" "AA 55 80 01"`.
     pub data: Vec<ByteArg>,
     pub bytes: Option<Vec<u8>>,

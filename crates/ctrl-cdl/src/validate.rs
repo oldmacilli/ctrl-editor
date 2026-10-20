@@ -360,7 +360,21 @@ impl<'d> V<'d> {
     // ---- transports -------------------------------------------------------
 
     fn transport_ref(&mut self, pos: Pos, name: &str) {
-        if name != SELECTED_TRANSPORT && self.d.transport(name).is_none() {
+        if name == SELECTED_TRANSPORT {
+            // §5: resolved at run time to the config transport the user or the
+            // `preferred` flag picks; there must be at least one.
+            if !self
+                .d
+                .transports
+                .iter()
+                .any(|t| t.role == Some(Role::Config))
+            {
+                self.error(
+                    pos,
+                    "transport `selected` needs at least one `role=\"config\"` transport",
+                );
+            }
+        } else if self.d.transport(name).is_none() {
             self.error(pos, format!("unknown transport `{name}`"));
         }
     }
@@ -422,7 +436,7 @@ impl<'d> V<'d> {
                                 format!("transport `{}`: the scan message `{scan}` must be measured or decoded", t.name),
                             );
                         }
-                        if m.reply.is_none() {
+                        if m.replies.is_empty() {
                             self.error(
                                 t.meta.pos,
                                 format!("transport `{}`: the scan message `{scan}` needs a `reply` to match", t.name),
@@ -498,6 +512,9 @@ impl<'d> V<'d> {
             .iter()
             .flat_map(|t| t.captures.iter().map(|c| c.name.as_str()))
             .collect();
+        for p in &self.d.patterns {
+            self.template_exprs(p.meta.pos, "pattern", &p.template);
+        }
         for f in &self.d.frames {
             for t in f.prefix.iter().chain(&f.suffix) {
                 self.template_exprs(f.meta.pos, "sysex-frame", t);
@@ -521,8 +538,11 @@ impl<'d> V<'d> {
             if let Some(send) = &m.send {
                 self.template_exprs(m.meta.pos, "send", send);
             }
-            if let Some(reply) = &m.reply {
+            for reply in &m.replies {
                 self.template_exprs(reply.meta.pos, "reply", &reply.pattern);
+                if let Some(when) = &reply.ok_when {
+                    self.expr(reply.meta.pos, "ok-when", when);
+                }
             }
             if let Some(when) = &m.ok_when {
                 self.expr(m.meta.pos, "ok-when", when);
@@ -546,7 +566,7 @@ impl<'d> V<'d> {
                 .send
                 .iter()
                 .map(|t| (m.meta.pos, "send", t))
-                .chain(m.reply.iter().map(|r| (r.meta.pos, "reply", &r.pattern)));
+                .chain(m.replies.iter().map(|r| (r.meta.pos, "reply", &r.pattern)));
             for (pos, what, body) in templates {
                 match kind {
                     Some(TransportKind::Midi) => self.midi_bytes(pos, &m.name, what, frame, body),
@@ -634,7 +654,8 @@ impl<'d> V<'d> {
     fn steps(&mut self, what: &str, kind: Option<Access>, runnable: bool, steps: &'d [Step]) {
         for step in steps {
             match step {
-                Step::Send(s) | Step::Exchange(s) => self.message_step(what, kind, runnable, s),
+                Step::Send(s) => self.message_step(what, kind, runnable, s, false),
+                Step::Exchange(s) => self.message_step(what, kind, runnable, s, true),
                 Step::Repeat { steps, .. } => self.steps(what, kind, runnable, steps),
                 Step::ReadInto { meta, target, .. } => self.path(meta.pos, target),
                 Step::Verify {
@@ -673,7 +694,14 @@ impl<'d> V<'d> {
         }
     }
 
-    fn message_step(&mut self, what: &str, kind: Option<Access>, runnable: bool, s: &MessageStep) {
+    fn message_step(
+        &mut self,
+        what: &str,
+        kind: Option<Access>,
+        runnable: bool,
+        s: &MessageStep,
+        exchange: bool,
+    ) {
         for path in s.into.iter().chain(&s.from) {
             self.path(s.meta.pos, path);
         }
@@ -688,6 +716,33 @@ impl<'d> V<'d> {
             self.error(s.meta.pos, format!("unknown message `{}`", s.message));
             return;
         };
+        // §6: a message without a reply is send-only. An `unknown` message
+        // is a placeholder whose shape is not known yet.
+        let placeholder = m.meta.status == Some(Status::Unknown);
+        match (exchange, m.replies.is_empty() && !placeholder) {
+            (true, true) => self.error(
+                s.meta.pos,
+                format!(
+                    "`exchange` waits for a reply, but message `{}` has none; use `send`",
+                    m.name
+                ),
+            ),
+            (false, false) if !m.replies.is_empty() => self.push(
+                Severity::Warning,
+                s.meta.pos,
+                format!(
+                    "message `{}` has a reply that `send` ignores; use `exchange` to wait for it",
+                    m.name
+                ),
+            ),
+            _ => {}
+        }
+        if s.into.is_some() && m.replies.is_empty() {
+            self.error(
+                s.meta.pos,
+                format!("`into=` needs a reply, and `{}` has none", m.name),
+            );
+        }
         if rank(m.kind) > rank(kind) {
             self.error(
                 s.meta.pos,
@@ -837,8 +892,13 @@ impl<'d> V<'d> {
                 ok_when,
             } = m
             {
-                if self.d.message(message).is_none() {
-                    self.error(meta.pos, format!("unknown message `{message}`"));
+                match self.d.message(message) {
+                    None => self.error(meta.pos, format!("unknown message `{message}`")),
+                    Some(m) if m.replies.is_empty() => self.error(
+                        meta.pos,
+                        format!("identify exchanges `{message}`, which has no reply"),
+                    ),
+                    Some(_) => {}
                 }
                 if let Some(when) = ok_when {
                     self.expr(meta.pos, "ok-when", when);

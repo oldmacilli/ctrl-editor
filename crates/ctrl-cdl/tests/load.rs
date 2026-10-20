@@ -60,7 +60,7 @@ fn db1_messages_and_procedures() {
         set.send.as_ref().unwrap().to_string(),
         "02 03 {index} {polarity} {cc} {channel}"
     );
-    let reply = set.reply.as_ref().unwrap();
+    let reply = set.reply().unwrap();
     assert_eq!(reply.timeout, Some(500));
     assert_eq!(set.ok_when.as_deref(), Some("status == 0"));
     assert_eq!(set.meta.status, Some(Status::Measured));
@@ -276,7 +276,7 @@ fn tec_usb_identity_and_hid_messages() {
         }
     );
     for name in ["read-meta", "read-shaping", "poll"] {
-        let pattern = &d.message(name).unwrap().reply.as_ref().unwrap().pattern;
+        let pattern = &d.message(name).unwrap().reply().unwrap().pattern;
         assert_eq!(pattern.pieces.len(), 8, "{name} reply is one 8-byte frame");
     }
 
@@ -323,6 +323,37 @@ fn db1_is_found_by_scan() {
     assert!(
         matches!(&d.identify[0], Matcher::Listen { pattern, .. } if pattern.to_string() == "FE")
     );
+}
+
+#[test]
+fn reply_variants_and_patterns() {
+    let d = parse_str(
+        "t.ctrl.kdl",
+        r#"cdl "0.1"
+device "t.x"
+message "info" {
+    send "01"
+    reply pattern="ack" variant="ack" ok-when="status == 0x23"
+    reply "02 00 00 42 {n}" variant="info" timeout=500
+}
+pattern "ack" "01 00 00 {status}"
+"#,
+    )
+    .unwrap();
+    let m = d.message("info").unwrap();
+    assert_eq!(m.replies.len(), 2);
+    assert_eq!(m.replies[0].pattern_name.as_deref(), Some("ack"));
+    assert_eq!(m.replies[0].pattern.to_string(), "01 00 00 {status}");
+    assert_eq!(m.replies[1].variant.as_deref(), Some("info"));
+    assert_eq!(d.patterns.len(), 1);
+
+    let e = errors(
+        "cdl \"0.1\"\ndevice \"t.x\"\nmessage \"m\" {\n    reply \"01\"\n    reply \"02\" variant=\"b\"\n    reply pattern=\"nope\"\n    send \"01\" pattern=\"x\"\n}\n",
+    );
+    assert_eq!(e.len(), 3, "{e:?}");
+    assert!(e[0].contains("unknown pattern `nope`"), "{e:?}");
+    assert!(e[1].contains("not both"), "{e:?}");
+    assert!(e[2].contains("names each with `variant=`"), "{e:?}");
 }
 
 #[test]

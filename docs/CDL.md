@@ -201,6 +201,8 @@ the port that the write policy guards. When a device has more than one
 config transport (KORG over USB and BLE), one carries `preferred=#true`,
 and the user's port choice overrides it. Without a preferred transport the
 engine asks the user to choose and never picks one silently.
+`transport="selected"` on a message means that chosen config transport; a
+device that uses it needs at least one `role="config"` transport.
 
 A MIDI transport without a match is reached through a port the user picks,
 and the choice is saved with the device: the DB-1 has 5-pin DIN ports only,
@@ -278,7 +280,7 @@ A template is a string of bytes and placeholders:
 | `{name:raw}` | bytes as they are |
 | `{name:ascii(n)}` | text, padded with spaces to `n` bytes |
 | `{len:type}` | the number of body bytes after this field, up to the first checksum or the end of the body |
-| `{sum:roland(from,to)}` | checksum over a range of the body (§6.1) |
+| `{sum:roland(from,to)}` | checksum over a range of the body (§6.4) |
 | `{expr}`, `{=expr}` | a computed byte, a CDL expression (§10.1) |
 | `..` | in a reply pattern: any one byte |
 | `{name*}` | in a reply pattern: capture the rest up to what follows |
@@ -294,7 +296,14 @@ message "set-drawbar" transport="aux" status="measured" evidence="db1-protocol/s
 `send` encodes; `reply` decodes and captures. A reply that does not match
 within `timeout` milliseconds is an error, and so is one that matches but
 fails `ok-when`. Error texts come from an enum:
-`errors "status" { value 7 "Non-volatile write error" }`.
+`errors "status" { value 7 "Non-volatile write error" }`. A status can be
+named with a `const` (`const "write-complete" 0x21`, then
+`ok-when "status == write-complete"`).
+
+A message without a `reply` is send-only: the engine does not wait. The
+validator rejects `exchange` on it and warns about `send` on a message that
+has a reply, which would ignore it. `..` and `{x*}` in a reply never count
+as unknown bytes for the status rules (§4.1); they only match.
 
 A placeholder whose content is a name (letters, digits, `_`, `-`, `.`, `$`;
 a letter, `_` or `$` first) is a field or argument; anything else, such as
@@ -317,7 +326,47 @@ device id from `4F`, and rejects `3F`. A variable-width piece (`{x*}`,
 it; one such piece per message. On a fixed-size HID or USB frame, sends are
 padded with `00` and zeros after the pattern are padding.
 
-### 6.1 Checksums
+### 6.1 Reply variants
+
+Some devices answer one request with different frames, a payload or an
+ack. Each shape is a `reply` with a `variant` name; the engine tries them
+in order and takes the first that matches. A variant may carry its own
+`ok-when`, which replaces the message's:
+
+```kdl
+message "scene-set-info" frame="korg-native" transport="selected" {
+    send "01 00 00 12"
+    reply "02 00 00 42 {count}" variant="info"
+    reply pattern="korg-ack" variant="ack" ok-when="status == data-received"
+}
+```
+
+A reply that matches no variant is an error naming every variant's
+mismatch. A `reply=#true` test vector may say which `variant` must match.
+
+### 6.2 Named patterns
+
+`pattern "name" "<template>"` defines a template once; `send pattern=…` and
+`reply pattern=…` use it. Patterns resolve after includes merge, so a
+shared message can use a pattern that each device defines with its own
+bytes:
+
+```kdl
+// common: the message
+message "read-block" frame="korg-native" { send "01 00 00 10"; reply pattern="scene-data" }
+// per device: the header differs
+pattern "scene-data" "01 05 00 40 {data:packed7}"
+```
+
+### 6.3 Replies into blocks
+
+A step with `into="scene[scene]"` stores the reply's captures in that
+target: captures named after its fields go to those fields, and a single
+byte-array capture (`{data:packed7}`, `{data:raw}`) fills the whole target.
+That capture must be exactly the target's size; a short or long frame is a
+protocol error, not a partial block (`ctrl_codec::fill`).
+
+### 6.4 Checksums
 
 Built in: `sum7` and `roland` (both `(128 - sum % 128) % 128`), `xor7` (the
 XOR of the bytes, low 7 bits) and `fnv1a32` (files only). `from` and `to`
@@ -372,7 +421,7 @@ per part, so a frame needs no vendor code:
 | byte count | before the data | `{len:u14be}` (§6) |
 | 8-bit data in 7-bit bytes | KORG 7-in-8 | `{data:packed7}` |
 | plain data, text | | `{data:raw}`, `{name:ascii(16)}`, slices `{v[6]}` |
-| checksum | Roland | `{sum:roland(1,-1)}` (§6.1) |
+| checksum | Roland | `{sum:roland(1,-1)}` (§6.4) |
 
 **`midi-id`**: a value below `0x80` is one byte; any other is three bytes
 `00 hi lo` with `hi = v >> 8` and `lo = v & 0xFF`, both below `0x80`

@@ -279,6 +279,79 @@ fn checksums_and_lengths() {
 }
 
 #[test]
+fn reply_variants_first_match_wins() {
+    let d = synthetic(
+        r#"transport "m" kind="midi" role="config"
+const "data-received" 0x23
+pattern "ack" "F0 42 01 00 00 {status} F7"
+message "info" transport="m" status="inferred" {
+    send "F0 42 01 00 00 12 F7"
+    reply pattern="ack" variant="ack" ok-when="status == data-received"
+    reply "F0 42 02 00 00 42 {count} F7" variant="info"
+}
+test-vector "ack" message="info" reply=#true variant="ack" {
+    args status=0x23
+    bytes "F0 42 01 00 00 23 F7"
+}
+test-vector "info" message="info" reply=#true variant="info" {
+    args count=5
+    bytes "F0 42 02 00 00 42 05 F7"
+}
+test-vector "wrong" message="info" reply=#true variant="ack" {
+    bytes "F0 42 02 00 00 42 05 F7"
+}"#,
+    );
+    let codec = Codec::new(&d);
+    let ack = codec
+        .decode_variant("info", &[0xF0, 0x42, 1, 0, 0, 0x23, 0xF7], &Bindings::new())
+        .unwrap();
+    assert_eq!(ack.variant.as_deref(), Some("ack"));
+    assert!(codec.ok_variant("info", Some("ack"), &ack.values).unwrap());
+    let info = codec
+        .decode_variant(
+            "info",
+            &[0xF0, 0x42, 2, 0, 0, 0x42, 5, 0xF7],
+            &Bindings::new(),
+        )
+        .unwrap();
+    assert_eq!(info.variant.as_deref(), Some("info"));
+    // The info variant has no ok-when of its own and the message none.
+    assert!(codec
+        .ok_variant("info", Some("info"), &info.values)
+        .unwrap());
+    let err = codec
+        .decode_variant("info", &[0xF0, 0x42, 3, 0xF7], &Bindings::new())
+        .unwrap_err();
+    assert!(
+        err.to_string().contains("ack: ") && err.to_string().contains("info: "),
+        "{err}"
+    );
+    let results: Vec<_> = codec.run_vectors().into_iter().map(|v| v.outcome).collect();
+    assert_eq!(results[0], Outcome::Pass);
+    assert_eq!(results[1], Outcome::Pass);
+    assert!(matches!(&results[2], Outcome::Fail(why) if why.contains("expected Some(\"ack\")")));
+}
+
+#[test]
+fn fill_takes_exactly_the_block_size() {
+    let values: Bindings = [
+        ("status".to_string(), int(0x23)),
+        ("data".to_string(), Val::Bytes(vec![1, 2, 3])),
+    ]
+    .into_iter()
+    .collect();
+    assert_eq!(fill(&values, 3).unwrap(), [1, 2, 3]);
+    assert!(matches!(
+        fill(&values, 4),
+        Err(CodecError::Length {
+            expected: 4,
+            found: 3
+        })
+    ));
+    assert!(fill(&args(&[("status", int(1))]), 3).is_err());
+}
+
+#[test]
 fn values_out_of_range_are_refused() {
     let d = synthetic(&format!(
         "{GENERIC}message \"wide\" transport=\"m\" status=\"inferred\" {{ send \"F0 {{id:midi-id}} {{v:u16le}} {{w}} F7\" }}"

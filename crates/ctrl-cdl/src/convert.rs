@@ -22,6 +22,7 @@ pub(crate) fn convert(
     let mut cx = Cx {
         files: &files,
         errors,
+        patterns: Vec::new(),
     };
     let mut b = Builder::default();
     match nodes.first() {
@@ -36,6 +37,20 @@ pub(crate) fn convert(
             "empty descriptor",
         ),
         None => {}
+    }
+    // Patterns first, so that a message may use one defined later or in
+    // another file.
+    for n in nodes.iter().filter(|n| n.name == "pattern") {
+        cx.shape(n, 2..=2, Some(&[]), false);
+        let name = cx.name(n);
+        if let Some(template) = cx.arg_with(n, 1, Template::parse) {
+            let pattern = Pattern {
+                meta: cx.meta(n),
+                name,
+                template,
+            };
+            cx.patterns.push(pattern);
+        }
     }
     for n in &nodes {
         b.top(&mut cx, n);
@@ -66,6 +81,7 @@ pub(crate) fn convert(
             test_vectors: b.test_vectors,
             consts: b.consts,
             labels: b.labels,
+            patterns: cx.patterns.clone(),
         }),
         _ => Err(Errors(cx.errors)),
     }
@@ -74,6 +90,8 @@ pub(crate) fn convert(
 struct Cx<'f> {
     files: &'f [String],
     errors: Vec<Error>,
+    /// Named patterns, collected before any message is read (§6.2).
+    patterns: Vec<Pattern>,
 }
 
 impl Cx<'_> {
@@ -443,6 +461,7 @@ const TOP: &[&str] = &[
     "test-vector",
     "const",
     "labels",
+    "pattern",
 ];
 
 impl Builder {
@@ -488,6 +507,8 @@ impl Builder {
             "driver" => self.drivers.push(driver(cx, n)),
             "test-vector" => self.test_vectors.push(test_vector(cx, n)),
             "labels" => self.labels.push(labels(cx, n)),
+            // Read before the other nodes, in `convert`.
+            "pattern" => {}
             "const" => {
                 cx.shape(n, 2..=2, Some(&[]), false);
                 let name = cx.name(n);
@@ -596,6 +617,12 @@ impl Builder {
             cx,
             "const",
             self.consts.iter().map(|c| (c.name.as_str(), c.meta.pos)),
+        );
+        let patterns = cx.patterns.clone();
+        dups(
+            cx,
+            "pattern",
+            patterns.iter().map(|p| (p.name.as_str(), p.meta.pos)),
         );
         dups(
             cx,
@@ -1152,28 +1179,36 @@ fn message(cx: &mut Cx, n: &RawNode) -> Message {
         frame: cx.prop_str(n, "frame"),
         kind: cx.prop_with(n, "kind", keyword),
         send: None,
-        reply: None,
+        replies: Vec::new(),
         ok_when: None,
     };
     for c in &n.children {
         match c.name.as_str() {
             "send" => {
-                cx.shape(c, 1..=1, Some(&[]), false);
-                if let Some(s) = cx.arg_str(c, 0) {
-                    if let Some(t) = cx.send_template(c.args[0].pos, "send", &s) {
-                        once(cx, c, &mut m.send, t);
+                cx.shape(c, 0..=1, Some(&["pattern"]), false);
+                if let Some((t, _)) = template_or_pattern(cx, c) {
+                    if let Some(p) = t.pieces.iter().find(|p| p.is_pattern_only()) {
+                        cx.err(c.pos, format!("`send`: `{p}` matches replies only"));
                     }
+                    once(cx, c, &mut m.send, t);
                 }
             }
             "reply" => {
-                cx.shape(c, 1..=1, Some(&["timeout"]), false);
-                if let Some(pattern) = cx.arg_with(c, 0, Template::parse) {
-                    let reply = Reply {
+                cx.shape(
+                    c,
+                    0..=1,
+                    Some(&["timeout", "variant", "pattern", "ok-when"]),
+                    false,
+                );
+                if let Some((pattern, pattern_name)) = template_or_pattern(cx, c) {
+                    m.replies.push(Reply {
                         meta: cx.meta(c),
+                        variant: cx.prop_str(c, "variant"),
                         pattern,
+                        pattern_name,
                         timeout: cx.prop_u32(c, "timeout"),
-                    };
-                    once(cx, c, &mut m.reply, reply);
+                        ok_when: cx.prop_str(c, "ok-when"),
+                    });
                 }
             }
             "ok-when" => {
@@ -1185,7 +1220,51 @@ fn message(cx: &mut Cx, n: &RawNode) -> Message {
             _ => cx.unknown_child("message", c, &["send", "reply", "ok-when"]),
         }
     }
+    // Several replies are variants: each is named, once.
+    if m.replies.len() > 1 {
+        for (i, r) in m.replies.iter().enumerate() {
+            match &r.variant {
+                None => cx.err(
+                    r.meta.pos,
+                    "a message with several replies names each with `variant=`",
+                ),
+                Some(v) if m.replies[..i].iter().any(|o| o.variant.as_ref() == Some(v)) => {
+                    cx.err(r.meta.pos, format!("variant `{v}` appears twice"))
+                }
+                Some(_) => {}
+            }
+        }
+    }
     m
+}
+
+/// The template of a `send` or `reply`: its argument, or a named `pattern=`.
+fn template_or_pattern(cx: &mut Cx, n: &RawNode) -> Option<(Template, Option<String>)> {
+    let named = cx.prop_str(n, "pattern");
+    match (n.args.is_empty(), named) {
+        (false, None) => cx.arg_with(n, 0, Template::parse).map(|t| (t, None)),
+        (true, Some(name)) => match cx.patterns.iter().find(|p| p.name == name) {
+            Some(p) => Some((p.template.clone(), Some(name))),
+            None => {
+                cx.err(n.pos, format!("unknown pattern `{name}`"));
+                None
+            }
+        },
+        (false, Some(_)) => {
+            cx.err(
+                n.pos,
+                format!("`{}` takes a template or `pattern=`, not both", n.name),
+            );
+            None
+        }
+        (true, None) => {
+            cx.err(
+                n.pos,
+                format!("`{}` needs a template or `pattern=`", n.name),
+            );
+            None
+        }
+    }
 }
 
 fn procedure(cx: &mut Cx, n: &RawNode) -> Procedure {
@@ -1456,7 +1535,7 @@ fn test_vector(cx: &mut Cx, n: &RawNode) -> TestVector {
     cx.shape(
         n,
         1..=1,
-        Some(&["message", "block", "file", "sha256", "reply"]),
+        Some(&["message", "block", "file", "sha256", "reply", "variant"]),
         true,
     );
     let mut t = TestVector {
@@ -1467,6 +1546,7 @@ fn test_vector(cx: &mut Cx, n: &RawNode) -> TestVector {
         file: cx.prop_str(n, "file"),
         sha256: cx.prop_str(n, "sha256"),
         reply: cx.prop_bool(n, "reply"),
+        variant: cx.prop_str(n, "variant"),
         args: Vec::new(),
         data: Vec::new(),
         bytes: None,

@@ -36,6 +36,14 @@ impl RawNode {
     /// number; every other kind (`send`, `vendor`, `types`, …) is a slot
     /// keyed by kind alone.
     fn key(&self) -> (&str, Option<String>) {
+        // A reply is named by its variant, not by its pattern.
+        if self.name == "reply" {
+            let variant = match self.prop("variant").map(|v| &v.value) {
+                Some(Value::String(s)) => Some(s.clone()),
+                _ => None,
+            };
+            return (&self.name, variant);
+        }
         let first = self.args.first().map(|a| &a.value);
         let name = match (NAMED.contains(&self.name.as_str()), first) {
             (true, Some(Value::String(s))) => Some(s.clone()),
@@ -76,6 +84,7 @@ const NAMED: &[&str] = &[
     "data",
     "labels",
     "list",
+    "pattern",
 ];
 
 /// Kinds whose children are an ordered step list; a local list replaces the

@@ -280,7 +280,7 @@ fn write_policy() {
     );
     assert_one(
         errors(&format!(
-            "{DB1_LIKE}message \"c\" transport=\"aux\" kind=\"commit\" status=\"measured\" {{ send \"F0 50 F7\" }}\nprocedure \"p\" kind=\"commit\" {{ gate \"confirm\"; exchange \"c\" }}"
+            "{DB1_LIKE}message \"c\" transport=\"aux\" kind=\"commit\" status=\"measured\" {{ send \"F0 50 F7\" }}\nprocedure \"p\" kind=\"commit\" {{ gate \"confirm\"; send \"c\" }}"
         )),
         "commits without `gate \"arm\"`",
     );
@@ -373,6 +373,48 @@ fn frame_names_come_from_the_device() {
     assert_eq!(e.len(), 2, "{e:#?}");
     assert!(e[0].contains("uses `device-id`"), "{e:#?}");
     assert!(e[1].contains("uses `model`"), "{e:#?}");
+}
+
+#[test]
+fn send_only_and_exchange() {
+    let body = format!(
+        "{DB1_LIKE}message \"fire\" frame=\"f\" transport=\"aux\" status=\"measured\" {{ send \"05\" }}\n"
+    );
+    assert_one(
+        errors(&format!("{body}procedure \"p\" {{ exchange \"fire\" }}")),
+        "`exchange` waits for a reply, but message `fire` has none",
+    );
+    assert_eq!(
+        errors(&format!("{body}procedure \"p\" {{ send \"fire\" }}")),
+        Vec::<String>::new()
+    );
+    let w = findings(
+        &format!("{body}procedure \"p\" {{ send \"get\" }}"),
+        Severity::Warning,
+    );
+    assert_eq!(w.len(), 1, "{w:#?}");
+    assert!(w[0].contains("use `exchange`"), "{w:#?}");
+    assert_one(
+        errors(&format!(
+            "{body}procedure \"p\" {{ send \"fire\" into=\"bar[0]\" }}"
+        )),
+        "`into=` needs a reply",
+    );
+}
+
+#[test]
+fn selected_needs_a_config_transport() {
+    assert_one(
+        errors(r#"message "m" transport="selected" status="measured" { send "F0 F7" }"#),
+        "transport `selected` needs at least one",
+    );
+    assert_eq!(
+        errors(
+            r#"transport "u" kind="midi" role="config"
+message "m" transport="selected" status="measured" { send "F0 F7" }"#
+        ),
+        Vec::<String>::new()
+    );
 }
 
 #[test]

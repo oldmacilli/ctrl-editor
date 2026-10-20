@@ -57,6 +57,13 @@ Last updated: 2026-10-20 (ctrl-cdl landed).
 - [x] platform: KORG framing from generic parts (CDL §8.1): `const`,
   `midi-id`, `{0x40 | device-id}`; 10 KORG vectors byte for byte with
   `korg-sysex`'s captures (3179136)
+- [x] platform: CDL versatility, from the KORG lane's proposal: send-only
+  messages (exchange on one is an error), reply variants with first match,
+  named patterns, replies into blocks with exact size (`ctrl_codec::fill`),
+  `selected` needs a config transport (COMMIT)
+- [ ] korg: scene-set-info reply variants, per-device `scene-data`
+  patterns for read-block, a scene-read reply vector from a capture, then
+  the procedures off `korg-measured`
 - [ ] platform+db1: more DB-1 vectors from `db1-protocol` tests (one today)
 - [ ] platform+tec: TEC vectors from the HID captures (one today)
 - [ ] platform: a vendor-encoding registry entry only when no generic part

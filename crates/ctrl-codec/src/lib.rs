@@ -30,6 +30,35 @@ pub enum Val {
 
 pub type Bindings = BTreeMap<String, Val>;
 
+/// A matched reply: which variant, and its values.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Decoded {
+    pub variant: Option<String>,
+    pub values: Bindings,
+}
+
+/// The bytes a reply puts into a step's `into=` target (CDL §6.3): its one
+/// byte-array capture, which must be exactly `size` bytes. A short or long
+/// frame is a protocol error, not a partial block.
+pub fn fill(values: &Bindings, size: usize) -> Result<Vec<u8>, CodecError> {
+    let mut arrays = values.iter().filter_map(|(k, v)| match v {
+        Val::Bytes(b) => Some((k, b)),
+        Val::Int(_) => None,
+    });
+    let (Some((_, bytes)), None) = (arrays.next(), arrays.next()) else {
+        return Err(CodecError::Unsupported(
+            "`into=` a block needs exactly one byte-array capture in the reply".into(),
+        ));
+    };
+    if bytes.len() != size {
+        return Err(CodecError::Length {
+            expected: size as i64,
+            found: bytes.len() as i64,
+        });
+    }
+    Ok(bytes.clone())
+}
+
 /// Where a message travels; it sets the width of plain placeholders.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Medium {
@@ -66,6 +95,8 @@ pub enum CodecError {
     },
     Expr(String),
     Unsupported(String),
+    /// No reply variant matched; one reason per variant.
+    NoVariant(Vec<String>),
 }
 
 impl fmt::Display for CodecError {
@@ -95,6 +126,9 @@ impl fmt::Display for CodecError {
             }
             Self::Expr(e) => f.write_str(e),
             Self::Unsupported(e) => f.write_str(e),
+            Self::NoVariant(misses) => {
+                write!(f, "no reply variant matched ({})", misses.join("; "))
+            }
         }
     }
 }
@@ -131,7 +165,7 @@ pub struct Codec<'d> {
 }
 
 /// Which part of the message a piece belongs to. Checksum and length
-/// ranges count within the body (CDL §6.1).
+/// ranges count within the body (CDL §6.4).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Region {
     Prefix,
@@ -453,12 +487,38 @@ impl<'d> Codec<'d> {
         bytes: &[u8],
         known: &Bindings,
     ) -> Result<Bindings, CodecError> {
+        self.decode_variant(name, bytes, known).map(|r| r.values)
+    }
+
+    /// Tries the reply variants in order (CDL §6.1); the first that matches
+    /// wins. Fails with every variant's reason when none matches.
+    pub fn decode_variant(
+        &self,
+        name: &str,
+        bytes: &[u8],
+        known: &Bindings,
+    ) -> Result<Decoded, CodecError> {
         let m = self.message(name)?;
-        let reply = m
-            .reply
-            .as_ref()
-            .ok_or_else(|| CodecError::NoTemplate(name.into(), "reply"))?;
-        self.decode_template(m, &reply.pattern, bytes, known)
+        if m.replies.is_empty() {
+            return Err(CodecError::NoTemplate(name.into(), "reply"));
+        }
+        let mut misses = Vec::new();
+        for reply in &m.replies {
+            match self.decode_template(m, &reply.pattern, bytes, known) {
+                Ok(values) => {
+                    return Ok(Decoded {
+                        variant: reply.variant.clone(),
+                        values,
+                    })
+                }
+                Err(e) if m.replies.len() == 1 => return Err(e),
+                Err(e) => misses.push(format!(
+                    "{}: {e}",
+                    reply.variant.as_deref().unwrap_or("reply")
+                )),
+            }
+        }
+        Err(CodecError::NoVariant(misses))
     }
 
     /// Matches `bytes` against the `send` template: recovers the arguments
@@ -723,8 +783,24 @@ impl<'d> Codec<'d> {
 
     /// `ok-when` of message `name` against decoded values; true without one.
     pub fn ok(&self, name: &str, bound: &Bindings) -> Result<bool, CodecError> {
+        self.ok_variant(name, None, bound)
+    }
+
+    /// `ok-when` for a decoded variant: the variant's own, else the
+    /// message's; true without either.
+    pub fn ok_variant(
+        &self,
+        name: &str,
+        variant: Option<&str>,
+        bound: &Bindings,
+    ) -> Result<bool, CodecError> {
         let m = self.message(name)?;
-        let Some(when) = &m.ok_when else {
+        let own = m
+            .replies
+            .iter()
+            .find(|r| r.variant.as_deref() == variant)
+            .and_then(|r| r.ok_when.as_ref());
+        let Some(when) = own.or(m.ok_when.as_ref()) else {
             return Ok(true);
         };
         let e = Expr::parse(when).map_err(CodecError::Expr)?;
@@ -768,7 +844,15 @@ impl<'d> Codec<'d> {
             args.insert(d.name.clone(), Val::Bytes(d.bytes.clone()));
         }
         let decoded = if t.reply {
-            self.decode_reply(message, bytes, &Bindings::new())
+            match self.decode_variant(message, bytes, &Bindings::new()) {
+                Ok(d) if t.variant.is_some() && d.variant != t.variant => {
+                    return Outcome::Fail(format!(
+                        "matched variant {:?}, expected {:?}",
+                        d.variant, t.variant
+                    ))
+                }
+                other => other.map(|d| d.values),
+            }
         } else {
             match self.encode(message, &args) {
                 Ok(encoded) if &encoded == bytes => {}

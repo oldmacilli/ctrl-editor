@@ -115,7 +115,7 @@ impl fmt::Display for Encoding {
     }
 }
 
-/// Built-in checksums (CDL §6.1).
+/// Built-in checksums (CDL §6.4).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ChecksumAlgorithm {
