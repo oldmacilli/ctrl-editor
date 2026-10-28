@@ -23,7 +23,7 @@ use std::rc::{Rc, Weak};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
-use ctrl_monitor::{Command, Details, Row, Store, View, ViewState};
+use ctrl_monitor::{Details, Row, Store, View, ViewState};
 use slint::{ComponentHandle, Global, Model, ModelRc, Timer, TimerMode, VecModel};
 
 pub mod convert;
@@ -139,7 +139,7 @@ impl Inner {
     /// `lines` lines.
     fn refresh(&mut self, lines: usize, dark: bool) -> Scalars {
         let store = self.store.clone();
-        let mut store = lock(&store);
+        let store = lock(&store);
         self.view.update(&store);
         let lines = lines.max(1);
         // View keeps the selection in a smaller window by itself.
@@ -229,7 +229,7 @@ fn status(rows: usize, events: usize) -> String {
         let s = v.to_string();
         let mut out = String::new();
         for (i, ch) in s.chars().enumerate() {
-            if i > 0 && (s.len() - i) % 3 == 0 {
+            if i > 0 && (s.len() - i).is_multiple_of(3) {
                 out.push('\u{202F}');
             }
             out.push(ch);
