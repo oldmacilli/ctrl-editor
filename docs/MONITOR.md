@@ -344,8 +344,8 @@ both run in one process, and as ordinary traffic otherwise.
   the ring; KORG implements the device annotator (scene change, lit controls, global
   channel) and its own sends become `Editor` events. The pane becomes the shared
   component: the list with KORG descriptions, the lit control's name in a column. The
-  lighting/expiry code that is now copied into both front ends moves into the view
-  model.
+  lighting/expiry code that was copied into both front ends becomes one helper in
+  the editor, fed by the describer's `Control` annotations (done: KORG PR #5).
 - **DB-1, TEC, UC-33**: the same pane; UC-33's learn mode reads from a monitor store;
   TEC events are `Hid` with descriptor descriptions.
 - **LightBow**: `network-midi` records into a `ctrl-monitor` tap instead of

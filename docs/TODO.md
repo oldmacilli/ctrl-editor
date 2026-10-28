@@ -341,8 +341,14 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
   PipeWire, `tools/linux-check midi`: a third client watches two others)
   and on CoreMIDI (virtual input). The container has no ALSA sequencer:
   the ALSA watch is untested there
-- [ ] korg: M4, the KORG monitor on the shared component (lit controls as
-  a describer)
+- [x] korg: M4, the KORG monitor on the shared component, inline in both
+  front ends; the panel control and scene as a describer; editor sends
+  recorded (KORG PR #5)
+- [ ] platform: gaps from M4: `CdlDescriber` cannot be rebound once the
+  collector owns it (no lookup from a descriptor `class` to its
+  `DeviceIdx`); `MonitorController` has `stop()` but no restart (a hidden
+  pane keeps refreshing); panel lighting stays in the editor (MONITOR.md
+  §9 said view model): decide or reword
 - [ ] user: create the private repo `lb-midi-tools`; M5 lb-monitor, M6
   lb-librarian
 - [ ] platform: M7 thru (virtual pairs), Windows MIDI Services backend in
