@@ -279,8 +279,10 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
   (2026-10-28); setups kept, dumps differ only in the version tag
 - [x] user+platform: `write-setup` repeated on 02.05 (SE16 dAtA and back,
   read-backs byte-identical; the send carries the version the unit reports)
-- [ ] user+platform: repeat `restore-all` on 02.05; separate pacing from
-  completeness for kind 3
+- [x] user+platform: `restore-all` repeated on 02.05 (read-back
+  byte-identical to the backup)
+- [ ] user+platform: separate pacing from completeness for kind 3 (the
+  unpaced one-chunk dump was ignored on 02.03)
 
 ### TEC
 
