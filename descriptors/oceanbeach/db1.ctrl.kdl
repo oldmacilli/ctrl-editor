@@ -46,7 +46,10 @@ types {
     }
 }
 
-block "drawbar" count=9 status="measured" {
+// The wire numbers the nine faders 0..=8; the panel and the manual count
+// them 1..9 (OceanBeach_DB-1 docs/HANDOVER.md: "index 8 = drawbar 9"). The
+// device answers any other index with status 3, "Invalid index".
+block "drawbar" count=9 names="1 2 3 4 5 6 7 8 9" status="measured" {
     field "polarity" type="polarity"
     field "cc" type="u7"
     field "channel" type="channel"

@@ -196,6 +196,18 @@ impl<'d> V<'d> {
 
     fn blocks(&mut self) {
         for b in &self.d.blocks {
+            // `names` labels the elements, one each (element 0 first)
+            if !b.names.is_empty() && b.names.len() as u32 != b.count.unwrap_or(1) {
+                self.error(
+                    b.meta.pos,
+                    format!(
+                        "block `{}`: {} names for {} elements",
+                        b.name,
+                        b.names.len(),
+                        b.count.unwrap_or(1)
+                    ),
+                );
+            }
             self.items(&b.name, &b.items, 0, b.size);
         }
     }

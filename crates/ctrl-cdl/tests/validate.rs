@@ -489,3 +489,13 @@ message "bad-cc" transport="t" status="measured" { reply "B0 80 00"; }"#,
         "{found:#?}"
     );
 }
+
+#[test]
+fn block_names_label_every_element() {
+    let found = errors(
+        r#"
+block "drawbar" count=9 names="1 2 3 4 5 6 7 8" status="measured" { field "cc" type="u7"; }"#,
+    );
+    assert_eq!(found.len(), 1, "{found:#?}");
+    assert!(found[0].contains("8 names for 9 elements"), "{found:#?}");
+}
