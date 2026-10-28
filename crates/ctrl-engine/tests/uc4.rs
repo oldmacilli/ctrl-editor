@@ -290,7 +290,7 @@ fn the_one_setup_message_refuses_kind_3() {
     assert!(codec.encode("dump-out", &args).is_err());
 }
 
-/// With the owner's files (UC4_EVIDENCE_DIR = _ANALYZE_/OUT/faderfox-uc4),
+/// With the owner's files (UC4_EVIDENCE_DIR = the local capture archive),
 /// the procedure rebuilds the measured patch file from the 13:28 backup.
 #[test]
 fn the_measured_patch_file_when_present() {
