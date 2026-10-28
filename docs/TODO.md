@@ -263,8 +263,8 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
   user starts, `records-from` builds the records from blocks, backup as
   restore point, verify against both copies; `ctrl-engine` (first slice)
   and `ctrl-cli run`; tests rebuild the measured file byte for byte
-- [ ] user+platform: run `write-setup` end to end on the unit, then mark it
-  measured
+- [x] user+platform: `write-setup` run end to end on the unit through
+  `ctrl-cli run` (SE16 renamed and restored, read-backs byte-identical)
 - [ ] user+platform: a full kind-3 write (restore a backup): paced records
   (`pace=20`, inferred) on `dump-out-all`; then a `restore-all` procedure
 - [ ] user: still unknown: the rest of the group-name character table
