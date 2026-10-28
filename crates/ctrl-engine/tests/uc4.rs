@@ -250,14 +250,37 @@ fn a_dry_run_sends_nothing_but_shows_the_message() {
 }
 
 #[test]
-fn all_setups_writes_have_no_procedure() {
-    // kind 3 stays unconfirmed: no procedure sends dump-out-all, and the
-    // one-setup message refuses kind 3
+fn restore_all_sends_the_backup_as_it_came_paced() {
     let d = uc4();
-    assert!(d
-        .procedures
-        .iter()
-        .all(|p| !format!("{:?}", p.steps).contains("dump-out-all")));
+    let m = memory();
+    let backup = dump(3, &all_pieces(&m));
+    // the device holds something else; the document is the backup
+    let mut now = m.clone();
+    now.set(0x1480, &[0x7F]);
+    let mut device = Device {
+        inbox: [dump(3, &all_pieces(&now)), backup.clone()].into(),
+        sent: Vec::new(),
+    };
+    let mut r = Run::new(&d);
+    r.apply = true;
+    r.load("dump", &backup).unwrap();
+    let mut op = person(4);
+    r.run("restore-all", &mut device, &mut op).unwrap();
+    assert_eq!(device.sent.len(), 1);
+    assert_eq!(device.sent[0].frame, backup);
+    // one write per chunk (the last carries the end), 20 ms after each
+    let writes = &device.sent[0].writes;
+    assert_eq!(writes.len(), 430);
+    assert!(writes.iter().all(|w| w.delay_ms == 20));
+    assert_eq!(writes[429].bytes.last(), Some(&0xF7));
+    // the restore point is what the device held before
+    assert_eq!(op.kept, vec![dump(3, &all_pieces(&now))]);
+    assert!(op.gates[1].contains("ALL 18 setups"));
+}
+
+#[test]
+fn the_one_setup_message_refuses_kind_3() {
+    let d = uc4();
     let codec = Codec::new(&d);
     let mut args = Bindings::new();
     args.insert("kind".into(), Val::Int(3));
@@ -296,4 +319,23 @@ fn the_measured_patch_file_when_present() {
     }
     r.run("write-setup", &mut device, &mut person(5)).unwrap();
     assert_eq!(device.sent[0].frame, patch);
+}
+
+/// With the owner's files: restore-all of the 13:28 backup sends that file.
+#[test]
+fn restore_all_rebuilds_the_backup_file_when_present() {
+    let Ok(dir) = std::env::var("UC4_EVIDENCE_DIR") else {
+        return;
+    };
+    let backup = std::fs::read(format!("{dir}/backup-20261028/uc4-all-setups-fw0203.syx")).unwrap();
+    let d = uc4();
+    let mut device = Device {
+        inbox: [backup.clone(), backup.clone()].into(),
+        sent: Vec::new(),
+    };
+    let mut r = Run::new(&d);
+    r.apply = true;
+    r.load("dump", &backup).unwrap();
+    r.run("restore-all", &mut device, &mut person(4)).unwrap();
+    assert_eq!(device.sent[0].frame, backup);
 }

@@ -265,10 +265,14 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
   and `ctrl-cli run`; tests rebuild the measured file byte for byte
 - [x] user+platform: `write-setup` run end to end on the unit through
   `ctrl-cli run` (SE16 renamed and restored, read-backs byte-identical)
-- [ ] user+platform: a full kind-3 write (restore a backup): paced records
-  (`pace=20`, inferred) on `dump-out-all`; then a `restore-all` procedure
+- [x] user+platform: a full kind-3 write measured (430 chunks, `pace=20`):
+  SE16 renamed and the backup restored byte for byte; `restore-all`
+  procedure (block `dump-area`) builds the same bytes
+- [ ] user+platform: run `restore-all` through `ctrl-cli run` on the unit,
+  then mark it measured; find whether pacing or completeness made kind 3
+  work (the unpaced one-chunk dump was ignored)
 - [ ] user: still unknown: the rest of the group-name character table
-  (K, E, …), why a one-chunk kind-3 dump is not stored, and the firmware
+  (K, E, …), and the firmware
   page check value (the bootloader is not in the update file)
 - [ ] user: firmware update 02.03 → 02.05 with the vendor's file; then
   repeat SndA/Sndc to note 02.05 differences

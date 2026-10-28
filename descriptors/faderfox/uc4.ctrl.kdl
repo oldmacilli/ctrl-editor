@@ -238,6 +238,11 @@ block "names" address=0x1480 size=32 chunk=32 count=18 status="measured" evidenc
     }
 }
 
+// Everything an all-setups dump carries, 430 chunks of 64 bytes: the three
+// blocks above plus the copy memory and the unused ranges (FF on the unit).
+// A restore sends it as it came.
+block "dump-area" address=0x1480 size=27520 chunk=64 status="measured" evidence="unit: SndA covers 0x1480..0x7FFF without a gap"
+
 // Kept outside every dump: the editor can neither read nor write it.
 block "global" status="decoded" evidence="firmware: start-up reads both bytes; no dump covers them" {
     field "setup" offset=0 type="u8" range="0..=17" note="current setup; 18 and up reset all setups to factory data"
@@ -311,14 +316,15 @@ message "dump-out" transport="usb" kind="write" status="measured" evidence="unit
     }
 }
 
-// All setups into the device (kind 3: each chunk at its address). Not
-// confirmed: a one-chunk kind-3 dump was not stored on 02.03; a full one is
-// untested.
-message "dump-out-all" transport="usb" kind="write" status="decoded" evidence="firmware 02.05: dump receiver; unit 02.03: a one-chunk dump was not stored" {
+// All setups into the device (kind 3: each chunk at its address), paced.
+// Measured: a full dump of 430 chunks from 0x1480, 20 ms after each, is
+// stored (SE16 renamed and restored this way); an unpaced dump of one chunk
+// was ignored on 02.03.
+message "dump-out-all" transport="usb" kind="write" status="measured" evidence="unit, firmware 02.03, 2026-10-28: a full paced dump stored byte for byte, then the backup restored the same way; a one-chunk unpaced dump was ignored" {
     arg "kind" range="3..=3"
     send "F0 00 00 00 41 20 16 {kind:nib3(2)} {fw-major:nib3(3)} {fw-minor:nib3(4)} {chunks:raw} 4F 20 16 F7"
-    // a pause after each chunk, so the device can store one before the next
-    // arrives (inferred; 02.03 stored nothing from an unpaced one-chunk dump)
+    // 20 ms after each chunk: measured to work; whether less would do is
+    // not known
     records "chunks" pattern="dump-chunk" address="(addr-hi << 8) | addr-lo" data="data" pace=20 {
         derive "addr-hi" "address >> 8"
         derive "addr-lo" "address & 0xFF"
@@ -330,8 +336,7 @@ message "dump-out-all" transport="usb" kind="write" status="decoded" evidence="f
 // ---- Procedures (CDL §11) ----------------------------------------------
 // The UC4 has no request message: every read is a dump the user starts on
 // the device, and every write needs receive armed on the device. The gates
-// say what to press; the engine waits for the dump. Kind-3 (all setups)
-// writes have no procedure: `dump-out-all` is not confirmed.
+// say what to press; the engine waits for the dump.
 
 // All setups, stored copy (SndA). Also the restore point of every write.
 procedure "read-all" kind="read" transport="usb" status="measured" evidence="unit, firmware 02.03: SndA 2026-10-28" {
@@ -358,6 +363,17 @@ procedure "write-setup" kind="write" transport="usb" status="measured" evidence=
     verify "read-all" compare="names[setup] fader9[setup] controls[setup]"
     verify "read-setup" compare="names[setup] fader9[setup] controls[setup]"
     gate "confirm" text="Verified: SE{setup + 1} on the UC4 holds the document. Press Edit (without Shift) to leave setup mode, then confirm."
+}
+
+// Restore all setups from the document (a backup dump): 430 chunks, paced.
+// It overwrites all 18 setups and the copy memory.
+procedure "restore-all" kind="write" transport="usb" status="decoded" evidence="builds the bytes measured 2026-10-28 (a paced kind-3 dump stored and restored byte for byte, sent with the evidence tool); the procedure itself not yet run on the unit" {
+    call "read-all"
+    restore-point "dump-area"
+    gate "confirm" text="This overwrites ALL 18 setups on the UC4 (names, fader 9, all controls, the copy memory) with the backup. In setup mode, hold encoder 7's push button until the display shows rEc, then rc00. Do not press Shift. Confirm when it shows rc00; the display then counts rc00..rc99 for about 10 seconds."
+    send "dump-out-all" kind=3 fw-major="{fw-major}" fw-minor="{fw-minor}" records-from="dump-area"
+    verify "read-all" compare="dump-area"
+    gate "confirm" text="Verified: all setups on the UC4 hold the backup. Press Edit (without Shift) to leave setup mode, then confirm."
 }
 
 // ---- Performance -------------------------------------------------------
