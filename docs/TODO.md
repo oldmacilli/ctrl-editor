@@ -252,11 +252,17 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
   one SysEx), `derive` with `x.sum` (the 16-bit sum), block `address` and
   `chunk` (CDL §6.7, §8.3); both UC4 dumps from the unit decode and
   re-encode byte for byte (b71345f)
-- [ ] platform: a write procedure (send a one-setup dump after the user arms
-  receive). blocked: a measured dump and the owner's go-ahead
-- [ ] user: the group-name character table, the dump header tags 3/4 and
-  the firmware page check value stay unknown (the bootloader is not in the
-  update file)
+- [x] user+platform: write measured on 02.03: a one-setup dump (kind 2)
+  into SE16, read back, restored; final dump byte-identical. A one-chunk
+  kind-3 dump was not stored (`dump-out-all` stays decoded)
+- [ ] platform: a write procedure for `dump-out`: blocks → records → one
+  SysEx, behind a gate that tells the user to select the setup and arm
+  receive; procedures cannot yet build a `records` array from blocks
+- [ ] user: still unknown: the rest of the group-name character table
+  (K, E, …), why a one-chunk kind-3 dump is not stored, and the firmware
+  page check value (the bootloader is not in the update file)
+- [ ] user: firmware update 02.03 → 02.05 with the vendor's file; then
+  repeat SndA/Sndc to note 02.05 differences
 
 ### TEC
 

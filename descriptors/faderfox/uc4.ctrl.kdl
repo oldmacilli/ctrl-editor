@@ -24,8 +24,9 @@
 //     (setup mode, encoder 4 "Sndc": the current setup; encoder 8 "SndA":
 //     all setups). There is no request message: the editor listens.
 //   - the same format back into the device after the user arms receive
-//     (setup mode, encoder 7 "rEc"). A one-setup dump lands in whichever
-//     setup is selected, whatever setup it came from (decoded).
+//     (setup mode, encoder 7 "rEc", then "rc00"). A one-setup dump lands in
+//     whichever setup is selected, whatever setup it came from (measured:
+//     written to SE16, read back, restored byte for byte).
 //   - no identity reply: the SysEx receiver takes only the records below
 //     and ignores other bytes (decoded).
 cdl "0.1"
@@ -265,9 +266,21 @@ param "controls.*.group.*.button.*.led" label="LED" group="Button" ui="combo"
 //
 // Measured on 02.03: both dumps, every chunk's sum, the addresses (Sndc of
 // setup 1: 0x1480, 0x1700, 0x1C00..0x20C0; SndA: 0x1480..0x7FC0 without a
-// gap). Decoded only: the receiver checks the sum over the size the address
-// implies (32 below 0x1700, else 64), refuses addresses below 0x1480, maps
-// kind 2 onto the current setup and writes kind 3 as given.
+// gap).
+//
+// Receive, measured on 02.03 (write test 2026-10-28): a one-setup dump
+// (kind 2, 22 chunks) sent at full USB speed is stored into the selected
+// setup; the display then shows "SE.." and stays in setup mode. A kind-3
+// dump of one chunk was accepted without "Err" (the unit left setup mode)
+// but nothing was stored, so kind-3 writes stay unconfirmed. Decoded only:
+// the sum is checked over the size the address implies (32 below 0x1700,
+// else 64), and addresses below 0x1480 are refused.
+//
+// Two 02.03 quirks seen: the display shows nothing for Sndc although the
+// dump goes out; and once SndA reported setup 1 different from Sndc and
+// from the controls (the working copy), until setup mode was left, after
+// which SndA matched the working copy. So leaving setup mode can store the
+// working copy of the current setup: dump before leaving it.
 
 // One chunk: address, 32 or 64 data bytes, their 16-bit sum, ten zero
 // records of padding.
@@ -285,11 +298,24 @@ message "dump" transport="usb" status="measured" evidence="unit: SndA and Sndc 2
     }
 }
 
-// The same format into the device, after the user arms receive (rEc). The
-// receiver takes any number of chunks between header and end. Kind 3
-// writes each chunk at its address; kind 2 into the current setup.
-message "dump-out" transport="usb" kind="write" status="decoded" evidence="firmware 02.05: dump receiver; the format is the measured dump's" {
-    arg "kind" range="2..=3"
+// One setup into the device, after the user selects the target setup and
+// arms receive (rEc). The receiver maps the chunks onto the selected setup.
+message "dump-out" transport="usb" kind="write" status="measured" evidence="unit, firmware 02.03, 2026-10-28: SE16 patched (4 bytes), read back by SndA and Sndc, restored; final SndA byte-identical to the one before" {
+    arg "kind" range="2..=2"
+    send "F0 00 00 00 41 20 16 {kind:nib3(2)} {fw-major:nib3(3)} {fw-minor:nib3(4)} {chunks:raw} 4F 20 16 F7"
+    records "chunks" pattern="dump-chunk" address="(addr-hi << 8) | addr-lo" data="data" {
+        derive "addr-hi" "address >> 8"
+        derive "addr-lo" "address & 0xFF"
+        derive "sum-hi" "(data.sum >> 8) & 0xFF"
+        derive "sum-lo" "data.sum & 0xFF"
+    }
+}
+
+// All setups into the device (kind 3: each chunk at its address). Not
+// confirmed: a one-chunk kind-3 dump was not stored on 02.03; a full one is
+// untested.
+message "dump-out-all" transport="usb" kind="write" status="decoded" evidence="firmware 02.05: dump receiver; unit 02.03: a one-chunk dump was not stored" {
+    arg "kind" range="3..=3"
     send "F0 00 00 00 41 20 16 {kind:nib3(2)} {fw-major:nib3(3)} {fw-minor:nib3(4)} {chunks:raw} 4F 20 16 F7"
     records "chunks" pattern="dump-chunk" address="(addr-hi << 8) | addr-lo" data="data" {
         derive "addr-hi" "address >> 8"
@@ -401,12 +427,12 @@ labels "en" source="manual 'Factory settings', 'Ableton Live mode'" status="infe
 }
 
 // ---- Test vectors (synthetic data in the measured format) --------------
-// A one-chunk dump into the device: kind 3, address 0x1C00, data 00..3F,
-// sum 0x07E0. The chunk bytes come from the records (ctrl-codec tests).
-test-vector "dump-out-frame" message="dump-out" status="decoded" evidence="synthetic" {
-    args kind=3 fw-major=2 fw-minor=3
+// The frame of a dump into the device; the chunk bytes come from the
+// records (ctrl-codec tests).
+test-vector "dump-out-frame" message="dump-out" status="measured" evidence="unit: header and end of the sent one-setup dumps; chunk bytes synthetic" {
+    args kind=2 fw-major=2 fw-minor=3
     data "chunks" "49 21 1C"
-    bytes "F0 00 00 00 41 20 16 42 20 13 43 20 12 44 20 13 49 21 1C 4F 20 16 F7"
+    bytes "F0 00 00 00 41 20 16 42 20 12 43 20 12 44 20 13 49 21 1C 4F 20 16 F7"
 }
 test-vector "dump-header" message="dump" reply=#true status="measured" evidence="unit: SndA header and end, body left out" {
     args kind=3 fw-major=2 fw-minor=3
