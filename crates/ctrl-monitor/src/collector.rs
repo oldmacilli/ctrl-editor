@@ -8,10 +8,17 @@ use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
-use crate::model::{Clock, Dir, PortIdx};
+use crate::model::{Annotation, Clock, Dir, Event, PortIdx};
 use crate::parser::{Parsed, Parser, ParserConfig};
 use crate::store::Store;
 use crate::tap::TapReader;
+
+/// Explains events as they are recorded (docs/MONITOR.md §4.2): the CDL
+/// describer ([`crate::CdlDescriber`]), an editor's device annotator.
+/// Runs on the collector thread, once per event, never per redraw.
+pub trait Describer: Send {
+    fn describe(&mut self, store: &Store, event: &Event) -> Vec<Annotation>;
+}
 
 struct Reader {
     tap: TapReader,
@@ -25,6 +32,7 @@ pub struct Collector {
     parsers: HashMap<(PortIdx, Dir), Parser>,
     config: ParserConfig,
     parsed: Vec<Parsed>,
+    describers: Vec<Box<dyn Describer>>,
 }
 
 impl Collector {
@@ -34,7 +42,13 @@ impl Collector {
             parsers: HashMap::new(),
             config,
             parsed: Vec::new(),
+            describers: Vec::new(),
         }
+    }
+
+    /// Adds a describer; describers run in the order they were added.
+    pub fn describe_with(&mut self, describer: Box<dyn Describer>) {
+        self.describers.push(describer);
     }
 
     pub fn add(&mut self, tap: TapReader) {
@@ -53,7 +67,9 @@ impl Collector {
             parsers,
             config,
             parsed,
+            describers,
         } = self;
+        let first = store.next_seq();
         let mut packets = 0;
         for reader in readers.iter_mut() {
             reader.done = reader.tap.is_abandoned();
@@ -81,6 +97,20 @@ impl Collector {
             }
         }
         readers.retain(|r| !r.done);
+        if !describers.is_empty() {
+            for seq in first.max(store.first_seq())..store.next_seq() {
+                let Some(event) = store.get(seq).copied() else {
+                    continue;
+                };
+                let mut notes = Vec::new();
+                for d in describers.iter_mut() {
+                    notes.extend(d.describe(store, &event));
+                }
+                for note in notes {
+                    store.annotate(seq, note);
+                }
+            }
+        }
         packets
     }
 
@@ -227,6 +257,37 @@ mod tests {
             [0x90, 0x01, 0x02]
         );
         assert_eq!(store.stats().dropped, 1);
+    }
+
+    #[test]
+    fn describers_annotate_each_new_event_once() {
+        struct Notes;
+        impl Describer for Notes {
+            fn describe(&mut self, store: &Store, event: &Event) -> Vec<Annotation> {
+                let wire = store.wire(&event.msg).unwrap();
+                vec![Annotation::State(format!("{} bytes", wire.len()))]
+            }
+        }
+        let mut store = Store::default();
+        let port = store.port(PortRef::new(PortKind::Alsa, "a", "A"));
+        let (mut tx, rx) = tap(TapConfig::default());
+        let mut c = Collector::new(ParserConfig::default());
+        c.add(rx);
+        c.describe_with(Box::new(Notes));
+        tx.push(at(1), port, Dir::In, &[0x90, 60, 1, 0xF8]);
+        c.drain(&mut store, 2);
+        c.drain(&mut store, 3);
+        let notes: Vec<_> = store
+            .events()
+            .map(|e| store.notes(e.seq).to_vec())
+            .collect();
+        assert_eq!(
+            notes,
+            [
+                vec![Annotation::State("3 bytes".into())],
+                vec![Annotation::State("1 bytes".into())],
+            ]
+        );
     }
 
     #[test]

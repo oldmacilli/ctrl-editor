@@ -3,8 +3,10 @@
 //! bounded by bytes, so one long dump does not push out the last minutes of
 //! notes. What was evicted or dropped is counted and shown, never hidden.
 
+use std::borrow::Cow;
 use std::collections::{BTreeMap, VecDeque};
 
+use crate::describe::{ChannelMask, Class, TypeMask};
 use crate::model::{Annotation, BlobIdx, Dir, Event, Msg, PortIdx, PortKind, PortRef, Stamp};
 use crate::parser::Parsed;
 
@@ -36,6 +38,22 @@ pub struct Stats {
     pub evicted_payloads: u64,
     /// Packets the taps dropped because a ring was full.
     pub dropped: u64,
+    /// Messages the capture filter kept out.
+    pub filtered: u64,
+}
+
+/// What is never stored (docs/MONITOR.md §5.6): Active Sense at 300 a
+/// second, say. The view filter hides; this one does not keep.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Capture {
+    pub types: TypeMask,
+    pub channels: ChannelMask,
+}
+
+impl Capture {
+    fn keeps(&self, msg: &Msg) -> bool {
+        self.types.contains(Class::of(msg, false)) && self.channels.passes(msg)
+    }
 }
 
 /// A SysEx still arriving.
@@ -58,6 +76,8 @@ pub struct Store {
     blob_bytes: usize,
     notes: BTreeMap<u64, Vec<Annotation>>,
     receiving: BTreeMap<(PortIdx, Dir), Receiving>,
+    capture: Capture,
+    capture_ports: BTreeMap<PortIdx, Capture>,
     stats: Stats,
 }
 
@@ -94,7 +114,34 @@ impl Store {
     }
 
     /// Records one parser result; returns the new event's `seq`.
+    /// The capture filter for every port (`None`) or for one, which
+    /// replaces the general one there.
+    pub fn set_capture(&mut self, port: Option<PortIdx>, capture: Capture) {
+        match port {
+            Some(p) => {
+                self.capture_ports.insert(p, capture);
+            }
+            None => self.capture = capture,
+        }
+    }
+
+    fn captures(&mut self, port: PortIdx, msg: &Msg) -> bool {
+        let keeps = self
+            .capture_ports
+            .get(&port)
+            .unwrap_or(&self.capture)
+            .keeps(msg);
+        if !keeps {
+            self.stats.filtered += 1;
+        }
+        keeps
+    }
+
+    /// Records one parser result; returns the new event's `seq`, or `None`
+    /// for a progress report or a message the capture filter keeps out.
     pub fn record(&mut self, port: PortIdx, dir: Dir, parsed: Parsed) -> Option<u64> {
+        // The payload's place in the arena is not needed to classify.
+        let probe = BlobIdx(0);
         let (at, msg) = match parsed {
             Parsed::Voice { at, status, d1, d2 } => (at, Msg::Voice { status, d1, d2 }),
             Parsed::Common { at, status, d1, d2 } => (at, Msg::Common { status, d1, d2 }),
@@ -102,6 +149,16 @@ impl Store {
             Parsed::SysEx { at, bytes, end } => {
                 self.receiving.remove(&(port, dir));
                 let len = bytes.len() as u32;
+                if !self.captures(
+                    port,
+                    &Msg::SysEx {
+                        blob: probe,
+                        len,
+                        end,
+                    },
+                ) {
+                    return None;
+                }
                 (
                     at,
                     Msg::SysEx {
@@ -113,6 +170,9 @@ impl Store {
             }
             Parsed::Invalid { at, bytes } => {
                 let len = bytes.len() as u32;
+                if !self.captures(port, &Msg::Invalid { blob: probe, len }) {
+                    return None;
+                }
                 (
                     at,
                     Msg::Invalid {
@@ -134,6 +194,10 @@ impl Store {
                 return None;
             }
         };
+        // Payloads were checked before they were kept.
+        if msg.blob().is_none() && !self.captures(port, &msg) {
+            return None;
+        }
         Some(self.push(at, port, dir, msg))
     }
 
@@ -202,6 +266,27 @@ impl Store {
         let (idx, bytes) = self.blobs.get(blob.0.checked_sub(front)? as usize)?;
         debug_assert_eq!(*idx, blob);
         Some(bytes)
+    }
+
+    /// The message as it went over the wire: rebuilt for short messages,
+    /// the kept payload for long ones (`None` once evicted, and for UMP).
+    pub fn wire(&self, msg: &Msg) -> Option<Cow<'_, [u8]>> {
+        match *msg {
+            Msg::Voice { status, d1, d2 } => Some(Cow::Owned(match status & 0xF0 {
+                0xC0 | 0xD0 => vec![status, d1],
+                _ => vec![status, d1, d2],
+            })),
+            Msg::Common { status, d1, d2 } => Some(Cow::Owned(match status {
+                0xF1 | 0xF3 => vec![status, d1],
+                0xF2 => vec![status, d1, d2],
+                _ => vec![status],
+            })),
+            Msg::Realtime(status) => Some(Cow::Owned(vec![status])),
+            Msg::Ump(..) => None,
+            Msg::SysEx { blob, .. } | Msg::Hid { blob, .. } | Msg::Invalid { blob, .. } => {
+                self.bytes(blob).map(Cow::Borrowed)
+            }
+        }
     }
 
     /// SysEx messages still arriving.
@@ -375,6 +460,7 @@ mod tests {
                 evicted_events: 0,
                 evicted_payloads: 1,
                 dropped: 0,
+                filtered: 0,
             }
         );
     }
@@ -422,6 +508,76 @@ mod tests {
         ));
         assert_eq!((a, b, c), (PortIdx(0), PortIdx(1), PortIdx(0)));
         assert_eq!(store.port_ref(a).unwrap().name, "renamed");
+    }
+
+    #[test]
+    fn the_capture_filter_keeps_messages_out_and_counts_them() {
+        let mut store = Store::default();
+        let noisy = PortIdx(1);
+        store.set_capture(
+            None,
+            Capture {
+                types: TypeMask::ALL.with(Class::ActiveSense, false),
+                ..Capture::default()
+            },
+        );
+        store.set_capture(
+            Some(noisy),
+            Capture {
+                types: TypeMask::NONE.with(Class::SysEx, true),
+                ..Capture::default()
+            },
+        );
+        let sense = |ns| Parsed::Realtime {
+            at: at(ns),
+            status: 0xFE,
+        };
+        assert_eq!(store.record(PortIdx(0), Dir::In, sense(1)), None);
+        assert!(store
+            .record(
+                PortIdx(0),
+                Dir::In,
+                Parsed::Realtime {
+                    at: at(2),
+                    status: 0xF8
+                }
+            )
+            .is_some());
+        // The port's own filter replaces the general one.
+        assert!(store.record(noisy, Dir::In, sense(3)).is_none());
+        assert_eq!(note_on(&mut store, noisy), None);
+        assert!(sysex_on(&mut store, noisy).is_some());
+        assert_eq!(store.stats().filtered, 3);
+        assert_eq!(
+            store.stats().bytes,
+            4,
+            "only the kept SysEx is in the arena"
+        );
+    }
+
+    fn note_on(store: &mut Store, port: PortIdx) -> Option<u64> {
+        store.record(
+            port,
+            Dir::In,
+            Parsed::Voice {
+                at: at(0),
+                status: 0x90,
+                d1: 60,
+                d2: 1,
+            },
+        )
+    }
+
+    fn sysex_on(store: &mut Store, port: PortIdx) -> Option<u64> {
+        store.record(
+            port,
+            Dir::In,
+            Parsed::SysEx {
+                at: at(0),
+                bytes: vec![0xF0, 1, 2, 0xF7],
+                end: SysExEnd::Complete,
+            },
+        )
     }
 
     #[test]

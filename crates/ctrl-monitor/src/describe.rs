@@ -324,7 +324,7 @@ fn universal(sysex: &[u8]) -> Option<&'static str> {
     })
 }
 
-fn value(v: u32, radix: Radix) -> String {
+pub(crate) fn value_text(v: u32, radix: Radix) -> String {
     match radix {
         Radix::Decimal => v.to_string(),
         Radix::Hex => format!("${v:02X}"),
@@ -334,7 +334,7 @@ fn value(v: u32, radix: Radix) -> String {
 /// `bytes` is the payload of a SysEx or invalid message, if still kept.
 pub fn describe(msg: &Msg, bytes: Option<&[u8]>, style: &Style) -> Description {
     let class = Class::of(msg, style.raw);
-    let v = |n: u8| value(n as u32, style.values);
+    let v = |n: u8| value_text(n as u32, style.values);
     let value = match *msg {
         Msg::Voice { d1, d2, .. } => match class {
             Class::NoteOn | Class::NoteOff => {
@@ -345,7 +345,7 @@ pub fn describe(msg: &Msg, bytes: Option<&[u8]>, style: &Style) -> Description {
                 Some(name) => format!("{} {} = {}", v(d1), name, v(d2)),
                 None => format!("{} = {}", v(d1), v(d2)),
             },
-            Class::Program => value(d1 as u32 + style.program_base as u32, style.values),
+            Class::Program => value_text(d1 as u32 + style.program_base as u32, style.values),
             Class::ChannelPressure => v(d1),
             _ => {
                 let bend = (d1 as i32 | (d2 as i32) << 7) - 0x2000;

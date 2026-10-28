@@ -1,6 +1,7 @@
 # ctrl-monitor: one MIDI monitor for every editor, the mesh and lb-midi-tools
 
-Status: M1 (the core) is in `crates/ctrl-monitor`; the rest is design.
+Status: M1 (the core) and M2 (describers, view model) are in
+`crates/ctrl-monitor`; the rest is design. Progress: docs/TODO.md, PM.
 
 ## 1. Goal
 
