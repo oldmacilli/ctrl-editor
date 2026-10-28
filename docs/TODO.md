@@ -244,14 +244,14 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
   and firmware 02.05 (setup dump, stored layout, value codes decoded; no
   unit measured). CDL got `field … bits=` and the `nib3` records (§4.3,
   §8.1, 63487b5)
-- [ ] user: a home for the UC4 evidence: a private device repository (as
-  for the other devices), or keep it in the local analysis archive
-- [ ] user: USB ids and CoreMIDI port names from a unit (`identify usb`,
-  `port-match`); then a capture of Sndc and SndA through `ctrl-cli trace`
-  to move the dump from `decoded` to `measured`
-- [ ] platform: `faderfox-uc4-dump` driver: split a dump into chunks,
-  check the 16-bit sums, map addresses to `controls`, `fader9`, `names`;
-  or a CDL repeat for records inside one SysEx, if a second device needs it
+- [x] user: evidence in the private repository Faderfox_UC4 (local; the
+  owner creates the GitHub remote)
+- [x] user: USB ids 2256:2004, port "Faderfox UC4"; SndA and Sndc captured
+  on firmware 02.03: the dump format and the layout are measured
+- [x] platform: dumps as data, no driver: `records` (addressed chunks in
+  one SysEx), `derive` with `x.sum` (the 16-bit sum), block `address` and
+  `chunk` (CDL §6.7, §8.3); both UC4 dumps from the unit decode and
+  re-encode byte for byte (b71345f)
 - [ ] platform: a write procedure (send a one-setup dump after the user arms
   receive). blocked: a measured dump and the owner's go-ahead
 - [ ] user: the group-name character table, the dump header tags 3/4 and
