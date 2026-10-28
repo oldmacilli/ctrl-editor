@@ -119,10 +119,14 @@ impl Collector {
     pub fn spawn(mut self, store: Arc<Mutex<Store>>, clock: Clock, period: Duration) -> Running {
         let stop = Arc::new(AtomicBool::new(false));
         let flag = stop.clone();
+        let (taps, new_taps) = std::sync::mpsc::channel::<TapReader>();
         let thread = std::thread::Builder::new()
             .name("ctrl-monitor".into())
             .spawn(move || {
                 while !flag.load(Ordering::Relaxed) {
+                    for tap in new_taps.try_iter() {
+                        self.add(tap);
+                    }
                     if let Ok(mut store) = store.lock() {
                         self.drain(&mut store, clock.now().host_ns);
                     }
@@ -132,6 +136,7 @@ impl Collector {
             .expect("spawn the collector thread");
         Running {
             stop,
+            taps,
             thread: Some(thread),
         }
     }
@@ -140,10 +145,16 @@ impl Collector {
 /// A collector running on its own thread.
 pub struct Running {
     stop: Arc<AtomicBool>,
+    taps: std::sync::mpsc::Sender<TapReader>,
     thread: Option<JoinHandle<()>>,
 }
 
 impl Running {
+    /// Adds a tap while the collector runs: a port watched later.
+    pub fn add(&self, tap: TapReader) {
+        let _ = self.taps.send(tap);
+    }
+
     pub fn stop(mut self) {
         self.halt();
     }
@@ -303,13 +314,17 @@ mod tests {
         c.add(rx);
         let running = c.spawn(store.clone(), clock, Duration::from_millis(1));
         tx.push(clock.now(), port, Dir::Out, &[0xC0, 3]);
+        // A tap added while it runs.
+        let (mut later, reader) = tap(TapConfig::default());
+        running.add(reader);
+        later.push(clock.now(), port, Dir::In, &[0xC0, 4]);
         for _ in 0..1000 {
-            if store.lock().unwrap().events().len() == 1 {
+            if store.lock().unwrap().events().len() == 2 {
                 break;
             }
             std::thread::sleep(Duration::from_millis(1));
         }
         running.stop();
-        assert_eq!(store.lock().unwrap().events().len(), 1);
+        assert_eq!(store.lock().unwrap().events().len(), 2);
     }
 }

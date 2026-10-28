@@ -1,0 +1,19 @@
+[package]
+name = "ctrl-monitor-midi"
+description = "Monitor producers on ctrl-midi ports: watch any port, a virtual input, an editor's sends (docs/MONITOR.md §6)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[features]
+default = ["jack"]
+jack = ["ctrl-midi/jack"]
+
+[dependencies]
+ctrl-codec.workspace = true
+ctrl-midi = { path = "../ctrl-midi", default-features = false }
+ctrl-monitor = { path = "../ctrl-monitor", default-features = false }
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+jack = { version = "0.13", default-features = false, features = ["dynamic_loading"] }

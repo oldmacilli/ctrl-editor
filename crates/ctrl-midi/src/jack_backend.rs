@@ -109,7 +109,25 @@ impl Drop for JackInput {
 }
 
 pub fn open_input(target: &str, deliver: Arc<Mutex<Deliver>>) -> Result<JackInput, Error> {
-    let c = client("ctrl-editor-in")?;
+    input(
+        "ctrl-editor-in",
+        Some(target),
+        Box::new(move |m| {
+            if let Ok(mut d) = deliver.lock() {
+                d.push(m)
+            }
+        }),
+    )
+}
+
+/// Gets each event's bytes on the input's reader thread.
+pub type Sink = Box<dyn FnMut(&[u8]) + Send>;
+
+/// An input port of a client named `client`, connected to `target` when
+/// given (else other clients connect to it: a virtual input). `sink` gets
+/// each event's bytes on a reader thread, outside JACK's process callback.
+pub fn input(client_name: &str, target: Option<&str>, mut sink: Sink) -> Result<JackInput, Error> {
+    let c = client(client_name)?;
     let port = c
         .register_port("in", MidiIn::default())
         .map_err(unavailable)?;
@@ -123,10 +141,12 @@ pub fn open_input(target: &str, deliver: Arc<Mutex<Deliver>>) -> Result<JackInpu
         lost: Arc::new(AtomicUsize::new(0)),
     };
     let active = c.activate_async((), handler).map_err(unavailable)?;
-    active
-        .as_client()
-        .connect_ports_by_name(target, &own)
-        .map_err(|e| Error::NoPort(format!("{target}: {e}")))?;
+    if let Some(target) = target {
+        active
+            .as_client()
+            .connect_ports_by_name(target, &own)
+            .map_err(|e| Error::NoPort(format!("{target}: {e}")))?;
+    }
     let stop = Arc::new(AtomicBool::new(false));
     let s = stop.clone();
     let thread = std::thread::Builder::new()
@@ -134,11 +154,7 @@ pub fn open_input(target: &str, deliver: Arc<Mutex<Deliver>>) -> Result<JackInpu
         .spawn(move || {
             let mut buf = vec![0u8; SCRATCH];
             while !s.load(Ordering::Relaxed) {
-                if !read_record(&mut reader, &mut buf, |m| {
-                    if let Ok(mut d) = deliver.lock() {
-                        d.push(m)
-                    }
-                }) {
+                if !read_record(&mut reader, &mut buf, &mut sink) {
                     std::thread::sleep(Duration::from_millis(1));
                 }
             }

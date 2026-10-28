@@ -11,6 +11,8 @@
 //! command-line flag, or the editor's preference; `docs/LINUX.md` explains
 //! the consequences. Both directions deliver whole messages: SysEx that the
 //! host hands over in pieces is joined first ([`ctrl_codec::SysexJoiner`]).
+//! [`watch`] and [`virtual_input`] are for a monitor instead: raw bytes as
+//! they came, which the monitor parses itself (docs/MONITOR.md §6).
 //!
 //! Sending follows the descriptor's `sysex-limit` (CDL §8.2) where the host
 //! needs it: on ALSA a long SysEx goes out in pieces with a pause between
@@ -291,6 +293,92 @@ pub fn open_input(backend: Backend, port: &Port, cb: Callback) -> Result<Input, 
             })
         }
         b => Err(Error::Unavailable(b, "not on this platform".into())),
+    }
+}
+
+/// Called with microseconds since the input opened and the bytes as the
+/// backend delivered them: not joined, real-time bytes where they came. For
+/// a monitor, which parses itself (`ctrl-monitor`). It runs on the
+/// backend's thread: it must not block.
+pub type RawCallback = Box<dyn FnMut(u64, &[u8]) + Send + 'static>;
+
+fn raw_sink(mut cb: RawCallback) -> impl FnMut(&[u8]) + Send + 'static {
+    let start = Instant::now();
+    move |bytes| cb(start.elapsed().as_micros() as u64, bytes)
+}
+
+/// Reads `port` without taking part in its traffic (docs/MONITOR.md §6.1):
+/// another reader beside the editor or program that uses it. On the ALSA
+/// sequencer a read subscription, on JACK one more connection (any output
+/// port, other programs' too), on CoreMIDI one more client input. It
+/// never sends.
+pub fn watch(backend: Backend, port: &Port, cb: RawCallback) -> Result<Input, Error> {
+    match backend {
+        #[cfg(feature = "jack")]
+        Backend::Jack => {
+            let inner = jack_backend::input(
+                "ctrl-editor-watch",
+                Some(&port.name),
+                Box::new(raw_sink(cb)),
+            )?;
+            Ok(Input {
+                _inner: Box::new(inner),
+            })
+        }
+        Backend::WinMm => Err(Error::Unavailable(
+            backend,
+            "WinMM opens ports exclusively; watching needs Windows MIDI Services".into(),
+        )),
+        b if b == Backend::native() => {
+            let mut mi = midir::MidiInput::new("ctrl-editor-watch")
+                .map_err(|e| Error::Backend(e.to_string()))?;
+            mi.ignore(midir::Ignore::None);
+            let p = mi
+                .ports()
+                .into_iter()
+                .find(|p| mi.port_name(p).is_ok_and(|n| n == port.name))
+                .ok_or_else(|| Error::NoPort(port.name.clone()))?;
+            let mut sink = raw_sink(cb);
+            let conn = mi
+                .connect(&p, "ctrl-editor-watch", move |_, bytes, _| sink(bytes), ())
+                .map_err(|e| Error::Backend(e.to_string()))?;
+            Ok(Input {
+                _inner: Box::new(conn),
+            })
+        }
+        b => Err(Error::Unavailable(b, "not on this platform".into())),
+    }
+}
+
+/// A port named `name` that other programs can send to (docs/MONITOR.md
+/// §6.2): a virtual sequencer port on ALSA, a virtual destination on
+/// CoreMIDI, an unconnected input port on JACK. Not on WinMM.
+pub fn virtual_input(backend: Backend, name: &str, cb: RawCallback) -> Result<Input, Error> {
+    match backend {
+        #[cfg(feature = "jack")]
+        Backend::Jack => {
+            let inner = jack_backend::input(name, None, Box::new(raw_sink(cb)))?;
+            Ok(Input {
+                _inner: Box::new(inner),
+            })
+        }
+        #[cfg(unix)]
+        b if b == Backend::native() => {
+            use midir::os::unix::VirtualInput;
+            let mut mi = midir::MidiInput::new(name).map_err(|e| Error::Backend(e.to_string()))?;
+            mi.ignore(midir::Ignore::None);
+            let mut sink = raw_sink(cb);
+            let conn = mi
+                .create_virtual(name, move |_, bytes, _| sink(bytes), ())
+                .map_err(|e| Error::Backend(e.to_string()))?;
+            Ok(Input {
+                _inner: Box::new(conn),
+            })
+        }
+        b => Err(Error::Unavailable(
+            b,
+            "no virtual ports on this platform".into(),
+        )),
     }
 }
 

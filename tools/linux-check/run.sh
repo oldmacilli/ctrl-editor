@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Linux checks for the editors, in a container (docs/LINUX.md):
 #   1. ctrl-midi's JACK loopback under jackd2 (dummy driver) and under
-#      PipeWire's libjack (pw-jack), with a 6002-byte SysEx;
+#      PipeWire's libjack (pw-jack), with a 6002-byte SysEx, and the
+#      monitor watching two other clients (ctrl-monitor-midi);
 #   2. each Slint GUI starts on Wayland (headless Weston) and maps a window:
 #      the four editors and the shared monitor's demo (ctrl-monitor-slint).
 # Usage: tools/linux-check/run.sh [midi|wayland|all]
@@ -55,20 +56,24 @@ if [[ $WHAT == midi || $WHAT == all ]]; then
   if grep -q "test result: ok. 3 passed" /tmp/unit.log; then ok "ctrl-midi unit tests on Linux (3)"; else bad "ctrl-midi on Linux"; tail -15 /tmp/unit.log; fi
   # the named JACK test must report ok, not merely "0 failed"
   jack_ok() { grep -q "loopback_carries_cc_and_long_sysex ... ok" "$1"; }
+  # ctrl-monitor-midi: a third client watches two others; a virtual input
+  watch_ok() { grep -q "watches_two_other_clients_and_offers_a_virtual_input ... ok" "$1"; }
 
   echo "== JACK loopback under jackd2 (dummy driver)"
   jackd --no-realtime --no-mlock -d dummy -r 48000 -p 256 >/tmp/jackd.log 2>&1 &
   jp=$!; sleep 2
-  CTRL_MIDI_JACK_TEST=1 CARGO_TARGET_DIR=/target/ctrl-editor cargo test -p ctrl-midi -- --ignored >/tmp/jt.log 2>&1
+  CTRL_MIDI_JACK_TEST=1 CARGO_TARGET_DIR=/target/ctrl-editor cargo test -p ctrl-midi -p ctrl-monitor-midi -- --ignored >/tmp/jt.log 2>&1
   if jack_ok /tmp/jt.log; then ok "JACK (jackd2) loopback: CC and 6002-byte SysEx"; else bad "JACK (jackd2) loopback"; tail -15 /tmp/jt.log; tail -5 /tmp/jackd.log; fi
+  if watch_ok /tmp/jt.log; then ok "JACK (jackd2) monitor: watches two other clients, virtual input"; else bad "JACK (jackd2) monitor watch"; grep -A15 "watches_two" /tmp/jt.log | tail -15; fi
   kill $jp; wait $jp 2>/dev/null; sleep 1
 
   echo "== JACK loopback under PipeWire (pw-jack)"
   export DBUS_SESSION_BUS_ADDRESS=$(dbus-daemon --session --fork --print-address)
   pipewire >/tmp/pw.log 2>&1 & pw=$!; sleep 1
   wireplumber >/tmp/wp.log 2>&1 & wp=$!; sleep 2
-  CTRL_MIDI_JACK_TEST=1 CARGO_TARGET_DIR=/target/ctrl-editor pw-jack cargo test -p ctrl-midi -- --ignored >/tmp/pt.log 2>&1
+  CTRL_MIDI_JACK_TEST=1 CARGO_TARGET_DIR=/target/ctrl-editor pw-jack cargo test -p ctrl-midi -p ctrl-monitor-midi -- --ignored >/tmp/pt.log 2>&1
   if jack_ok /tmp/pt.log; then ok "JACK (PipeWire $(pipewire --version | grep -o 'libpipewire [0-9.]*' | head -1)) loopback: CC and 6002-byte SysEx"; else bad "JACK (PipeWire) loopback"; tail -15 /tmp/pt.log; tail -5 /tmp/pw.log; fi
+  if watch_ok /tmp/pt.log; then ok "JACK (PipeWire) monitor: watches two other clients, virtual input"; else bad "JACK (PipeWire) monitor watch"; grep -A15 "watches_two" /tmp/pt.log | tail -15; fi
   kill $wp $pw 2>/dev/null; wait 2>/dev/null
 fi
 

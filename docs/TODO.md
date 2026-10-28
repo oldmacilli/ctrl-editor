@@ -335,9 +335,12 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
   crate, `@ctrl-monitor/monitor.slint` through `DEP_CTRL_MONITOR_SLINT_UI`
   (`links` metadata); `tools/monitor-embed-check` proves it. One pane per
   window while the bridge is a global
-- [ ] platform: `ctrl-monitor-midi`: passive taps and the virtual input in
-  `ctrl-midi` (§6.1, §6.2). blocked: the UC4 lane's `ctrl-midi` send work
-  (feat/faderfox-uc4) lands first
+- [x] platform: `ctrl-monitor-midi` and `ctrl_midi::watch` /
+  `virtual_input` (§6.1, §6.2): raw, unjoined bytes into a tap; an
+  editor's sends recorded (`RecordedOutput`). Proved on JACK (jackd2 and
+  PipeWire, `tools/linux-check midi`: a third client watches two others)
+  and on CoreMIDI (virtual input). The container has no ALSA sequencer:
+  the ALSA watch is untested there
 - [ ] korg: M4, the KORG monitor on the shared component (lit controls as
   a describer)
 - [ ] user: create the private repo `lb-midi-tools`; M5 lb-monitor, M6

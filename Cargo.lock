@@ -1159,6 +1159,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ctrl-monitor-midi"
+version = "0.1.0"
+dependencies = [
+ "ctrl-codec",
+ "ctrl-midi",
+ "ctrl-monitor",
+ "jack",
+]
+
+[[package]]
 name = "ctrl-monitor-slint"
 version = "0.1.0"
 dependencies = [
