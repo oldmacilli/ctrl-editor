@@ -339,3 +339,22 @@ fn restore_all_rebuilds_the_backup_file_when_present() {
     r.run("restore-all", &mut device, &mut person(4)).unwrap();
     assert_eq!(device.sent[0].frame, backup);
 }
+
+#[test]
+fn restore_all_without_a_loaded_backup_stops_before_any_step() {
+    let d = uc4();
+    let mut device = Device {
+        inbox: VecDeque::new(),
+        sent: Vec::new(),
+    };
+    let mut r = Run::new(&d);
+    r.apply = true;
+    let mut op = person(4);
+    let err = r.run("restore-all", &mut device, &mut op).unwrap_err();
+    assert!(
+        matches!(err, EngineError::Check(ref e) if e.contains("dump-area")),
+        "{err}"
+    );
+    assert!(op.gates.is_empty());
+    assert!(device.sent.is_empty());
+}

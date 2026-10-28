@@ -367,7 +367,7 @@ procedure "write-setup" kind="write" transport="usb" status="measured" evidence=
 
 // Restore all setups from the document (a backup dump): 430 chunks, paced.
 // It overwrites all 18 setups and the copy memory.
-procedure "restore-all" kind="write" transport="usb" status="decoded" evidence="builds the bytes measured 2026-10-28 (a paced kind-3 dump stored and restored byte for byte, sent with the evidence tool); the procedure itself not yet run on the unit" {
+procedure "restore-all" kind="write" transport="usb" status="measured" evidence="unit, firmware 02.03, 2026-10-28: run through ctrl-cli run with the backup loaded (--load dump=<file>); backup kept, 430 paced chunks sent, read-back byte-identical to the backup" {
     call "read-all"
     restore-point "dump-area"
     gate "confirm" text="This overwrites ALL 18 setups on the UC4 (names, fader 9, all controls, the copy memory) with the backup. In setup mode, hold encoder 7's push button until the display shows rEc, then rc00. Do not press Shift. Confirm when it shows rc00; the display then counts rc00..rc99 for about 10 seconds."

@@ -161,7 +161,40 @@ impl<'d> Run<'d> {
             p.kind,
             Some(ctrl_cdl::Access::Write | ctrl_cdl::Access::Commit)
         );
+        if write {
+            self.check_sources(&p.steps)?;
+        }
         self.steps(procedure, write, &p.steps, port, op)
+    }
+
+    /// Refuses a write whose `records-from` blocks are not in the editor
+    /// document before any step runs, so the operator is not asked to arm
+    /// the device for a send that cannot happen. A path whose index needs a
+    /// value the run sets later is left to the send itself.
+    fn check_sources(&self, steps: &'d [Step]) -> Result<(), EngineError> {
+        for step in steps {
+            match step {
+                Step::Send(s) | Step::Exchange(s) => {
+                    for path in &s.records_from {
+                        let Ok((block, index)) = self.element(path) else {
+                            continue;
+                        };
+                        if self.doc.block_bytes(&self.codec, &block, index).is_none() {
+                            return Err(EngineError::Check(format!(
+                                "the document has no `{path}`: load the data to write first"
+                            )));
+                        }
+                    }
+                }
+                Step::Call { procedure: sub, .. } => {
+                    if let Some(p) = self.d.procedure(sub) {
+                        self.check_sources(&p.steps)?;
+                    }
+                }
+                _ => {}
+            }
+        }
+        Ok(())
     }
 
     fn steps(

@@ -269,9 +269,11 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
 - [x] user+platform: a full kind-3 write measured (430 chunks, `pace=20`):
   SE16 renamed and the backup restored byte for byte; `restore-all`
   procedure (block `dump-area`) builds the same bytes
-- [ ] user+platform: run `restore-all` through `ctrl-cli run` on the unit,
-  then mark it measured; find whether pacing or completeness made kind 3
-  work (the unpaced one-chunk dump was ignored)
+- [x] user+platform: `restore-all` run on the unit through `ctrl-cli run`
+  with `--load dump=<backup>`; read-back byte-identical. A write whose
+  `records-from` data is not loaded now stops before its first step
+- [ ] user+platform: find whether pacing or completeness made kind 3 work
+  (the unpaced one-chunk dump was ignored)
 - [ ] user: still unknown: the rest of the group-name character table
   (K, E, …), and the firmware
   page check value (the bootloader is not in the update file)
