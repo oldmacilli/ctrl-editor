@@ -4,13 +4,15 @@
 //! A port bound to a device is matched against that device's descriptor,
 //! every message type. On an unbound port only SysEx is tried, against
 //! every descriptor: a CC matches half the descriptors, a SysEx with a
-//! manufacturer and model id matches one. A reply that several messages
+//! manufacturer and model id matches one, and only when its template fixes
+//! more than F0 and F7. A port binds itself the first time it is seen when
+//! its name contains a descriptor's `port-match`. A reply that several messages
 //! share is given to the request sent last on the port; the others are
 //! listed as `also`.
 
 use std::collections::HashMap;
 
-use ctrl_cdl::Descriptor;
+use ctrl_cdl::{Descriptor, PortMatch};
 use ctrl_codec::{Bindings, Codec, Direction, Match, Val};
 
 use crate::collector::Describer;
@@ -33,7 +35,15 @@ pub struct CdlDescriber {
     /// The last request described on each port: a reply that several
     /// messages share (an acknowledgement) belongs to it.
     last_request: HashMap<PortIdx, String>,
+    /// Ports bound by their name the first time they were seen (the
+    /// descriptors' `port-match`), or found to match none.
+    auto: HashMap<PortIdx, Option<DeviceIdx>>,
 }
+
+/// Literal bytes a SysEx on an unbound port must match: F0, F7 and at least
+/// one more, normally the manufacturer. A placeholder such as
+/// `F0 {data*} F7` names nothing.
+const UNBOUND_LITERALS: usize = 3;
 
 /// The best match for `bytes`, its device, and the other messages that
 /// matched as well.
@@ -76,6 +86,40 @@ impl CdlDescriber {
     /// descriptor.
     pub fn bind(&mut self, port: PortIdx, device: DeviceIdx) {
         self.bound.insert(port, device);
+    }
+
+    /// The device whose `port-match` (either direction) is part of `name`.
+    pub fn device_for_port(&self, name: &str) -> Option<DeviceIdx> {
+        self.devices
+            .iter()
+            .position(|d| {
+                d.descriptor
+                    .transports
+                    .iter()
+                    .filter_map(|t| t.ports.as_ref())
+                    .any(|m| match m {
+                        PortMatch::Both(p) => name.contains(p.as_str()),
+                        PortMatch::Split { input, output } => {
+                            name.contains(input.as_str()) || name.contains(output.as_str())
+                        }
+                    })
+            })
+            .map(DeviceIdx)
+    }
+
+    fn bound_device(&mut self, store: &Store, port: PortIdx) -> Option<DeviceIdx> {
+        if let Some(&d) = self.bound.get(&port) {
+            return Some(d);
+        }
+        if let Some(&d) = self.auto.get(&port) {
+            return d;
+        }
+        let found = store.port_ref(port).and_then(|p| {
+            self.device_for_port(&p.name)
+                .or_else(|| self.device_for_port(&p.id))
+        });
+        self.auto.insert(port, found);
+        found
     }
 
     pub fn label(&self, device: DeviceIdx) -> Option<&str> {
@@ -139,12 +183,19 @@ fn show(v: &Val) -> String {
 
 impl Describer for CdlDescriber {
     fn describe(&mut self, store: &Store, event: &Event) -> Vec<Annotation> {
-        let bound = self
-            .bound
-            .get(&event.port)
-            .and_then(|d| self.devices.get(d.0));
+        let device = self.bound_device(store, event.port);
+        let bound = device.and_then(|d| self.devices.get(d.0));
         let candidates: Vec<&Device> = match (bound, event.msg) {
             (Some(d), _) => vec![d],
+            // Universal SysEx (7E, 7F) belongs to no one vendor: every device
+            // answers an identity request. The generic names cover it.
+            (None, Msg::SysEx { .. })
+                if store
+                    .wire(&event.msg)
+                    .is_some_and(|b| matches!(b.get(1), Some(0x7E | 0x7F))) =>
+            {
+                return Vec::new()
+            }
             (None, Msg::SysEx { .. }) => self.devices.iter().collect(),
             _ => return Vec::new(),
         };
@@ -168,6 +219,9 @@ impl Describer for CdlDescriber {
         else {
             return Vec::new();
         };
+        if bound.is_none() && found.literals < UNBOUND_LITERALS {
+            return Vec::new();
+        }
         if found.direction == Direction::Out {
             self.last_request.insert(event.port, found.message.clone());
         }
