@@ -1,0 +1,20 @@
+[package]
+name = "ctrl-monitor"
+description = "MIDI monitor core: real-time tap, parser, bounded store, message names (docs/MONITOR.md)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[features]
+default = ["cdl", "descriptors"]
+# Name messages by their CDL descriptor.
+cdl = ["dep:ctrl-cdl", "dep:ctrl-codec"]
+# CdlDescriber::embedded(): every descriptor in this repository.
+descriptors = ["cdl", "dep:ctrl-descriptors"]
+
+[dependencies]
+rtrb = "0.3"
+ctrl-cdl = { workspace = true, optional = true }
+ctrl-codec = { workspace = true, optional = true }
+ctrl-descriptors = { path = "../ctrl-descriptors", optional = true }
