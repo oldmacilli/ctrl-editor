@@ -1,6 +1,6 @@
 # ctrl-monitor: one MIDI monitor for every editor, the mesh and lb-midi-tools
 
-Status: design, for review. Nothing here is implemented yet.
+Status: M1 (the core) is in `crates/ctrl-monitor`; the rest is design.
 
 ## 1. Goal
 
@@ -90,7 +90,7 @@ pub struct Event {
     pub port: PortIdx,
     pub dir: Dir,            // In (from the port), Out (to the port), Thru
     pub msg: Msg,
-    pub notes: NoteIdx,      // annotations, see 3.4; 0 = none
+    pub annotated: bool,     // the store holds annotations (3.4) for it
 }
 
 pub struct Stamp {
@@ -176,8 +176,8 @@ One parser for every byte stream:
    MTC full frame, MMC).
 
 The CC and manufacturer tables are taken from SnoizeMIDI's `ControllerNames.plist`
-and `ManufacturerNames.plist` (BSD-3, credited in `NOTICE`), converted to a Rust
-table at build time.
+and `ManufacturerNames.plist` (BSD-3, credited in `crates/ctrl-monitor/NOTICE`),
+converted to `src/tables.rs` by `crates/ctrl-monitor/tools/gen_tables.py`.
 
 ## 5. Views
 

@@ -21,6 +21,8 @@ typed IR.
   conformance tests
 - `crates/ctrl-midi`: MIDI ports with a run-time backend (ALSA, JACK or
   PipeWire's JACK, CoreMIDI); Linux notes in [docs/LINUX.md](docs/LINUX.md)
+- `crates/ctrl-monitor`: the shared MIDI monitor's core: real-time tap,
+  parser, bounded store, message names ([docs/MONITOR.md](docs/MONITOR.md))
 - `tools/linux-check`: JACK and Wayland checks in a Linux container
 - `tools/ctrl-cli`: `check` (validate, images, test vectors, send paths
   without evidence), `explain` (the bytes of a message, piece by piece) and
