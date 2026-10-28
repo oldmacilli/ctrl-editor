@@ -272,13 +272,13 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
 - [x] user+platform: `restore-all` run on the unit through `ctrl-cli run`
   with `--load dump=<backup>`; read-back byte-identical. A write whose
   `records-from` data is not loaded now stops before its first step
-- [ ] user+platform: find whether pacing or completeness made kind 3 work
-  (the unpaced one-chunk dump was ignored)
 - [ ] user: still unknown: the rest of the group-name character table
   (K, E, …), and the firmware
   page check value (the bootloader is not in the update file)
-- [ ] user: firmware update 02.03 → 02.05 with the vendor's file; then
-  repeat SndA/Sndc to note 02.05 differences
+- [x] user: firmware update 02.03 → 02.05 with the vendor's file
+  (2026-10-28); setups kept, dumps differ only in the version tag
+- [ ] user+platform: repeat `write-setup` and `restore-all` on 02.05, then
+  name 02.05 in their evidence; separate pacing from completeness for kind 3
 
 ### TEC
 
