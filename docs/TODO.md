@@ -349,8 +349,17 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
   `DeviceIdx`); `MonitorController` has `stop()` but no restart (a hidden
   pane keeps refreshing); panel lighting stays in the editor (MONITOR.md
   §9 said view model): decide or reword
-- [ ] user: create the private repo `lb-midi-tools`; M5 lb-monitor, M6
-  lb-librarian
+- [x] user: create the private repo `lb-midi-tools` (oldmacilli/lb-midi-tools)
+- [x] platform: from lb-monitor: ports bind themselves by `port-match`;
+  an unbound port names only SysEx a template pins to a vendor (not
+  universal SysEx, not `F0 {data*} F7` placeholders); `notes_text` for
+  exports
+- [ ] lb-midi-tools: M5 lb-monitor (first cut: sources, backend switch,
+  pane, `.syx` and text export; GUI and TUI); open: `.ctrlcap`, SMF
+  export, several windows, the JACK/ALSA conversation in linux-check
+- [ ] lb-midi-tools: M6 lb-librarian
+- [ ] platform: `ctrl-midi` port hot-plug notification (lb-monitor rescans
+  by hand)
 - [ ] platform: M7 thru (virtual pairs), Windows MIDI Services backend in
   `ctrl-midi`
 - [ ] platform: M8 RFC 6295 / AppleMIDI producer and network thru

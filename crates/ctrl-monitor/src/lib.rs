@@ -49,6 +49,6 @@ pub use parser::{Parsed, Parser, ParserConfig};
 pub use store::{Capture, Receiving, Stats, Store, StoreConfig};
 pub use tap::{tap, Packet, Tap, TapConfig, TapReader, INLINE};
 pub use view::{
-    hex_lines, Alert, AlertKind, Chip, Command, Details, HexLine, Row, TimeFormat, Tone, View,
-    ViewState, SPARK,
+    hex_lines, notes_text, Alert, AlertKind, Chip, Command, Details, HexLine, Row, TimeFormat,
+    Tone, View, ViewState, SPARK,
 };

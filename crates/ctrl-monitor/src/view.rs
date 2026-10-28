@@ -479,7 +479,8 @@ impl View {
         if !s.search.is_empty() {
             let needle = s.search.to_lowercase();
             let d = describe(&e.msg, e.msg.blob().and_then(|b| store.bytes(b)), &s.style);
-            let hay = format!("{} {} {}", d.class.name(), d.value, detail(notes)).to_lowercase();
+            let hay =
+                format!("{} {} {}", d.class.name(), d.value, notes_text(notes)).to_lowercase();
             if !hay.contains(&needle) {
                 return false;
             }
@@ -680,7 +681,7 @@ impl View {
             channel: d.channel.map(|c| c.to_string()).unwrap_or_default(),
             message: d.class.name().to_string(),
             value,
-            detail: detail(notes),
+            detail: notes_text(notes),
             tone: Tone::of(d.class, &e.msg),
             editor: port.is_some_and(|p| p.kind == PortKind::Editor),
             expandable: !notes.is_empty() || e.msg.blob().is_some(),
@@ -967,8 +968,10 @@ impl View {
     }
 }
 
-/// What the detail column says: the first description, a control, a state.
-fn detail(notes: &[Annotation]) -> String {
+/// What the detail column says about an event's annotations: the
+/// description with its first fields, a control, a state. Exports use it so
+/// they say what the pane says.
+pub fn notes_text(notes: &[Annotation]) -> String {
     let mut s = String::new();
     for n in notes {
         let part = match n {
