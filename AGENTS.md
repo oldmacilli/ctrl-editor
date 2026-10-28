@@ -30,3 +30,6 @@ Shared platform for three device editors. Read docs/CONCEPT.md first.
 - This repository is public. Evidence names captures, code and documents;
   keep binary analysis (routines, addresses, resource names, hashes) in the
   device repositories, which are private.
+- No serial numbers or other identifiers of the owner's units in evidence
+  or comments: write `<serial>`. Device ids, model ids and firmware
+  versions are fine.
