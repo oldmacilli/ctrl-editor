@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/ctrl-cdl", "crates/ctrl-codec", "crates/ctrl-descriptors", "crates/ctrl-midi", "crates/ctrl-monitor", "tools/ctrl-cli", "tools/cdl-queries"]
+members = ["crates/ctrl-cdl", "crates/ctrl-codec", "crates/ctrl-descriptors", "crates/ctrl-midi", "crates/ctrl-monitor", "crates/ctrl-monitor-tui", "tools/ctrl-cli", "tools/cdl-queries"]
 
 [workspace.package]
 version = "0.1.0"
