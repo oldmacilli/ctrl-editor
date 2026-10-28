@@ -285,6 +285,15 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
   request), view model (filters, folding, chips, alerts, details), capture
   filter
 - [ ] platform: M3 `ctrl-monitor-tui` and `ctrl-monitor-slint`
+  - Slint half in `crates/ctrl-monitor-slint`: pane, window, demo,
+    headless test (Slint testing backend, software renderer). Open: the
+    Rust glue binds the bridge of this crate's components only; a pane
+    compiled into an editor's crate needs the glue as a macro (M4)
+- [ ] platform: view-model gaps the Slint pane found: `rebuild` keeps the
+  alert counts, so every filter change counts them again; no scroll
+  without selecting (the wheel moves the selection); `window` does not
+  keep the selection on screen when the height shrinks; no command to set
+  the type mask at once; `CycleTime` cannot pass the local UTC offset
 - [ ] platform: `ctrl-monitor-midi`: passive taps and the virtual input in
   `ctrl-midi` (§6.1, §6.2). blocked: the UC4 lane's `ctrl-midi` send work
   (feat/faderfox-uc4) lands first
