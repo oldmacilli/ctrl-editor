@@ -281,8 +281,9 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
   read-backs byte-identical; the send carries the version the unit reports)
 - [x] user+platform: `restore-all` repeated on 02.05 (read-back
   byte-identical to the backup)
-- [ ] user+platform: separate pacing from completeness for kind 3 (the
-  unpaced one-chunk dump was ignored on 02.03)
+- [x] user+platform: pacing vs completeness for kind 3: on 02.05 one chunk
+  (paced or not) and a full unpaced dump are all stored; the 02.03
+  one-chunk failure is the old firmware's receiver
 
 ### TEC
 

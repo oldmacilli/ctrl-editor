@@ -320,7 +320,7 @@ message "dump-out" transport="usb" kind="write" status="measured" evidence="unit
 // Measured: a full dump of 430 chunks from 0x1480, 20 ms after each, is
 // stored (SE16 renamed and restored this way); an unpaced dump of one chunk
 // was ignored on 02.03.
-message "dump-out-all" transport="usb" kind="write" status="measured" evidence="unit, firmware 02.03, 2026-10-28: a full paced dump stored byte for byte, then the backup restored the same way; a one-chunk unpaced dump was ignored. 02.05: the backup restored through restore-all" {
+message "dump-out-all" transport="usb" kind="write" status="measured" evidence="unit, firmware 02.03, 2026-10-28: a full paced dump stored byte for byte, then the backup restored the same way; a one-chunk unpaced dump was ignored. 02.05: the backup restored through restore-all; one chunk (paced or not) and a full unpaced dump are stored too, so pace=20 is a margin for 02.03, not needed on 02.05" {
     arg "kind" range="3..=3"
     send "F0 00 00 00 41 20 16 {kind:nib3(2)} {fw-major:nib3(3)} {fw-minor:nib3(4)} {chunks:raw} 4F 20 16 F7"
     // 20 ms after each chunk: measured to work; whether less would do is
