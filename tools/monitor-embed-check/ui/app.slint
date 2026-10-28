@@ -1,0 +1,17 @@
+// An editor's window with the shared monitor pane inside it, beside its own
+// content, as KORG embeds it.
+import { MonitorPane } from "@ctrl-monitor/monitor.slint";
+export { MonitorBridge, MonitorRow, MonitorField, MonitorHex, MonitorChip, MonitorAlert,
+    MonitorType, MonitorGroup } from "@ctrl-monitor/monitor.slint";
+
+export component EditorWindow inherits Window {
+    preferred-width: 1200px;
+    preferred-height: 700px;
+    HorizontalLayout {
+        Rectangle {
+            width: 300px;
+            Text { text: "Editor panel"; }
+        }
+        MonitorPane { }
+    }
+}

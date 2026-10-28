@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
 # Linux checks for the editors, in a container (docs/LINUX.md):
 #   1. ctrl-midi's JACK loopback under jackd2 (dummy driver) and under
-#      PipeWire's libjack (pw-jack), with a 6002-byte SysEx;
-#   2. each Slint GUI starts on Wayland (headless Weston) and maps a window.
+#      PipeWire's libjack (pw-jack), with a 6002-byte SysEx, and the
+#      monitor watching two other clients (ctrl-monitor-midi);
+#   2. each Slint GUI starts on Wayland (headless Weston) and maps a window:
+#      the four editors and the shared monitor's demo (ctrl-monitor-slint).
 # Usage: tools/linux-check/run.sh [midi|wayland|all]
 # Source trees are exported read-only from git HEAD (KORG, DB-1, TEC main) or
 # mounted (ctrl-editor, UC33-Editor working trees). No hardware is touched.
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 dev=$(cd "$here/../../.." && pwd)
+# ctrl-editor is the tree this script lives in (a worktree, too)
+editor=$(cd "$here/../.." && pwd)
 what=${1:-all}
 img=ctrl-linux-check
 docker build -q -t "$img" "$here" >/dev/null
@@ -23,7 +27,8 @@ done
 # the working trees are copied (cargo writes Cargo.lock); targets stay out
 for r in ctrl-editor UC33-Editor; do
   mkdir -p "$src/work/$r"
-  (cd "$dev/$r" && tar --exclude=./target --exclude=./.git -cf - .) | tar -x -C "$src/work/$r"
+  from=$dev/$r; [[ $r == ctrl-editor ]] && from=$editor
+  (cd "$from" && tar --exclude=./target --exclude=./.git -cf - .) | tar -x -C "$src/work/$r"
 done
 
 # --shm-size: jackd keeps its graph in /dev/shm (64 MB by default in Docker)
@@ -51,20 +56,24 @@ if [[ $WHAT == midi || $WHAT == all ]]; then
   if grep -q "test result: ok. 3 passed" /tmp/unit.log; then ok "ctrl-midi unit tests on Linux (3)"; else bad "ctrl-midi on Linux"; tail -15 /tmp/unit.log; fi
   # the named JACK test must report ok, not merely "0 failed"
   jack_ok() { grep -q "loopback_carries_cc_and_long_sysex ... ok" "$1"; }
+  # ctrl-monitor-midi: a third client watches two others; a virtual input
+  watch_ok() { grep -q "watches_two_other_clients_and_offers_a_virtual_input ... ok" "$1"; }
 
   echo "== JACK loopback under jackd2 (dummy driver)"
   jackd --no-realtime --no-mlock -d dummy -r 48000 -p 256 >/tmp/jackd.log 2>&1 &
   jp=$!; sleep 2
-  CTRL_MIDI_JACK_TEST=1 CARGO_TARGET_DIR=/target/ctrl-editor cargo test -p ctrl-midi -- --ignored >/tmp/jt.log 2>&1
+  CTRL_MIDI_JACK_TEST=1 CARGO_TARGET_DIR=/target/ctrl-editor cargo test -p ctrl-midi -p ctrl-monitor-midi -- --ignored >/tmp/jt.log 2>&1
   if jack_ok /tmp/jt.log; then ok "JACK (jackd2) loopback: CC and 6002-byte SysEx"; else bad "JACK (jackd2) loopback"; tail -15 /tmp/jt.log; tail -5 /tmp/jackd.log; fi
+  if watch_ok /tmp/jt.log; then ok "JACK (jackd2) monitor: watches two other clients, virtual input"; else bad "JACK (jackd2) monitor watch"; grep -A15 "watches_two" /tmp/jt.log | tail -15; fi
   kill $jp; wait $jp 2>/dev/null; sleep 1
 
   echo "== JACK loopback under PipeWire (pw-jack)"
   export DBUS_SESSION_BUS_ADDRESS=$(dbus-daemon --session --fork --print-address)
   pipewire >/tmp/pw.log 2>&1 & pw=$!; sleep 1
   wireplumber >/tmp/wp.log 2>&1 & wp=$!; sleep 2
-  CTRL_MIDI_JACK_TEST=1 CARGO_TARGET_DIR=/target/ctrl-editor pw-jack cargo test -p ctrl-midi -- --ignored >/tmp/pt.log 2>&1
+  CTRL_MIDI_JACK_TEST=1 CARGO_TARGET_DIR=/target/ctrl-editor pw-jack cargo test -p ctrl-midi -p ctrl-monitor-midi -- --ignored >/tmp/pt.log 2>&1
   if jack_ok /tmp/pt.log; then ok "JACK (PipeWire $(pipewire --version | grep -o 'libpipewire [0-9.]*' | head -1)) loopback: CC and 6002-byte SysEx"; else bad "JACK (PipeWire) loopback"; tail -15 /tmp/pt.log; tail -5 /tmp/pw.log; fi
+  if watch_ok /tmp/pt.log; then ok "JACK (PipeWire) monitor: watches two other clients, virtual input"; else bad "JACK (PipeWire) monitor watch"; grep -A15 "watches_two" /tmp/pt.log | tail -15; fi
   kill $wp $pw 2>/dev/null; wait 2>/dev/null
 fi
 
@@ -73,7 +82,7 @@ if [[ $WHAT == wayland || $WHAT == all ]]; then
   weston --backend=headless-backend.so --use-gl --socket=wayland-9 --idle-time=0 >/tmp/weston.log 2>&1 &
   sleep 2
   export WAYLAND_DISPLAY=wayland-9
-  run_gui() { # name dir package bin [cargo args…]
+  run_gui() { # name dir package bin (below debug/) [cargo args…]
     local name=$1 dir=$2 pkg=$3 bin=$4; shift 4
     echo "-- $name: build"
     ( cd "$dir" && CARGO_TARGET_DIR=/target/$name cargo build -q -p "$pkg" "$@" ) || { bad "$name build"; return; }
@@ -88,6 +97,7 @@ if [[ $WHAT == wayland || $WHAT == all ]]; then
       fi
     done
   }
+  run_gui monitor /work/ctrl-editor ctrl-monitor-slint examples/demo --example demo
   run_gui uc33 /work/UC33-Editor uc33-gui uc33-gui "${patch[@]}"
   run_gui korg /src/main/KORG_Kontrol_Editor korg-slint korg-slint
   run_gui db1  /src/main/OceanBeach_DB-1 db1-ui db1-ui

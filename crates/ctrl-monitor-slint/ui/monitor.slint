@@ -1,0 +1,822 @@
+// The MIDI monitor pane (docs/MONITOR.md §5). It draws what Rust copies
+// in from ctrl-monitor's View through the MonitorBridge global and reports
+// every action through the bridge's callbacks; Rust turns each into a
+// ctrl_monitor::Command. Nothing here decides what a row says.
+//
+// Embed `MonitorPane` in an editor window; `MonitorWindow` wraps it for the
+// standalone app and the demo.
+
+import { LineEdit, ComboBox, Palette } from "std-widgets.slint";
+
+// A line of an expanded row: a field, or a section heading.
+export struct MonitorField {
+    key: string,
+    value: string,
+    heading: bool,
+}
+
+// 16 bytes of the hex view.
+export struct MonitorHex {
+    offset: string,
+    hex: string,
+    ascii: string,
+}
+
+export struct MonitorRow {
+    time: string,
+    dir: string,
+    port: string,
+    channel: string,
+    message: string,
+    value: string,
+    detail: string,
+    // "×37" for a folded run, else empty.
+    count: string,
+    tone: color,
+    editor: bool,
+    expandable: bool,
+    selected: bool,
+    expanded: bool,
+    // Alternating background, from the row's place in the whole list.
+    odd: bool,
+    // A spark line as SVG path commands in a 100 × 20 box, or empty.
+    spark: string,
+    // Filled while expanded.
+    title: string,
+    fields: [MonitorField],
+    hex: [MonitorHex],
+}
+
+export struct MonitorChip {
+    label: string,
+    port: string,
+    value: string,
+    count: string,
+    tone: color,
+}
+
+export struct MonitorAlert {
+    title: string,
+    count: string,
+    tone: color,
+    // Has an event to jump to.
+    jump: bool,
+}
+
+// One type checkbox in the filter pane; index is the type's place in
+// ctrl_monitor::Class::ALL.
+export struct MonitorType {
+    name: string,
+    index: int,
+    on: bool,
+}
+
+// A column of the filter pane: Voice, System Common, Real Time with a
+// tri-state checkbox (tri), then Other (SysEx, Invalid) without.
+// state: 0 none, 1 some, 2 all of the group's types shown.
+export struct MonitorGroup {
+    name: string,
+    tri: bool,
+    state: int,
+    types: [MonitorType],
+}
+
+export global MonitorBridge {
+    in property <[MonitorRow]> rows;
+    in property <[MonitorChip]> chips;
+    in property <[MonitorAlert]> alerts;
+    in property <[MonitorGroup]> groups;
+    in property <bool> paused;
+    in property <int> waiting;
+    in property <bool> fold: true;
+    in property <bool> raw;
+    in property <bool> only-described;
+    in property <bool> following: true;
+    in property <string> time-format: "Since start";
+    // 0 all, else 1..16.
+    in property <int> channel;
+    in property <string> status;
+    in property <string> mono-family: "Menlo";
+
+    // Lines the list shows; the pane writes it from its height.
+    in-out property <int> visible-lines: 20;
+    // The pane follows Slint's colour scheme; Rust colours the tones by it.
+    out property <bool> dark: Palette.color-scheme == ColorScheme.dark;
+
+    callback toggle-pause();
+    callback clear();
+    callback toggle-fold();
+    callback toggle-raw();
+    callback cycle-time();
+    callback search(string);
+    callback toggle-only-described();
+    callback channel-chosen(int);
+    // A type's index in Class::ALL; a group's index in groups.
+    callback toggle-type(int);
+    callback toggle-group(int);
+    // 0 up, 1 down, 2 page up, 3 page down, 4 home, 5 end; then a count.
+    callback nav(int, int);
+    // An index into rows.
+    callback row-clicked(int);
+    callback row-activated(int);
+    // An index into alerts.
+    callback alert-clicked(int);
+}
+
+global Look {
+    out property <length> row-h: 22px;
+    out property <length> font: 12px;
+    out property <length> small: 11px;
+    out property <length> pad: 10px;
+    out property <length> col-time: 86px;
+    out property <length> col-dir: 18px;
+    out property <length> col-port: 112px;
+    out property <length> col-ch: 26px;
+    out property <length> col-msg: 156px;
+    out property <length> col-port-narrow: 84px;
+    out property <length> col-msg-narrow: 136px;
+    out property <color> dim: Palette.foreground.with-alpha(0.55);
+    out property <color> faint: Palette.foreground.with-alpha(0.08);
+    out property <color> stripe: Palette.foreground.with-alpha(0.028);
+    out property <color> hover: Palette.foreground.with-alpha(0.05);
+    out property <color> select: Palette.accent-background.with-alpha(0.20);
+    out property <color> bar: Palette.alternate-background;
+}
+
+component Cell inherits Text {
+    font-size: Look.font;
+    color: Palette.foreground;
+    vertical-alignment: center;
+    overflow: elide;
+    min-width: 0;
+}
+
+component ToolButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> active;
+    in property <string> badge;
+    // Path commands in a 10 × 10 box, drawn before the text.
+    in property <string> icon;
+    callback clicked();
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-action-default => { root.clicked(); }
+    height: 26px;
+    width: lay.preferred-width;
+    border-radius: 6px;
+    background: root.active ? Palette.accent-background.with-alpha(0.18)
+        : ta.has-hover ? Look.hover : transparent;
+    border-width: 1px;
+    border-color: root.active ? Palette.accent-background.with-alpha(0.5) : Look.faint;
+    lay := HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        spacing: 6px;
+        if root.icon != "": Path {
+            y: (parent.height - self.height) / 2;
+            width: 10px;
+            height: 10px;
+            commands: root.icon;
+            viewbox-width: 10;
+            viewbox-height: 10;
+            fill: root.active ? Palette.accent-background : Palette.foreground;
+        }
+        if root.text != "": Text {
+            text: root.text;
+            font-size: Look.font;
+            color: root.active ? Palette.accent-background : Palette.foreground;
+            vertical-alignment: center;
+        }
+        if root.badge != "": Rectangle {
+            y: (parent.height - self.height) / 2;
+            height: 16px;
+            width: badge-text.preferred-width + 10px;
+            border-radius: 8px;
+            background: Palette.accent-background;
+            badge-text := Text {
+                text: root.badge;
+                font-size: 10px;
+                font-weight: 700;
+                color: Palette.accent-foreground;
+            }
+        }
+    }
+    ta := TouchArea {
+        clicked => { root.clicked(); }
+    }
+}
+
+// A checkbox with a third, mixed state: 0 off, 1 mixed, 2 on.
+component Check inherits Rectangle {
+    in property <string> text;
+    in property <int> state;
+    in property <bool> strong;
+    callback toggled();
+    accessible-role: checkbox;
+    accessible-label: root.text;
+    accessible-checkable: true;
+    accessible-checked: root.state == 2;
+    accessible-action-default => { root.toggled(); }
+    height: 20px;
+    min-width: lay.preferred-width;
+    lay := HorizontalLayout {
+        spacing: 6px;
+        Rectangle {
+            y: (parent.height - self.height) / 2;
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+            border-width: 1px;
+            border-color: root.state == 0 ? Look.dim : Palette.accent-background;
+            background: root.state == 0 ? transparent : Palette.accent-background;
+            if root.state == 2: Path {
+                width: 10px;
+                height: 10px;
+                commands: "M 2 5.5 L 4.3 8 L 8.5 2.5";
+                viewbox-width: 10;
+                viewbox-height: 10;
+                stroke: Palette.accent-foreground;
+                stroke-width: 1.6px;
+                fill: transparent;
+            }
+            if root.state == 1: Rectangle {
+                width: 8px;
+                height: 2px;
+                background: Palette.accent-foreground;
+            }
+        }
+        Text {
+            text: root.text;
+            font-size: root.strong ? Look.font : Look.small;
+            font-weight: root.strong ? 600 : 400;
+            color: root.strong ? Palette.foreground : Palette.foreground.with-alpha(0.8);
+            vertical-alignment: center;
+        }
+    }
+    TouchArea {
+        clicked => { root.toggled(); }
+    }
+}
+
+component Toolbar inherits Rectangle {
+    in property <bool> theme-toggle;
+    background: Look.bar;
+    min-height: lay.preferred-height;
+    lay := HorizontalLayout {
+        padding-left: Look.pad;
+        padding-right: Look.pad;
+        padding-top: 6px;
+        padding-bottom: 6px;
+        spacing: 6px;
+        ToolButton {
+            text: MonitorBridge.paused ? "Resume" : "Pause";
+            icon: MonitorBridge.paused ? "M 2 1 L 9 5 L 2 9 Z" : "M 2 1 L 4 1 L 4 9 L 2 9 Z M 6 1 L 8 1 L 8 9 L 6 9 Z";
+            active: MonitorBridge.paused;
+            badge: MonitorBridge.paused && MonitorBridge.waiting > 0 ? "\{MonitorBridge.waiting} waiting" : "";
+            clicked => { MonitorBridge.toggle-pause(); }
+        }
+        ToolButton {
+            text: "Clear";
+            clicked => { MonitorBridge.clear(); }
+        }
+        Rectangle { width: 1px; background: Look.faint; }
+        ToolButton {
+            text: "Fold";
+            active: MonitorBridge.fold;
+            clicked => { MonitorBridge.toggle-fold(); }
+        }
+        ToolButton {
+            text: "Raw";
+            active: MonitorBridge.raw;
+            clicked => { MonitorBridge.toggle-raw(); }
+        }
+        ToolButton {
+            text: "Time · " + MonitorBridge.time-format;
+            clicked => { MonitorBridge.cycle-time(); }
+        }
+        Rectangle { horizontal-stretch: 1; }
+        search := LineEdit {
+            placeholder-text: "Search";
+            min-width: 90px;
+            preferred-width: 180px;
+            horizontal-stretch: 0;
+            edited(text) => { MonitorBridge.search(text); }
+        }
+        if root.theme-toggle: ToolButton {
+            text: MonitorBridge.dark ? "Light" : "Dark";
+            clicked => {
+                Palette.color-scheme = MonitorBridge.dark ? ColorScheme.light : ColorScheme.dark;
+            }
+        }
+    }
+}
+
+component FilterBar inherits Rectangle {
+    in-out property <bool> open;
+    min-height: lay.preferred-height;
+    background: Look.bar;
+    lay := VerticalLayout {
+        HorizontalLayout {
+            padding-left: Look.pad;
+            padding-right: Look.pad;
+            padding-bottom: 6px;
+            spacing: 8px;
+            ToolButton {
+                text: "Filters";
+                icon: root.open ? "M 1 3 L 9 3 L 5 8 Z" : "M 3 1 L 8 5 L 3 9 Z";
+                active: root.open;
+                clicked => { root.open = !root.open; }
+            }
+            ToolButton {
+                text: "Only described";
+                active: MonitorBridge.only-described;
+                clicked => { MonitorBridge.toggle-only-described(); }
+            }
+            ComboBox {
+                model: ["All channels", "Ch 1", "Ch 2", "Ch 3", "Ch 4", "Ch 5", "Ch 6", "Ch 7", "Ch 8",
+                        "Ch 9", "Ch 10", "Ch 11", "Ch 12", "Ch 13", "Ch 14", "Ch 15", "Ch 16"];
+                current-index: MonitorBridge.channel;
+                min-width: 120px;
+                horizontal-stretch: 0;
+                selected => { MonitorBridge.channel-chosen(self.current-index); }
+            }
+            Rectangle { horizontal-stretch: 1; }
+            Text {
+                text: MonitorBridge.status;
+                font-size: Look.small;
+                color: Look.dim;
+                vertical-alignment: center;
+            }
+        }
+        if root.open: HorizontalLayout {
+            padding-left: Look.pad + 4px;
+            padding-right: Look.pad;
+            padding-bottom: 10px;
+            spacing: 28px;
+            alignment: start;
+            for group[gi] in MonitorBridge.groups: VerticalLayout {
+                spacing: 2px;
+                alignment: start;
+                if group.tri: Check {
+                    text: group.name;
+                    state: group.state;
+                    strong: true;
+                    toggled => { MonitorBridge.toggle-group(gi); }
+                }
+                if !group.tri: Text {
+                    height: 20px;
+                    text: group.name;
+                    font-size: Look.font;
+                    font-weight: 600;
+                    color: Look.dim;
+                    vertical-alignment: center;
+                }
+                for t in group.types: HorizontalLayout {
+                    padding-left: group.tri ? 20px : 0px;
+                    Check {
+                        text: t.name;
+                        state: t.on ? 2 : 0;
+                        toggled => { MonitorBridge.toggle-type(t.index); }
+                    }
+                }
+            }
+        }
+        Rectangle { height: 1px; background: Look.faint; }
+    }
+}
+
+component Pill inherits Rectangle {
+    in property <color> tone;
+    height: 22px;
+    border-radius: 11px;
+    background: root.tone.with-alpha(0.12);
+    border-width: 1px;
+    border-color: root.tone.with-alpha(0.35);
+}
+
+component ChipRow inherits HorizontalLayout {
+    padding-left: Look.pad;
+    padding-right: Look.pad;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    spacing: 8px;
+    alignment: start;
+    for chip in MonitorBridge.chips: Pill {
+        tone: chip.tone;
+        width: chip-lay.preferred-width;
+        chip-lay := HorizontalLayout {
+            padding-left: 9px;
+            padding-right: 10px;
+            spacing: 6px;
+            Rectangle {
+                y: (parent.height - self.height) / 2;
+                width: 7px;
+                height: 7px;
+                border-radius: 3.5px;
+                background: chip.tone;
+            }
+            Text { text: chip.label; font-size: Look.small; font-weight: 600; color: chip.tone; vertical-alignment: center; }
+            if chip.value != "": Text {
+                text: chip.value;
+                font-size: Look.small;
+                font-family: MonitorBridge.mono-family;
+                color: Palette.foreground;
+                vertical-alignment: center;
+            }
+            Text { text: chip.count; font-size: Look.small; color: Look.dim; vertical-alignment: center; }
+            Text { text: chip.port; font-size: Look.small; color: Look.dim; vertical-alignment: center; }
+        }
+    }
+}
+
+component AlertStrip inherits Rectangle {
+    background: #d0303014;
+    min-height: lay.preferred-height;
+    lay := HorizontalLayout {
+        padding-left: Look.pad;
+        padding-right: Look.pad;
+        padding-top: 6px;
+        padding-bottom: 6px;
+        spacing: 8px;
+        alignment: start;
+        for alert[i] in MonitorBridge.alerts: Pill {
+            tone: alert.tone;
+            width: alert-lay.preferred-width;
+            accessible-role: button;
+            accessible-label: alert.title;
+            accessible-action-default => { MonitorBridge.alert-clicked(i); }
+            alert-lay := HorizontalLayout {
+                padding-left: 9px;
+                padding-right: 10px;
+                spacing: 6px;
+                Text { text: "⚠"; font-size: Look.small; color: alert.tone; vertical-alignment: center; }
+                Text { text: alert.title; font-size: Look.small; color: Palette.foreground; vertical-alignment: center; }
+                Text { text: alert.count; font-size: Look.small; font-weight: 700; color: alert.tone; vertical-alignment: center; }
+                if alert.jump: Text { text: "→"; font-size: Look.small; color: Look.dim; vertical-alignment: center; }
+            }
+            alert-ta := TouchArea {
+                mouse-cursor: alert.jump ? MouseCursor.pointer : MouseCursor.default;
+                clicked => { MonitorBridge.alert-clicked(i); }
+            }
+        }
+    }
+}
+
+component Header inherits Rectangle {
+    in property <bool> narrow;
+    height: 24px;
+    background: Look.bar;
+    HorizontalLayout {
+        padding-left: Look.pad;
+        padding-right: Look.pad;
+        spacing: 8px;
+        Cell { width: Look.col-time; text: "Time"; font-size: Look.small; font-weight: 600; color: Look.dim; }
+        Cell { width: Look.col-dir; text: ""; }
+        Cell { width: root.narrow ? Look.col-port-narrow : Look.col-port; text: "Port"; font-size: Look.small; font-weight: 600; color: Look.dim; }
+        Cell { width: Look.col-ch; text: "Ch"; font-size: Look.small; font-weight: 600; color: Look.dim; horizontal-alignment: right; }
+        Cell { width: root.narrow ? Look.col-msg-narrow : Look.col-msg; text: "Message"; font-size: Look.small; font-weight: 600; color: Look.dim; }
+        Cell { horizontal-stretch: 2; text: "Value"; font-size: Look.small; font-weight: 600; color: Look.dim; }
+        if !root.narrow: Cell { horizontal-stretch: 3; text: "Detail"; font-size: Look.small; font-weight: 600; color: Look.dim; }
+    }
+    Rectangle { y: parent.height - 1px; height: 1px; background: Look.faint; }
+}
+
+component Details inherits Rectangle {
+    in property <MonitorRow> item;
+    min-height: lay.preferred-height;
+    lay := VerticalLayout {
+        padding-left: Look.pad + Look.col-time + 8px;
+        padding-right: Look.pad;
+        padding-top: 4px;
+        padding-bottom: 10px;
+        Rectangle {
+            border-radius: 6px;
+            background: Palette.alternate-background;
+            border-width: 1px;
+            border-color: Look.faint;
+            min-height: inner.preferred-height;
+            inner := VerticalLayout {
+                padding: 10px;
+                spacing: 2px;
+                Text {
+                    text: root.item.title;
+                    font-size: Look.font;
+                    font-weight: 700;
+                    color: root.item.tone;
+                }
+                for f in root.item.fields: HorizontalLayout {
+                    spacing: 10px;
+                    padding-top: f.heading ? 6px : 0px;
+                    if f.heading: Text {
+                        text: f.key;
+                        font-size: Look.small;
+                        font-weight: 700;
+                        color: Look.dim;
+                    }
+                    if !f.heading: Text {
+                        width: 110px;
+                        text: f.key;
+                        font-size: Look.small;
+                        color: Look.dim;
+                        horizontal-alignment: right;
+                        overflow: elide;
+                    }
+                    if !f.heading: Text {
+                        text: f.value;
+                        font-size: Look.small;
+                        color: Palette.foreground;
+                        overflow: elide;
+                        horizontal-stretch: 1;
+                    }
+                }
+                if root.item.hex.length > 0: Rectangle { height: 6px; }
+                for line in root.item.hex: HorizontalLayout {
+                    spacing: 14px;
+                    alignment: start;
+                    Text {
+                        text: line.offset;
+                        font-family: MonitorBridge.mono-family;
+                        font-size: Look.small;
+                        color: Look.dim;
+                    }
+                    Text {
+                        text: line.hex;
+                        font-family: MonitorBridge.mono-family;
+                        font-size: Look.small;
+                        color: Palette.foreground;
+                        overflow: elide;
+                    }
+                    Text {
+                        text: line.ascii;
+                        font-family: MonitorBridge.mono-family;
+                        font-size: Look.small;
+                        color: Look.dim;
+                    }
+                }
+            }
+        }
+    }
+}
+
+component RowView inherits Rectangle {
+    in property <MonitorRow> item;
+    in property <int> index;
+    // Below about 760 px: narrower port and message, no detail column
+    // (the expanded row still shows it).
+    in property <bool> narrow;
+    callback clicked();
+    callback activated();
+    min-height: lay.preferred-height;
+    accessible-role: list-item;
+    accessible-label: root.item.message + " " + root.item.value;
+    accessible-item-selected: root.item.selected;
+    accessible-expandable: root.item.expandable;
+    accessible-expanded: root.item.expanded;
+    background: root.item.selected ? Look.select : ta.has-hover ? Look.hover : root.item.odd ? Look.stripe : transparent;
+    lay := VerticalLayout {
+        HorizontalLayout {
+            height: Look.row-h;
+            padding-left: Look.pad;
+            padding-right: Look.pad;
+            spacing: 8px;
+            Cell {
+                width: Look.col-time;
+                text: root.item.time;
+                font-family: MonitorBridge.mono-family;
+                font-size: Look.small;
+                color: Look.dim;
+            }
+            Cell {
+                width: Look.col-dir;
+                text: root.item.dir;
+                color: root.item.editor ? Palette.accent-background : Look.dim;
+                horizontal-alignment: center;
+            }
+            Cell {
+                width: root.narrow ? Look.col-port-narrow : Look.col-port;
+                text: root.item.port;
+                color: Palette.foreground.with-alpha(0.8);
+                font-italic: root.item.editor;
+            }
+            Cell {
+                width: Look.col-ch;
+                text: root.item.channel;
+                font-family: MonitorBridge.mono-family;
+                font-size: Look.small;
+                horizontal-alignment: right;
+                color: Palette.foreground.with-alpha(0.8);
+            }
+            HorizontalLayout {
+                width: root.narrow ? Look.col-msg-narrow : Look.col-msg;
+                spacing: 5px;
+                Cell {
+                    text: (root.item.expandable ? (root.item.expanded ? "▾ " : "▸ ") : "") + root.item.message;
+                    color: root.item.tone;
+                    font-weight: 600;
+                    horizontal-stretch: 1;
+                }
+                if root.item.count != "": Rectangle {
+                    y: (parent.height - self.height) / 2;
+                    height: 15px;
+                    width: count-text.preferred-width + 10px;
+                    border-radius: 7.5px;
+                    background: root.item.tone.with-alpha(0.16);
+                    count-text := Text {
+                        text: root.item.count;
+                        font-size: 10px;
+                        font-weight: 700;
+                        color: root.item.tone;
+                    }
+                }
+                if root.item.spark != "": Path {
+                    y: (parent.height - self.height) / 2;
+                    width: 36px;
+                    height: 14px;
+                    commands: root.item.spark;
+                    viewbox-width: 100;
+                    viewbox-height: 20;
+                    stroke: root.item.tone;
+                    stroke-width: 1.3px;
+                    fill: transparent;
+                }
+            }
+            HorizontalLayout {
+                horizontal-stretch: 2;
+                min-width: 0;
+                spacing: 6px;
+                Cell {
+                    text: root.item.value;
+                    color: root.item.tone;
+                    horizontal-stretch: 1;
+                }
+            }
+            if !root.narrow: Cell {
+                horizontal-stretch: 3;
+                text: root.item.detail;
+                font-size: Look.small;
+                color: Look.dim;
+            }
+        }
+        if root.item.expanded: Details {
+            item: root.item;
+        }
+    }
+    // Editor sends: a thin accent bar; the selection: a stronger one.
+    if root.item.editor || root.item.selected: Rectangle {
+        x: 0;
+        y: 0;
+        width: root.item.selected ? 3px : 2px;
+        height: Look.row-h;
+        background: root.item.selected ? Palette.accent-background : Palette.accent-background.with-alpha(0.45);
+    }
+    ta := TouchArea {
+        height: Look.row-h;
+        y: 0;
+        clicked => { root.clicked(); }
+        double-clicked => { root.activated(); }
+    }
+}
+
+export component MonitorPane inherits Rectangle {
+    in-out property <bool> filters-open: false;
+    // A light / dark button in the toolbar, for a window of its own.
+    in property <bool> theme-toggle: false;
+    property <length> wheel;
+    // Below 760 px: narrower port and message, no detail column. Set when
+    // the width changes, not bound to it: the columns it picks size the
+    // pane, so a binding would make the pane's width depend on itself.
+    property <bool> narrow: false;
+    init => { root.narrow = root.width < 760px; }
+    changed width => { root.narrow = root.width < 760px; }
+    background: Palette.background;
+    min-width: 600px;
+    preferred-width: 980px;
+    horizontal-stretch: 1;
+    min-height: 240px;
+    clip: true;
+
+    VerticalLayout {
+        Toolbar {
+            theme-toggle: root.theme-toggle;
+        }
+        FilterBar {
+            open <=> root.filters-open;
+        }
+        if MonitorBridge.alerts.length > 0: AlertStrip { }
+        if MonitorBridge.chips.length > 0: ChipRow { }
+        Header {
+            narrow: root.narrow;
+        }
+        list := Rectangle {
+            vertical-stretch: 1;
+            // The rows never size the list; the list sizes the window of rows.
+            min-height: 3 * Look.row-h;
+            preferred-height: 10 * Look.row-h;
+            clip: true;
+            changed height => {
+                MonitorBridge.visible-lines = max(1, floor(self.height / Look.row-h));
+            }
+            init => {
+                MonitorBridge.visible-lines = max(1, floor(self.height / Look.row-h));
+            }
+            keys := FocusScope {
+                key-pressed(event) => {
+                    if (event.text == Key.UpArrow) { MonitorBridge.nav(0, 1); return accept; }
+                    if (event.text == Key.DownArrow) { MonitorBridge.nav(1, 1); return accept; }
+                    if (event.text == Key.PageUp) { MonitorBridge.nav(2, 1); return accept; }
+                    if (event.text == Key.PageDown) { MonitorBridge.nav(3, 1); return accept; }
+                    if (event.text == Key.Home) { MonitorBridge.nav(4, 1); return accept; }
+                    if (event.text == Key.End) { MonitorBridge.nav(5, 1); return accept; }
+                    if (event.text == Key.Return) {
+                        MonitorBridge.row-activated(-1);
+                        return accept;
+                    }
+                    reject
+                }
+            }
+            TouchArea {
+                scroll-event(event) => {
+                    root.wheel += event.delta-y;
+                    if (root.wheel >= Look.row-h) {
+                        MonitorBridge.nav(6, -floor(root.wheel / Look.row-h));
+                        root.wheel = mod(root.wheel, Look.row-h);
+                    } else if (root.wheel <= -Look.row-h) {
+                        MonitorBridge.nav(6, floor(-root.wheel / Look.row-h));
+                        root.wheel = -mod(-root.wheel, Look.row-h);
+                    }
+                    accept
+                }
+                clicked => { keys.focus(); }
+            }
+            // Newest at the bottom: while following, the rows sit on the
+            // bottom edge; otherwise the window starts at the top.
+            rows-lay := VerticalLayout {
+                y: MonitorBridge.following ? min(0px, parent.height - self.preferred-height) : 0px;
+                height: self.preferred-height;
+                alignment: start;
+                for row[i] in MonitorBridge.rows: RowView {
+                    item: row;
+                    index: i;
+                    narrow: root.narrow;
+                    clicked => {
+                        keys.focus();
+                        MonitorBridge.row-clicked(i);
+                    }
+                    activated => {
+                        keys.focus();
+                        MonitorBridge.row-activated(i);
+                    }
+                }
+            }
+            if MonitorBridge.rows.length == 0: Text {
+                text: MonitorBridge.paused ? "Paused." : "Waiting for MIDI…";
+                font-size: Look.font;
+                color: Look.dim;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+            if !MonitorBridge.following && MonitorBridge.rows.length > 0: Rectangle {
+                x: parent.width - self.width - 14px;
+                y: parent.height - self.height - 12px;
+                width: jump-lay.preferred-width;
+                height: 26px;
+                border-radius: 13px;
+                background: Palette.accent-background;
+                drop-shadow-blur: 6px;
+                drop-shadow-color: #00000040;
+                jump-lay := HorizontalLayout {
+                    padding-left: 12px;
+                    padding-right: 12px;
+                    Text {
+                        text: "↓ Newest";
+                        font-size: Look.small;
+                        font-weight: 600;
+                        color: Palette.accent-foreground;
+                        vertical-alignment: center;
+                    }
+                }
+                TouchArea {
+                    clicked => { MonitorBridge.nav(5, 1); }
+                }
+            }
+        }
+    }
+}
+
+export component MonitorWindow inherits Window {
+    // The colour scheme, for hosts that set it from outside.
+    in-out property <ColorScheme> color-scheme <=> Palette.color-scheme;
+    in-out property <bool> filters-open <=> pane.filters-open;
+    title: "MIDI Monitor";
+    preferred-width: 980px;
+    preferred-height: 640px;
+    min-width: 600px;
+    background: Palette.background;
+    default-font-size: 12px;
+    VerticalLayout {
+        pane := MonitorPane {
+            // Light / dark, for the demo; editors follow their own setting.
+            theme-toggle: true;
+        }
+    }
+}
