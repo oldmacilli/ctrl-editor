@@ -69,7 +69,7 @@ Every event points at a port by a small index into the store's port table:
 
 ```rust
 pub struct PortRef {
-    pub kind: PortKind,      // Alsa, Jack, CoreMidi, WinMm, WinMidiServices, Hid, UsbCapture,
+    pub kind: PortKind,      // Alsa, Jack, CoreMidi, WinMidiServices, Hid, UsbCapture,
                              // Virtual, Thru, Network { protocol }, Editor, File
     pub id: String,          // stable: ALSA "client:port" name, JACK full name,
                              // CoreMIDI unique id, peer address, …
@@ -246,7 +246,6 @@ part of the conversation. How depends on the platform:
 | **Linux, JACK / PipeWire** | connect a monitor input to the device's capture port | connect a monitor input to the program's output port; JACK and PipeWire allow any number of readers |
 | **macOS, CoreMIDI** | passive: sources fan out to every client | thru port (§6.3) now; a CoreMIDI driver plug-in later (§6.5) |
 | **Windows, Windows MIDI Services** | multi-client endpoints allow a second reader | thru port via a loopback endpoint pair |
-| **Windows, WinMM** | usually fails: most drivers open ports exclusively | thru port only, needs a virtual-port driver |
 | **Network** | the monitor is a peer in the session | thru: programs connect to the monitor's network endpoint, which forwards to the device |
 
 ### 6.1 Passive taps (`ctrl-midi`)
@@ -371,7 +370,12 @@ both run in one process, and as ordinary traffic otherwise.
 
 DB-1, TEC and UC-33 adopt it after M4, each in its own PR.
 
-## 11. Open questions
+## 11. Decisions
 
-1. Windows: Windows MIDI Services only (Windows 11), or WinMM with a virtual-port
-   driver too?
+- Apps: **lb-monitor** and **lb-librarian** in the private repo `lb-midi-tools`.
+- macOS: thru now, a CoreMIDI driver plug-in later (§6.5); Linux: usbmon for programs
+  that bypass the sequencer (§6.5).
+- Windows: Windows MIDI Services only (Windows 11). WinMM is not supported: its
+  drivers open ports exclusively and it has no virtual ports. `ctrl-midi` (midir, WinMM
+  today) gets a Windows MIDI Services backend before M5 ships on Windows.
+- LightBow: the Slint component replaces the egui Mesh Monitor pane.
