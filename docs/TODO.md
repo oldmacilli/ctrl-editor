@@ -19,8 +19,8 @@ Last updated: 2026-10-28 (CDL gaps closed, long SysEx, UC-33).
 
 ## P0 Agree the concept
 
-- [x] user: GitHub repo `oldmacilli/ctrl-editor` (private) created and
-  pushed (196eb94)
+- [x] user: GitHub repo `oldmacilli/ctrl-editor` created and pushed
+  (196eb94); public since 2026-10-28
 - [ ] user: approve the concept
 - [ ] korg: review CONCEPT §3 and §4 (crate moves out of the KORG repo)
 - [ ] db1, tec: review CONCEPT and their descriptors
@@ -105,11 +105,16 @@ Last updated: 2026-10-28 (CDL gaps closed, long SysEx, UC-33).
 - [ ] korg: `korg_sysex::build_ack` builds the first-generation `5F
   <status>` ack; the Studios send `{len:u21le} <status>` (KORG PR #2,
   ignored test). Unused outside tests: fix or retire it
-- [ ] korg+user: the conformance dev-dependency puts the private
-  ctrl-editor repo into `cargo-sources.json`, so the Flatpak build must
-  clone it (KORG PR #2). Decide: allow, or vendor the descriptors
+- [x] user: ctrl-editor made public on 2026-10-28, as it is (vendor
+  pictures and KORG label lists included, by the owner's decision), so the
+  editors' packages fetch the shared crates without credentials (KORG PR
+  #2/#3 cargo-sources.json)
 - [ ] tec: descriptor poll interval 52 ms (original app) vs tec-device's
   50 ms default; align one of them
+- [ ] platform: ctrl-midi from the KORG lane's PR #3: split only a
+  complete SysEx (F0…F7), reuse long-lived clients for port scans (KORG
+  45c6f56 keeps two CoreMIDI clients for its 1 s scan), and open ports by
+  identity, not by name alone (two ports of one name open the first)
 - [ ] platform: `ctrl-transport` applies `sysex-limit` and `pace` when it
   writes, from `Codec::plan`
 - [x] platform: `ctrl-midi`: run-time MIDI backend (ALSA sequencer, JACK
