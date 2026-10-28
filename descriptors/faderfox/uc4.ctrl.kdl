@@ -355,7 +355,7 @@ procedure "read-setup" kind="read" transport="usb" status="measured" evidence="u
 // A backup of all setups comes first and is kept; then the user selects the
 // setup and arms receive; then the write; then both copies are read back
 // and compared. Leave setup mode only after the run has verified.
-procedure "write-setup" kind="write" transport="usb" status="measured" evidence="unit, firmware 02.03, 2026-10-28: ctrl-cli run on SE16 (dAtA) and back; backups kept, read-backs byte-identical" {
+procedure "write-setup" kind="write" transport="usb" status="measured" evidence="unit, firmware 02.03 and 02.05, 2026-10-28: ctrl-cli run on SE16 (dAtA) and back on each; backups kept, read-backs byte-identical" {
     call "read-all"
     restore-point "names" "fader9" "controls"
     gate "confirm" text="This overwrites setup SE{setup + 1} on the UC4 (names, fader 9, all controls). In setup mode, turn encoder 1 to SE{setup + 1}, then hold encoder 7's push button until the display shows rEc, then rc00. Do not press Shift. Confirm when it shows rc00."
