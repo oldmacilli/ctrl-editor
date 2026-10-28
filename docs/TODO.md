@@ -95,10 +95,33 @@ Last updated: 2026-10-28 (CDL gaps closed, long SysEx, UC-33).
   (parsed, checked against `frame`), `poll`, `pace`; TEC filled in
 - [x] platform: `ctrl-descriptors`: every descriptor embedded, for the
   editors' conformance tests through a pinned git dependency
-- [ ] korg, db1, tec: conformance test in each editor repo: its protocol
-  code and `ctrl-codec` on the shared descriptor produce the same bytes
+- [x] korg, db1, tec: conformance test in each editor repo, pinned to
+  a2433bb: KORG_Kontrol_Editor PR #2, OceanBeach_DB-1 PR #27, TECcontrol
+  PR #4 (open, for the owner to merge)
+- [x] platform: `arg type=` (CDL §6.5): typed arguments, so polarity 2,
+  channel 16 or an unknown status fail as in db1-protocol (found by DB-1
+  PR #27). The DB-1 descriptor types its set and reply values
+- [ ] db1: bump DB-1 PR #27's pin and un-ignore its typed-value tests
+- [ ] korg: `korg_sysex::build_ack` builds the first-generation `5F
+  <status>` ack; the Studios send `{len:u21le} <status>` (KORG PR #2,
+  ignored test). Unused outside tests: fix or retire it
+- [ ] korg+user: the conformance dev-dependency puts the private
+  ctrl-editor repo into `cargo-sources.json`, so the Flatpak build must
+  clone it (KORG PR #2). Decide: allow, or vendor the descriptors
+- [ ] tec: descriptor poll interval 52 ms (original app) vs tec-device's
+  50 ms default; align one of them
 - [ ] platform: `ctrl-transport` applies `sysex-limit` and `pace` when it
   writes, from `Codec::plan`
+- [x] platform: `ctrl-midi`: run-time MIDI backend (ALSA sequencer, JACK
+  via libjack loaded at run time, so jackd2 or PipeWire; CoreMIDI), ALSA
+  writes split by `sysex-limit`, input SysEx rejoined; `docs/LINUX.md`
+- [x] platform: `tools/linux-check`: JACK loopback (CC + 6002-byte SysEx)
+  under jackd2 and PipeWire's libjack; KORG, DB-1, TEC and UC-33 GUIs start
+  on Wayland (headless Weston, GL and software renderers)
+- [ ] korg, db1: move the MIDI layer to `ctrl-midi` and add the backend
+  switch (GUI, TUI, CLI), as UC33-Editor did
+- [ ] user: on a Linux machine with a device, the hand checks in
+  docs/LINUX.md §8 (ALSA run, PipeWire Midi-Bridge port names, a dump)
 
 ## P2 Prove CDL on the DB-1; KORG stays intact
 
@@ -214,6 +237,10 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
   read replies, curve pages driver-owned (e44a6e1)
 - [ ] tec: `ctrl-hid-iokit` from `tec-device/src/macos.rs` (Seize, report
   id 0, 8-byte frames)
+- [ ] tec: Linux configuration over hidraw (`ctrl-hid-hidapi`, hidapi
+  Linux-native backend), udev rule `70-tecontrol-breath.rules` (uaccess),
+  `tec-midi` on `ctrl-midi`; first write staged with a usbmon capture
+  (docs/LINUX.md §6)
 - [ ] tec: hub (one thread per device, keyed by serial) in `ctrl-engine`
 - [ ] tec: `tec-curve` driver; byte-exact against the captured curve
   tables

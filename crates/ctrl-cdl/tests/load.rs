@@ -585,11 +585,11 @@ fn message_args_take_a_range_or_a_block_index() {
     ));
     assert_eq!(found.len(), 3, "{found:#?}");
     assert!(
-        found[0].contains("one of `range=` and `index=`"),
+        found[0].contains("one of `range=`, `index=` and `type=`"),
         "{found:#?}"
     );
     assert!(
-        found[1].contains("one of `range=` and `index=`"),
+        found[1].contains("one of `range=`, `index=` and `type=`"),
         "{found:#?}"
     );
     assert!(found[2].contains("appears twice"), "{found:#?}");

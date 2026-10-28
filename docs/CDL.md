@@ -415,6 +415,14 @@ message "note-on" transport="controls" {
 }
 ```
 
+`arg "polarity" type="polarity"` gives an argument the values of a
+`types` enum (or `errors` list) or int, or of a storage type
+(`type="bool"`): the codec refuses others on encode and does not match them
+on decode. The DB-1 descriptor types every set and reply value this way, so
+polarity 2, channel 16 or an unknown status code fail as they do in
+`db1-protocol` (found by its conformance test). An `arg` takes exactly one
+of `range=`, `index=` and `type=`.
+
 ### 6.6 Channel and real-time messages
 
 A MIDI template starts with one status byte; every other byte is data

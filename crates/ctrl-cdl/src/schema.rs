@@ -520,6 +520,7 @@ pub static SCHEMA: &[NodeSpec] = &[
         Some(&[
             p("range", "allowed values, `lo..=hi`"),
             p("index", "a block: 0..count-1"),
+            p("type", "a `types` enum or int, or a storage type: its values"),
         ]),
         false,
         "6.5",

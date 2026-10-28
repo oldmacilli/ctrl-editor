@@ -1188,9 +1188,11 @@ fn message(cx: &mut Cx, n: &RawNode) -> Message {
                     name: cx.name(c),
                     range: cx.prop_with(c, "range", parse_range),
                     index: cx.prop_str(c, "index"),
+                    ty: cx.prop_with(c, "type", parse_type_ref),
                 };
-                if arg.range.is_some() == arg.index.is_some() {
-                    cx.err(c.pos, "`arg` takes one of `range=` and `index=`");
+                let given = [arg.range.is_some(), arg.index.is_some(), arg.ty.is_some()];
+                if given.iter().filter(|g| **g).count() != 1 {
+                    cx.err(c.pos, "`arg` takes one of `range=`, `index=` and `type=`");
                 }
                 if m.args.iter().any(|a| a.name == arg.name) {
                     cx.err(c.pos, format!("`arg \"{}\"` appears twice", arg.name));

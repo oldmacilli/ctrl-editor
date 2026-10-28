@@ -671,3 +671,38 @@ fn korg_scene_write_plans_like_korg_midi_midir() {
         .unwrap();
     assert_eq!(req[0].writes.len(), 1);
 }
+
+#[test]
+fn typed_args_refuse_values_outside_their_type() {
+    // found by the DB-1 conformance test: polarity 2 or channel 16 encoded
+    // although db1-protocol refuses them
+    let d = descriptor("oceanbeach/db1.ctrl.kdl");
+    let codec = Codec::new(&d);
+    let set = |polarity: i64, channel: i64| {
+        codec.encode(
+            "set-drawbar",
+            &args(&[
+                ("index", int(0)),
+                ("polarity", int(polarity)),
+                ("cc", int(1)),
+                ("channel", int(channel)),
+            ]),
+        )
+    };
+    assert!(set(1, 15).is_ok());
+    assert!(matches!(set(2, 0), Err(CodecError::Range(_))));
+    assert!(matches!(set(0, 16), Err(CodecError::Range(_))));
+    // an unknown status code in a reply does not decode, as in db1-protocol
+    let bad = [
+        0xF0, 0x09, 0, 0, 0, 0x01, 0x03, 0x0A, 0x03, 0x00, 0x14, 0x01, 0xF7,
+    ];
+    assert!(codec
+        .decode_variant("get-drawbar", &bad, &Bindings::new())
+        .is_err());
+    let ok = [
+        0xF0, 0x09, 0, 0, 0, 0x01, 0x03, 0x00, 0x03, 0x00, 0x14, 0x01, 0xF7,
+    ];
+    assert!(codec
+        .decode_variant("get-drawbar", &ok, &Bindings::new())
+        .is_ok());
+}

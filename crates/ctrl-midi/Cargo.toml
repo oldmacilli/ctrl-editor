@@ -1,0 +1,18 @@
+[package]
+name = "ctrl-midi"
+description = "MIDI ports with a runtime-selectable backend: ALSA sequencer, JACK (also PipeWire's libjack), CoreMIDI, WinMM"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[features]
+default = ["jack"]
+# JACK through libjack, loaded at run time (no build-time dependency): jackd2,
+# or PipeWire's libjack (pipewire-jack / pw-jack).
+jack = ["dep:jack"]
+
+[dependencies]
+ctrl-codec.workspace = true
+midir = "0.10"
+jack = { version = "0.13", optional = true, default-features = false, features = ["dynamic_loading"] }

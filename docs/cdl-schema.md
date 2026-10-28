@@ -446,6 +446,7 @@ The values an argument may take. (§6.5)
 |---|---|
 | `range` | allowed values, `lo..=hi` |
 | `index` | a block: 0..count-1 |
+| `type` | a `types` enum or int, or a storage type: its values |
 
 ## `message/send`
 

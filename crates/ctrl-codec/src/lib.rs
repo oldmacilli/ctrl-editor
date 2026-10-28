@@ -795,6 +795,17 @@ impl<'d> Codec<'d> {
     /// Declared arguments (`arg`) must lie in their range (CDL §6.5).
     fn check_args(&self, m: &Message, bound: &Bindings) -> Result<(), CodecError> {
         for a in &m.args {
+            if let (Some(Val::Int(v)), Some(allowed)) =
+                (bound.get(&a.name), self.d.arg_values(m, &a.name))
+            {
+                if !allowed.contains(v) {
+                    return Err(CodecError::Range(format!(
+                        "`{}` = {} is not a value of its type",
+                        a.name,
+                        show(&Val::Int(*v))
+                    )));
+                }
+            }
             let (Some(v), Some(r)) = (bound.get(&a.name), self.d.arg_range(m, &a.name)) else {
                 continue;
             };

@@ -640,6 +640,14 @@ impl<'d> V<'d> {
                         ),
                     );
                 }
+                if let Some(TypeRef::Named(t)) = &a.ty {
+                    if self.type_def(t).is_none() {
+                        self.error(
+                            a.meta.pos,
+                            format!("`arg \"{}\"`: unknown type `{t}`", a.name),
+                        );
+                    }
+                }
                 if let Some(block) = &a.index {
                     match self.d.block(block) {
                         None => self.error(a.meta.pos, format!("unknown block `{block}`")),
@@ -1407,6 +1415,11 @@ pub(crate) fn storage_width(s: Storage) -> u32 {
         Storage::U21le | Storage::U21be => 3,
         Storage::Ascii(n) => u32::from(n),
     }
+}
+
+/// A storage type's value range, for `arg type=` (§6.5).
+pub(crate) fn storage_range_pub(s: Storage) -> Option<IntRange> {
+    storage_range(s)
 }
 
 fn storage_range(s: Storage) -> Option<IntRange> {

@@ -31,6 +31,7 @@ types {
         value 1 "Momentary"
     }
     int "channel" storage="u7" range="0..=15" display="{v + 1}" parse="{v - 1}"
+    int "instrument" storage="u7" range="0..=12" status="measured" evidence="state.rs Global::validate"
     errors "status" status="decoded" evidence="message.rs Status" {
         value 0 "OK"
         value 1 "Malformed request"
@@ -58,7 +59,7 @@ block "button" status="measured" {
     field "b" type="u7"
 }
 block "global" status="measured" {
-    field "instrument" type="u7" range="0..=12" note="modes 2..12 never observed"
+    field "instrument" type="instrument" note="modes 2..12 never observed"
     field "aux" type="bool"
 }
 
@@ -73,33 +74,51 @@ message "revision" frame="db1" transport="aux" status="measured" {
     reply "01 00 {product} {hardware} {major} {minor}" timeout=500
 }
 message "get-drawbar" frame="db1" transport="aux" status="measured" {
+    arg "status" type="status"
+    arg "polarity" type="polarity"
+    arg "channel" type="channel"
     arg "index" index="drawbar"
     send "00 03 {index}"
     reply "01 03 {status} {index} {polarity} {cc} {channel}" timeout=500
     ok-when "status == 0"
 }
 message "set-drawbar" frame="db1" transport="aux" status="measured" {
+    arg "status" type="status"
+    arg "polarity" type="polarity"
+    arg "channel" type="channel"
     arg "index" index="drawbar"
     send "02 03 {index} {polarity} {cc} {channel}"
     reply "03 03 {status}" timeout=500
     ok-when "status == 0"
 }
 message "get-button" frame="db1" transport="aux" status="measured" {
+    arg "status" type="status"
+    arg "mode" type="button-mode"
+    arg "channel" type="channel"
     send "00 0F 00"
     reply "01 0F {status} .. {mode} {cc} {channel} {a} {b}" timeout=500
     ok-when "status == 0"
 }
 message "set-button" frame="db1" transport="aux" status="measured" {
+    arg "status" type="status"
+    arg "mode" type="button-mode"
+    arg "channel" type="channel"
     send "02 0F 00 {mode} {cc} {channel} {a} {b}"
     reply "03 0F {status}" timeout=500
     ok-when "status == 0"
 }
 message "get-global" frame="db1" transport="aux" status="measured" {
+    arg "status" type="status"
+    arg "instrument" type="instrument"
+    arg "aux" type="bool"
     send "00 10"
     reply "01 10 {status} {instrument} {aux}" timeout=500
     ok-when "status == 0"
 }
 message "set-global" frame="db1" transport="aux" status="measured" {
+    arg "status" type="status"
+    arg "instrument" type="instrument"
+    arg "aux" type="bool"
     send "02 10 {instrument} {aux}"
     reply "03 10 {status}" timeout=500
     ok-when "status == 0"

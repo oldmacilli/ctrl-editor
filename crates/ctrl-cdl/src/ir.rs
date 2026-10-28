@@ -579,6 +579,8 @@ pub struct ArgDecl {
     pub range: Option<IntRange>,
     /// An element index of this block: `0..count`.
     pub index: Option<String>,
+    /// A value type: a `types` enum or int, or a storage type (`bool`).
+    pub ty: Option<TypeRef>,
 }
 
 impl Descriptor {
@@ -594,7 +596,29 @@ impl Descriptor {
                     hi: i64::from(count) - 1,
                 })
             }
-            (None, None) => None,
+            (None, None) => match a.ty.as_ref()? {
+                TypeRef::Storage(s) => crate::validate::storage_range_pub(*s),
+                TypeRef::Named(n) => match self.types.iter().find(|t| t.name() == n)? {
+                    TypeDef::Int(t) => t
+                        .range
+                        .or_else(|| crate::validate::storage_range_pub(t.storage)),
+                    _ => None,
+                },
+            },
+        }
+    }
+
+    /// The allowed values of an argument typed with an enum (`errors` too).
+    pub fn arg_values(&self, m: &Message, name: &str) -> Option<Vec<i64>> {
+        let a = m.args.iter().find(|a| a.name == name)?;
+        let TypeRef::Named(n) = a.ty.as_ref()? else {
+            return None;
+        };
+        match self.types.iter().find(|t| t.name() == n)? {
+            TypeDef::Enum(e) | TypeDef::Errors(e) => {
+                Some(e.values.iter().map(|v| v.value).collect())
+            }
+            TypeDef::Int(_) => None,
         }
     }
 }
