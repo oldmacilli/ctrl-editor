@@ -1,4 +1,4 @@
-# ctrl-monitor: one MIDI monitor for every editor, the mesh and midi-tools
+# ctrl-monitor: one MIDI monitor for every editor, the mesh and lb-midi-tools
 
 Status: design, for review. Nothing here is implemented yet.
 
@@ -9,9 +9,9 @@ One monitor component, written once, used in four places:
 | Where | What it gets |
 | --- | --- |
 | `ctrl-monitor` (this repo) | the data model, the parser, the real-time tap, the store, the describers, one view model, a Slint component and a ratatui widget |
-| `midi-tools` (new repo) | two apps, **lb-monitor** (LightBow Monitor) and **lb-librarian** (LightBow Librarian), each with GUI and TUI at feature parity |
+| `lb-midi-tools` (new repo) | two apps, **lb-monitor** (LightBow Monitor) and **lb-librarian** (LightBow Librarian), each with GUI and TUI at feature parity |
 | the device editors (KORG, DB-1, TEC, UC-33) | the monitor pane; KORG's current monitor is replaced and enhanced |
-| LightBow (zigtact) | the Mesh Monitor's model becomes `ctrl-monitor`; the mesh is one producer among several |
+| LightBow (zigtact) | the Mesh Monitor's model becomes `ctrl-monitor`; the mesh is one producer among several; its egui pane is replaced by the Slint component |
 
 It takes the best of three existing monitors:
 
@@ -33,7 +33,7 @@ instead of as hex.
 ## 2. Layers
 
 ```
-producers ──► RT tap (lock-free ring) ──► collector ──► store ──► view model ──► Slint / ratatui / egui
+producers ──► RT tap (lock-free ring) ──► collector ──► store ──► view model ──► Slint / ratatui
  ctrl-midi ports   fixed-size slots       parse          bounded     filter, fold,
  editor sends      + SysEx byte ring      describe       ring +      columns, chips,
  HID reports       drops counted          annotate       SysEx arena alerts, details
@@ -69,7 +69,7 @@ Every event points at a port by a small index into the store's port table:
 
 ```rust
 pub struct PortRef {
-    pub kind: PortKind,      // Alsa, Jack, CoreMidi, WinMm, WinMidiServices, Hid,
+    pub kind: PortKind,      // Alsa, Jack, CoreMidi, WinMm, WinMidiServices, Hid, UsbCapture,
                              // Virtual, Thru, Network { protocol }, Editor, File
     pub id: String,          // stable: ALSA "client:port" name, JACK full name,
                              // CoreMIDI unique id, peer address, …
@@ -244,7 +244,7 @@ part of the conversation. How depends on the platform:
 | --- | --- | --- |
 | **Linux, ALSA sequencer** | passive subscription to the device's port | passive subscription to the *program's* output port (only if the program uses the sequencer; programs on raw ALSA MIDI bypass it) |
 | **Linux, JACK / PipeWire** | connect a monitor input to the device's capture port | connect a monitor input to the program's output port; JACK and PipeWire allow any number of readers |
-| **macOS, CoreMIDI** | passive: sources fan out to every client | needs a thru port (§6.3) or a CoreMIDI driver plug-in that enables monitoring (later, see §9) |
+| **macOS, CoreMIDI** | passive: sources fan out to every client | thru port (§6.3) now; a CoreMIDI driver plug-in later (§6.5) |
 | **Windows, Windows MIDI Services** | multi-client endpoints allow a second reader | thru port via a loopback endpoint pair |
 | **Windows, WinMM** | usually fails: most drivers open ports exclusively | thru port only, needs a virtual-port driver |
 | **Network** | the monitor is a peer in the session | thru: programs connect to the monitor's network endpoint, which forwards to the device |
@@ -279,6 +279,29 @@ device on any operating system, including a device on another computer:
   feeding the same tap. Their peer identity (address, session name) becomes the
   `PortRef`, their routing becomes the `Path` annotation.
 
+### 6.5 Later: spying without thru
+
+Thru needs the program to be pointed at another port. Spying sees what a program
+sends to the real port, untouched:
+
+- **macOS**: a CoreMIDI driver plug-in that enables CoreMIDI's monitoring of every
+  destination and hands the packets to the monitor over a local socket, as MIDI
+  Monitor's own driver does. It installs into `~/Library/Audio/MIDI Drivers`, is
+  written from Apple's public `MIDIDriver` API, and becomes a producer of kind
+  `CoreMidi` with direction `Out`. Planned, not in the milestones yet.
+- **Linux**: there is no driver layer to plug into, and none is needed for most
+  programs: the ALSA sequencer, JACK and PipeWire already let a second reader
+  subscribe to any port (§6.1), which is what the macOS plug-in has to add. What the
+  sequencer cannot see is a program that opens the raw ALSA MIDI device (`hw:X,0`,
+  for example `amidi` or some DAWs) directly. For those, the counterpart to the
+  plug-in is **usbmon**: the kernel's USB capture (`/dev/usbmon*`, the module
+  Wireshark uses) sees every USB-MIDI packet to and from the device whatever program
+  sent it. It needs the `usbmon` module and read access (a udev rule for a group,
+  not root), works only for USB devices, and the monitor unpacks the 4-byte
+  USB-MIDI event packets into MIDI. A producer of kind `UsbCapture`; planned
+  together with the macOS plug-in. (A device on a serial or PCI interface can only be
+  watched through `snd-virmidi` thru.)
+
 ## 7. Capture files
 
 - **`.ctrlcap`**: the native file. A KDL header (ports, settings, filters, the
@@ -288,7 +311,7 @@ device on any operating system, including a device on another computer:
   Standard MIDI File (`midly`, real timing), tab-separated text.
 - MIDI Monitor's `.midimonitor` (NSKeyedArchiver) is not imported.
 
-## 8. lb-librarian (midi-tools)
+## 8. lb-librarian (lb-midi-tools)
 
 SysEx Librarian's feature set, cross-platform, on the same core:
 
@@ -326,9 +349,10 @@ both run in one process, and as ordinary traffic otherwise.
 - **DB-1, TEC, UC-33**: the same pane; UC-33's learn mode reads from a monitor store;
   TEC events are `Hid` with descriptor descriptions.
 - **LightBow**: `network-midi` records into a `ctrl-monitor` tap instead of
-  `MonitorTap`; `meshd` writes `.ctrlcap` instead of the JSON feed; the egui pane draws
-  the shared view model (Map, Streams, Journey) and the serde mirror goes away, which
-  also ends its drift (the gate fields it lacks).
+  `MonitorTap`; `meshd` writes `.ctrlcap` instead of the JSON feed. The egui pane
+  (`meshmon.rs`) and its serde mirror are retired, which also ends the mirror's drift
+  (the gate fields it lacks). LightBow opens lb-monitor attached to the mesh feed
+  (Map, Streams, Journey); a Slint part of LightBow embeds the component directly.
 
 ## 10. Milestones
 
@@ -342,15 +366,12 @@ both run in one process, and as ordinary traffic otherwise.
 | M6 | `lb-librarian` | paced send measured on the loopback; `.syx`/`.mid` round trip |
 | M7 | thru (virtual pairs), Windows MIDI Services | both directions recorded on macOS and Linux |
 | M8 | AppleMIDI producer and network thru | interoperates with macOS Network MIDI |
-| M9 | Streams and Map views; LightBow mesh producer; egui pane on the view model | Mesh Monitor tests pass on the new model |
+| M9 | Streams, Map and Journey views; LightBow mesh producer; egui pane retired | Mesh Monitor tests pass on the new model |
 | M10 | UMP | MIDI 2.0 channel voice described and shown |
 
 DB-1, TEC and UC-33 adopt it after M4, each in its own PR.
 
 ## 11. Open questions
 
-1. A macOS CoreMIDI driver plug-in for spying without thru: worth it later, or is
-   thru enough?
-2. Windows: Windows MIDI Services only (Windows 11), or WinMM with a virtual-port
+1. Windows: Windows MIDI Services only (Windows 11), or WinMM with a virtual-port
    driver too?
-3. Should the LightBow egui pane move to Slint, or stay egui on the shared view model?
