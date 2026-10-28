@@ -1,0 +1,383 @@
+// Faderfox UC4 (micromodul UC4) universal MIDI controller.
+// No editor repository yet; evidence lives in the local analysis archive
+// (faderfox-uc4: the vendor documents, the firmware file and the notes on it).
+//
+// Evidence:
+//   manual    "UC4 Manual V03": controls, edit and setup mode, factory settings
+//   quick     "UC4 Schnellstartanleitung" (German quick start)
+//   update    "UC4 update": firmware update procedure
+//   firmware  UC4 V0205.syx (firmware 02.05). The file's container is read
+//             byte for byte; the setup dump format, the stored layout of a
+//             setup and the value codes are decoded from the application
+//             code in it (its dump sender, dump receiver, setup loader and
+//             MIDI learn).
+//
+// No unit was at hand: nothing here is measured on hardware. `decoded`
+// means read from the firmware, `inferred` from the manual or by analogy.
+//
+// What the device offers, decoded:
+//   - a setup dump as one long SysEx that the user starts on the device
+//     (setup mode, encoder 4 "Sndc": the current setup; encoder 8 "SndA":
+//     all setups). There is no request message: the editor listens.
+//   - the same format back into the device after the user arms receive
+//     (setup mode, encoder 7 "rEc"). A one-setup dump lands in whichever
+//     setup is selected, whatever setup it came from.
+//   - no identity reply: the SysEx receiver takes only the records below
+//     and ignores other bytes, so the universal identity request goes
+//     unanswered (decoded, not tried).
+cdl "0.1"
+
+device "faderfox.uc4" {
+    vendor "Faderfox"
+    model "UC4"
+    aka "micromodul UC4"
+    manual "UC4 Manual V03; UC4 Schnellstartanleitung; UC4 update"
+}
+
+identify {
+    // USB ids not known: no unit has been connected yet.
+    midi-port match="Faderfox UC4" direction="both" status="inferred" evidence="quick: the computer shows it as 'Faderfox UC4' or 'USB audio device'; update: MIDI out port 'Faderfox UC4'"
+}
+
+// USB MIDI, class compliant. The device sends a dump to USB and DIN at
+// once; the manual warns against receiving on both at the same time.
+// `sysex-limit` only cuts the host's writes (CDL §8.2); the device still sees
+// one SysEx. The values are the KORG transports', not measured here.
+transport "usb" kind="midi" role="config" port-match="Faderfox UC4" sysex-limit=256 segment-delay=5 status="inferred" evidence="quick, update; manual 'Send current setup data'"
+// 5-pin DIN through the enclosed 3.5 mm adapter cable; reached through the
+// user's interface, so no port name.
+transport "din" kind="midi" role="performance" status="inferred" evidence="manual 'Package contents', 'Routing'"
+
+types {
+    int "channel" storage="u7" range="0..=15" display="{v + 1}" parse="{v - 1}" status="decoded" evidence="firmware: low nibble of the stored byte; manual Ch01..Ch16"
+    // Display texts are the device's. Codes from the firmware's MIDI learn:
+    // CC sets 2, program change 3, pitch bend 5, aftertouch 6; the other
+    // three follow the manual's order.
+    enum "encoder-type" status="decoded" evidence="firmware: MIDI learn; out of range loads as 2" {
+        value 0 "CCr1 relative 1/127" status="inferred" evidence="manual order"
+        value 1 "CCr2 relative 63/65" status="inferred" evidence="manual order"
+        value 2 "CCAb absolute 7 bit"
+        value 3 "PrGC program change"
+        value 4 "CCAh 14 bit MSB/LSB" status="inferred" evidence="manual order"
+        value 5 "Pbnd pitch bend"
+        value 6 "AFtt aftertouch"
+    }
+    // Push buttons and green buttons.
+    enum "button-type" status="decoded" evidence="firmware: MIDI learn (note 1, CC 2, program 3, aftertouch 4); out of range loads as 2" {
+        value 0 "OFF" status="inferred" evidence="manual order"
+        value 1 "notE note"
+        value 2 "CC control change"
+        value 3 "PrGC program change"
+        value 4 "AFtt aftertouch"
+    }
+    enum "fader-type" status="decoded" evidence="firmware: MIDI learn; out of range loads as 0" {
+        value 0 "CCAb absolute 7 bit"
+        value 1 "PrGC program change"
+        value 2 "Pbnd pitch bend"
+        value 3 "AFtt aftertouch"
+    }
+    enum "encoder-mode" status="inferred" evidence="manual order; out of range loads as 3, factory Acc3" {
+        value 0 "Acc0 no acceleration"
+        value 1 "Acc1 low"
+        value 2 "Acc2 middle"
+        value 3 "Acc3 max"
+    }
+    // The manual lists SnAP first; the firmware shows "JMP" for 0.
+    enum "fader-mode" status="decoded" evidence="firmware: the display text for 0 and 1" {
+        value 0 "JMP jump"
+        value 1 "SnAP snap"
+    }
+    enum "button-mode" status="inferred" evidence="manual order; out of range loads as 0" {
+        value 0 "btn momentary"
+        value 1 "toGL toggle"
+    }
+    enum "display" status="inferred" evidence="manual order; out of range loads as 1 (Std)" {
+        value 0 "OFF"
+        value 1 "Std 0..127"
+        value 2 "bPoL -63..63"
+    }
+    // The same stored slot on a green button: its LED.
+    enum "led" status="inferred" evidence="manual order; out of range loads as 1 (Std)" {
+        value 0 "OFF"
+        value 1 "Std"
+        value 2 "EXt external only"
+    }
+    // Rou3 is not in the manual's list; the firmware accepts 0..=6.
+    enum "routing" status="inferred" evidence="manual 'Routing'; firmware loads values >= 7 as 5" {
+        value 0 "Rou0 no routing"
+        value 1 "Rou1 USB in to MIDI out"
+        value 2 "Rou2 MIDI in to MIDI out"
+        value 4 "Rou4 MIDI in to USB out"
+        value 5 "Rou5 MIDI in to USB out + USB in to MIDI out"
+        value 6 "Rou6 MIDI in to MIDI out + MIDI in to USB out"
+    }
+    // Tag 2 of the dump header. 1 is the firmware file's.
+    enum "dump-kind" status="decoded" evidence="firmware: the receiver takes 2 and 3; the update file carries 1" {
+        value 1 "firmware"
+        value 2 "current setup (Sndc)"
+        value 3 "all setups (SndA)"
+    }
+}
+
+// ---- Stored data -------------------------------------------------------
+//
+// A setup lives in three regions of the device's memory. The dump names
+// each 32- or 64-byte chunk by its address (tag 9 high, tag 10 low):
+//
+//   names    0x1480 + 32 * s     32 bytes   one chunk
+//   fader9   0x1700 + 64 * s     64 bytes   one chunk
+//   controls 0x1C00 + 1280 * s   1280 bytes twenty chunks of 64
+//
+// s = setup 0..=17 (SE01..SE18). An all-setups dump sends every 64-byte
+// chunk from 0x1480 to 0x7FC0, which also carries the copy memory and
+// regions not decoded yet. The driver below maps chunks to blocks.
+
+// Controls: 20 planes of 64 bytes. A plane holds one property of one kind
+// of control for the 8 groups: byte 8 * group + n. Encoders and their push
+// buttons follow the encoder group, green buttons and faders the
+// fader/button group (firmware: MIDI learn).
+block "controls" size=1280 count=18 names="SE01 SE02 SE03 SE04 SE05 SE06 SE07 SE08 SE09 SE10 SE11 SE12 SE13 SE14 SE15 SE16 SE17 SE18" status="decoded" evidence="firmware: setup loader; dump chunk addresses" {
+    array "group" count=8 stride=8 {
+        array "encoder" count=8 stride=1 {
+            field "channel" offset=0 bits="0..=3" type="channel"
+            field "type" offset=0 bits="4..=7" type="encoder-type"
+            field "number" offset=64 type="u7" note="CC or note number; 14 bit: MSB 0..31, LSB = number + 32"
+            field "lower" offset=128 type="u7"
+            field "upper" offset=192 type="u7"
+            field "display" offset=256 bits="0..=3" type="display"
+            field "mode" offset=256 bits="4..=7" type="encoder-mode"
+        }
+        array "push" count=8 offset=320 stride=1 {
+            field "channel" offset=0 bits="0..=3" type="channel"
+            field "type" offset=0 bits="4..=7" type="button-type"
+            field "number" offset=64 type="u7"
+            field "lower" offset=128 type="u7"
+            field "upper" offset=192 type="u7"
+            // stored and checked like the others; the manual shows no
+            // display setting for push buttons
+            field "display" offset=256 bits="0..=3" type="display" status="unknown"
+            field "mode" offset=256 bits="4..=7" type="button-mode"
+        }
+        array "button" count=8 offset=640 stride=1 {
+            field "channel" offset=0 bits="0..=3" type="channel"
+            field "type" offset=0 bits="4..=7" type="button-type"
+            field "number" offset=64 type="u7"
+            field "lower" offset=128 type="u7"
+            field "upper" offset=192 type="u7"
+            field "led" offset=256 bits="0..=3" type="led"
+            field "mode" offset=256 bits="4..=7" type="button-mode"
+        }
+        array "fader" count=8 offset=960 stride=1 {
+            field "channel" offset=0 bits="0..=3" type="channel"
+            field "type" offset=0 bits="4..=7" type="fader-type"
+            field "number" offset=64 type="u7"
+            field "lower" offset=128 type="u7"
+            field "upper" offset=192 type="u7"
+            field "display" offset=256 bits="0..=3" type="display"
+            field "mode" offset=256 bits="4..=7" type="fader-mode"
+        }
+    }
+}
+
+// Fader 9 (the crossfader), five bytes per fader/button group. Bytes
+// 40..63 of the chunk are not read by the firmware's loader.
+block "fader9" size=64 count=18 status="decoded" evidence="firmware: setup loader reads 40 bytes" {
+    array "group" count=8 stride=5 {
+        field "channel" offset=0 bits="0..=3" type="channel"
+        field "type" offset=0 bits="4..=7" type="fader-type"
+        field "number" offset=1 type="u7"
+        field "lower" offset=2 type="u7"
+        field "upper" offset=3 type="u7"
+        field "display" offset=4 bits="0..=3" type="display"
+        field "mode" offset=4 bits="4..=7" type="fader-mode"
+    }
+}
+
+// Encoder group names, 4 characters each, in the device's own character
+// codes. Only "GrP" + digit is decoded (the default for an erased name:
+// 0x10 0x1A 0x18, then the group number 1..8); the rest of the table is not.
+block "names" size=32 count=18 status="decoded" evidence="firmware: setup loader; default name" {
+    array "group" count=8 stride=4 {
+        array "char" count=4 stride=1 type="u8" status="unknown" note="character table not decoded"
+    }
+}
+
+// Kept outside every dump: the editor can neither read nor write it.
+block "global" status="decoded" evidence="firmware: start-up reads both bytes; no dump covers them" {
+    field "setup" offset=0 type="u8" range="0..=17" note="current setup; 18 and up reset all setups to factory data"
+    field "routing" offset=1 type="routing"
+}
+
+param "controls.*.group.*.encoder.*.type" label="Type" group="Encoder" ui="combo"
+param "controls.*.group.*.encoder.*.channel" label="Channel" group="Encoder" ui="spin"
+param "controls.*.group.*.fader.*.mode" label="Snap / jump" group="Fader" ui="combo"
+param "controls.*.group.*.button.*.led" label="LED" group="Button" ui="combo"
+
+// ---- Setup dump --------------------------------------------------------
+//
+// One SysEx, no manufacturer id. Every value is a record of three bytes,
+// `4t 2h 1l`: tag t, then the value's high and low nibble (CDL §8.1,
+// `nib3`). Records of zeros are padding, and the device ignores any byte
+// whose high nibble is not 4, 2 or 1.
+//
+//   F0 00 00 00
+//   41 20 16          tag 1: device 6 (UC4); the receiver rejects others
+//   42 2h 1l          tag 2: dump kind
+//   43 2h 1l          tag 3, 44 2h 1l tag 4: two bytes the sender reads from
+//                     a second memory; the receiver stores them, checks
+//                     nothing. Meaning unknown.
+//   per chunk:
+//     49 2h 1l 4A 2h 1l   address high (0..7F), low
+//     4D 2h 1l  x n       n data bytes: 32 below 0x1700, else 64
+//     4B 2h 1l 4C 2h 1l   16-bit sum of the n data bytes, high, low
+//     00 x 30             padding (ten zero records)
+//   4F 20 16          tag 15: end, value 6
+//   F7
+//
+// The receiver checks the sum over the size the address implies, not over
+// the bytes received, and refuses addresses below 0x1480. Kind 2 remaps
+// the address onto the current setup; kind 3 writes it as given.
+
+// What the device sends after Sndc or SndA: a header, 22 or 430 chunks,
+// the end. The chunks go to the driver as one byte run.
+message "setup-dump" transport="usb" status="decoded" evidence="firmware: dump sender" {
+    arg "kind" type="dump-kind"
+    reply "F0 00 00 00 41 20 16 {kind:nib3(2)} {tag3:nib3(3)} {tag4:nib3(4)} {chunks*} 4F 20 16 F7"
+}
+
+// A dump of one chunk: the smallest the receiver accepts (it takes any
+// number of chunks between header and end). What an editor would send
+// after the user arms receive. Not sent by anything yet: no write procedure
+// exists until a capture of the device's own dump confirms the format.
+message "chunk-dump" transport="usb" kind="write" status="decoded" evidence="firmware: dump receiver" {
+    arg "kind" range="2..=3"
+    arg "device" range="6..=6"
+    send "F0 00 00 00 {device:nib3(1)} {kind:nib3(2)} {tag3:nib3(3)} {tag4:nib3(4)} {addr-hi:nib3(9)} {addr-lo:nib3(10)} {data:nib3-bytes(13)} {sum-hi:nib3(11)} {sum-lo:nib3(12)} 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 4F 20 16 F7"
+}
+
+// Splits `chunks` into address, data and sum, checks each sum, and maps
+// the addresses to blocks (names, fader9, controls; kind 2: of the setup
+// the dump was sent from, which the dump itself does not say).
+driver "faderfox-uc4-dump" provides="block:controls block:fader9 block:names" status="decoded" evidence="firmware: dump sender and receiver" {
+    // the sum is the 16-bit sum of the data bytes (decoded); CDL has no
+    // checksum of that shape, so the driver computes and checks it
+    owns "chunk" bytes="{addr-hi:nib3(9)} {addr-lo:nib3(10)} {data:nib3-bytes(13)} {sum-hi:nib3(11)} {sum-lo:nib3(12)} 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00" status="decoded" evidence="firmware: dump sender and receiver"
+}
+
+// ---- Performance -------------------------------------------------------
+// What the controls send (manual "Command type"). Nothing captured yet.
+message "cc" transport="usb" status="inferred" evidence="manual: CCr1, CCr2, CCAb, CCAh, button CC; quick: factory CCs" {
+    arg "ch" range="0..=15"
+    reply "{0xB0 + ch} {cc} {value}"
+}
+message "note-on" transport="usb" status="inferred" evidence="quick: buttons send note on when pressed" {
+    arg "ch" range="0..=15"
+    reply "{0x90 + ch} {note} {velocity}"
+}
+message "note-off" transport="usb" status="inferred" evidence="quick: note off when released; the byte form is not known" {
+    arg "ch" range="0..=15"
+    reply "{0x80 + ch} {note} {velocity}"
+}
+message "program" transport="usb" status="inferred" evidence="manual: PrGC" {
+    arg "ch" range="0..=15"
+    reply "{0xC0 + ch} {program}"
+}
+message "pressure" transport="usb" status="inferred" evidence="manual: AFtt" {
+    arg "ch" range="0..=15"
+    reply "{0xD0 + ch} {value}"
+}
+message "pitch-bend" transport="usb" status="inferred" evidence="manual: Pbnd, 0..16383" {
+    arg "ch" range="0..=15"
+    reply "{0xE0 + ch} {value:u14le}"
+}
+
+// `type` names a command type per kind of control (the enums above), not a
+// message: the mapping from type to message is the editor's, not data yet.
+midi-map transport="usb" status="inferred" evidence="manual: every control by channel, type and number" {
+    source "controls.group.encoder" count=64 kind="from-field" message="{type}" channel="{channel}"
+    source "controls.group.push" count=64 kind="from-field" message="{type}" channel="{channel}"
+    source "controls.group.button" count=64 kind="from-field" message="{type}" channel="{channel}"
+    source "controls.group.fader" count=64 kind="from-field" message="{type}" channel="{channel}"
+    source "fader9.group" count=8 kind="from-field" message="{type}" channel="{channel}"
+}
+
+// ---- Firmware update ---------------------------------------------------
+// The update file is the same record format: tag 1 = 6, tag 2 = 1
+// (firmware), tag 3/4 = the version (02 05 in V0205), tags 5..8 not
+// decoded; 154 pages of 256 bytes (tag 9/10 page number, 256 x tag 13, a
+// 16-bit check value in tags 11/12, 20 zero records), end 4F 20 16. The
+// bootloader takes it; its page check is not reproduced (not a 16-bit sum,
+// not a CRC-16), so the editor cannot build or check an image and does not
+// update firmware. Users send the vendor's file with a SysEx tool.
+message "firmware-file" transport="usb" kind="commit" status="unknown" evidence="update; firmware file container" {
+    send "F0 00 00 00 41 20 16 42 20 11 {rest:raw} F7"
+}
+
+driver "faderfox-firmware" status="unknown" note="would check the page values; algorithm unknown"
+
+firmware status="unknown" {
+    image format="faderfox-syx" magic="F0 00 00 00 41 20 16 42 20 11" driver="faderfox-firmware"
+    stage "transfer" kind="commit" {
+        send "firmware-file"
+    }
+    recovery "Hold the black shift key while plugging in the USB cable and release it when the display lights up; after 3 seconds the display shows Ud00. Send the file again. On UdEr, stop the transfer, press shift briefly and wait for Ud00 before you repeat it. Reconnect the cable afterwards."
+}
+
+// ---- Panel -------------------------------------------------------------
+// Positions are drawn, not measured: 8 push encoders, the 4-digit display,
+// shift and edit, 8 green buttons, 8 faders and fader 9 (crossfader).
+panel picture="720x420" source="drawn from the manual's control list, not to scale" status="inferred" {
+    repeat "n" "1..=8" {
+        control "enc{n}" kind="knob" label="Encoder {n}" group="Encoders" box="{20 + 80 * (n - 1)},20,50,50" bind="controls.group.encoder"
+    }
+    control "display" kind="meter" label="Display" group="Display" box="560,100,140,40"
+    control "shift" kind="button" label="Shift" group="Keys" box="560,160,60,30"
+    control "edit" kind="button" label="Edit" group="Keys" box="640,160,60,30"
+    repeat "n" "1..=8" {
+        control "btn{n}" kind="button" label="Button {n}" group="Buttons" box="{20 + 80 * (n - 1)},100,50,30" bind="controls.group.button"
+    }
+    repeat "n" "1..=8" {
+        control "fad{n}" kind="fader" label="Fader {n}" group="Faders" box="{30 + 80 * (n - 1)},150,30,180" bind="controls.group.fader"
+    }
+    control "fad9" kind="fader" label="Fader 9" group="Faders" box="200,360,280,40" bind="fader9.group"
+}
+
+labels "en" source="manual 'Factory settings', 'Ableton Live mode'" status="inferred" {
+    list "group-names-factory" {
+        item 1 "GrP1"
+        item 2 "GrP2"
+        item 3 "GrP3"
+        item 4 "GrP4"
+        item 5 "GrP5"
+        item 6 "GrP6"
+        item 7 "GrP7"
+        item 8 "GrP8"
+    }
+    list "group-names-live" {
+        item 1 "Snd1"
+        item 2 "Snd2"
+        item 3 "Snd3"
+        item 4 "Snd4"
+        item 5 "traC"
+        item 6 "RAC"
+        item 7 "PAn"
+        item 8 "GLOb"
+    }
+}
+
+// ---- Test vectors (synthetic data, built from the decoded format) --------
+// A one-chunk dump: setup kind, address 0x1C00, data 00..3F, sum 0x07E0.
+test-vector "chunk-dump-1c00" message="chunk-dump" status="decoded" evidence="firmware: dump receiver; synthetic data" {
+    args device=6 kind=2 tag3=0 tag4=0 addr-hi=0x1C addr-lo=0 sum-hi=0x07 sum-lo=0xE0
+    data "data" "00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 10 11 12 13 14 15 16 17 18 19 1A 1B 1C 1D 1E 1F 20 21 22 23 24 25 26 27 28 29 2A 2B 2C 2D 2E 2F 30 31 32 33 34 35 36 37 38 39 3A 3B 3C 3D 3E 3F"
+    bytes "F0 00 00 00 41 20 16 42 20 12 43 20 10 44 20 10 49 21 1C 4A 20 10 4D 20 10 4D 20 11 4D 20 12 4D 20 13 4D 20 14 4D 20 15 4D 20 16 4D 20 17 4D 20 18 4D 20 19 4D 20 1A 4D 20 1B 4D 20 1C 4D 20 1D 4D 20 1E 4D 20 1F 4D 21 10 4D 21 11 4D 21 12 4D 21 13 4D 21 14 4D 21 15 4D 21 16 4D 21 17 4D 21 18 4D 21 19 4D 21 1A 4D 21 1B 4D 21 1C 4D 21 1D 4D 21 1E 4D 21 1F 4D 22 10 4D 22 11 4D 22 12 4D 22 13 4D 22 14 4D 22 15 4D 22 16 4D 22 17 4D 22 18 4D 22 19 4D 22 1A 4D 22 1B 4D 22 1C 4D 22 1D 4D 22 1E 4D 22 1F 4D 23 10 4D 23 11 4D 23 12 4D 23 13 4D 23 14 4D 23 15 4D 23 16 4D 23 17 4D 23 18 4D 23 19 4D 23 1A 4D 23 1B 4D 23 1C 4D 23 1D 4D 23 1E 4D 23 1F 4B 20 17 4C 2E 10 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 4F 20 16 F7"
+}
+// The device's own dump framing around two synthetic padding-only bytes.
+test-vector "setup-dump-frame" message="setup-dump" reply=#true status="decoded" evidence="firmware: dump sender; synthetic body" {
+    args kind=2 tag3=0 tag4=0
+    bytes "F0 00 00 00 41 20 16 42 20 12 43 20 10 44 20 10 00 00 4F 20 16 F7"
+}
+test-vector "cc-factory-enc1" message="cc" reply=#true status="inferred" evidence="manual factory settings: setup 1, group 1, encoder 1 = CC 8 on channel 1" {
+    args ch=0 cc=8 value=64
+    bytes "B0 08 40"
+}

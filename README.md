@@ -11,7 +11,8 @@ typed IR.
 - [docs/CONCEPT.md](docs/CONCEPT.md): why and how
 - [docs/CDL.md](docs/CDL.md): the descriptor language
 - [docs/TODO.md](docs/TODO.md): the living plan
-- `descriptors/`: DB-1, TEC, Evolution UC-33, all 16 KORG devices (2 measured, 14
+- `descriptors/`: DB-1, TEC, Evolution UC-33, Faderfox UC4 (decoded from its
+  firmware, not yet measured), all 16 KORG devices (2 measured, 14
   generated skeletons), a firmware template
 - `crates/ctrl-cdl`: CDL loader: KDL 2.0 into a typed IR, includes merged,
   errors as `file:line:col`

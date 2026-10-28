@@ -15,7 +15,7 @@ editor lane (OMP, w5:p2) · **db1** / **tec** = whoever owns those repos ·
 **zigtact** = the LBMT owners · **user** = needs the owner's decision or
 hardware.
 
-Last updated: 2026-10-28 (CDL gaps closed, long SysEx, UC-33).
+Last updated: 2026-10-28 (CDL gaps closed, long SysEx, UC-33, Faderfox UC4).
 
 ## P0 Agree the concept
 
@@ -237,6 +237,26 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
   identity reply, no SysEx dump; messages classify what the controls send
 - [ ] uc33: bump UC33-Editor's ctrl-editor pin and drop its channel filter
   workaround now that reply ranges exist
+
+### Faderfox UC4
+
+- [x] platform: `descriptors/faderfox/uc4.ctrl.kdl` from the vendor manual
+  and firmware 02.05 (setup dump, stored layout, value codes decoded; no
+  unit measured). CDL got `field … bits=` and the `nib3` records (§4.3,
+  §8.1, 63487b5)
+- [ ] user: a home for the UC4 evidence: a private device repository (as
+  for the other devices), or keep it in the local analysis archive
+- [ ] user: USB ids and CoreMIDI port names from a unit (`identify usb`,
+  `port-match`); then a capture of Sndc and SndA through `ctrl-cli trace`
+  to move the dump from `decoded` to `measured`
+- [ ] platform: `faderfox-uc4-dump` driver: split a dump into chunks,
+  check the 16-bit sums, map addresses to `controls`, `fader9`, `names`;
+  or a CDL repeat for records inside one SysEx, if a second device needs it
+- [ ] platform: a write procedure (send a one-setup dump after the user arms
+  receive). blocked: a measured dump and the owner's go-ahead
+- [ ] user: the group-name character table, the dump header tags 3/4 and
+  the firmware page check value stay unknown (the bootloader is not in the
+  update file)
 
 ### TEC
 
