@@ -284,7 +284,17 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
 - [x] platform: M2 describers (CDL by descriptor, reply to the last
   request), view model (filters, folding, chips, alerts, details), capture
   filter
-- [ ] platform: M3 `ctrl-monitor-tui` and `ctrl-monitor-slint`
+- [x] platform: M3 `ctrl-monitor-tui` (ratatui pane, key map, demo) and
+  `ctrl-monitor-slint` (pane, window, demo, headless test on the Slint
+  testing backend, Weston in `tools/linux-check`). The Slint crate needs
+  Rust 1.92 (slint 1.18); the rest of the workspace keeps 1.85
+- [x] platform: view-model gaps the Slint pane found, fixed: alerts counted
+  once, `Scroll` for the wheel, the selection kept in a smaller window,
+  `SetTypes`, `SetTime`, stable `Row::stripe`
+- [ ] korg: M4 needs the Slint glue as a macro (or a `.slint` library the
+  editor compiles with its own bridge): Slint generates the bridge types
+  per crate, so `MonitorController` binds only this crate's components;
+  one pane per window while the bridge is a global
 - [ ] platform: `ctrl-monitor-midi`: passive taps and the virtual input in
   `ctrl-midi` (§6.1, §6.2). blocked: the UC4 lane's `ctrl-midi` send work
   (feat/faderfox-uc4) lands first

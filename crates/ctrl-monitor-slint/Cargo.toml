@@ -1,0 +1,21 @@
+[package]
+name = "ctrl-monitor-slint"
+description = "MIDI monitor, Slint front end: draws ctrl-monitor's View only (docs/MONITOR.md §5)"
+version.workspace = true
+edition.workspace = true
+# slint 1.18 needs Rust 1.92; the rest of the workspace keeps 1.85.
+rust-version = "1.92"
+publish.workspace = true
+
+[dependencies]
+ctrl-monitor = { path = "../ctrl-monitor" }
+slint = "1"
+
+[build-dependencies]
+slint-build = "1"
+
+[dev-dependencies]
+# Headless window and software rendering for the tests and the snapshot
+# example. Internal Slint crate: its version must match `slint` exactly.
+i-slint-backend-testing = { version = "=1.18.1", features = ["renderer-software"] }
+image = { version = "0.25", default-features = false, features = ["png"] }
