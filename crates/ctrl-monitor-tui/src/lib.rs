@@ -352,8 +352,8 @@ impl MonitorPane {
             details.retain(|(seq, _)| rows.iter().any(|r| r.seq == *seq));
         }
         let mut lines = Vec::with_capacity(height);
-        for (n, row) in rows.iter().enumerate() {
-            lines.push(self.row_line(row, n, widths));
+        for row in &rows {
+            lines.push(self.row_line(row, widths));
             if let Some((_, d)) = details.iter().find(|(s, _)| *s == row.seq) {
                 lines.extend(self.detail_block(d));
             }
@@ -362,7 +362,7 @@ impl MonitorPane {
         Paragraph::new(lines.into_iter().skip(skip).collect::<Vec<_>>()).render(area, buf);
     }
 
-    fn row_line(&self, row: &Row, n: usize, w: &Columns) -> Line<'static> {
+    fn row_line(&self, row: &Row, w: &Columns) -> Line<'static> {
         let tone = Style::default().fg(rgb(row.tone, self.dark));
         let dim = Style::default().fg(Color::DarkGray);
         // The fold count and spark line are kept whole; the value is cut.
@@ -406,7 +406,7 @@ impl MonitorPane {
         let mut line = Line::from(spans);
         if row.selected {
             line = line.style(Style::default().add_modifier(Modifier::REVERSED));
-        } else if n % 2 == 1 {
+        } else if row.stripe {
             line = line.style(Style::default().bg(if self.dark {
                 Color::Rgb(0x1c, 0x1c, 0x1c)
             } else {

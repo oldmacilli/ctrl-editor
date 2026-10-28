@@ -144,6 +144,9 @@ struct RowData {
     last: u64,
     count: u32,
     cc: Option<CcRun>,
+    /// Counts rows since the view was built, so stripes stay put when old
+    /// rows leave.
+    n: u64,
 }
 
 /// Values a spark line keeps.
@@ -176,6 +179,8 @@ pub struct Row {
     pub expandable: bool,
     pub selected: bool,
     pub expanded: bool,
+    /// Shade this row: alternating, stable while rows scroll away.
+    pub stripe: bool,
     /// The folded controller's latest values.
     pub spark: Vec<u8>,
 }
@@ -273,6 +278,12 @@ pub enum Command {
     ToggleOnlyDescribed,
     /// Select the row holding this event.
     Select(u64),
+    /// Move the window by lines without touching the selection (the wheel).
+    Scroll(i64),
+    /// The whole type filter at once (a filter group).
+    SetTypes(TypeMask),
+    /// A time format, e.g. the wall clock with the local offset.
+    SetTime(TimeFormat),
 }
 
 /// A chip and the smoothed clock spacing behind its tempo.
@@ -290,6 +301,10 @@ pub struct View {
     paused: bool,
     chips: BTreeMap<(PortIdx, Dir, Class), ChipState>,
     alerts: BTreeMap<AlertKind, (u64, Option<u64>)>,
+    /// Events from here on have not been counted for alerts yet: a rebuild
+    /// after a filter change does not count them again.
+    alerts_next: u64,
+    rows_made: u64,
     follow: bool,
     top: usize,
     page: usize,
@@ -307,6 +322,8 @@ impl View {
             paused: false,
             chips: BTreeMap::new(),
             alerts: BTreeMap::new(),
+            alerts_next: 0,
+            rows_made: 0,
             follow: true,
             top: 0,
             page: 20,
@@ -379,7 +396,10 @@ impl View {
 
     fn take(&mut self, store: &Store, e: &Event) {
         let class = Class::of(&e.msg, self.state.style.raw);
-        self.note_alerts(store, e);
+        if e.seq >= self.alerts_next {
+            self.note_alerts(store, e);
+            self.alerts_next = e.seq + 1;
+        }
         if !self.passes(store, e, class) {
             return;
         }
@@ -405,11 +425,9 @@ impl View {
                             return;
                         }
                     }
-                    self.rows.push_back(RowData {
-                        first: e.seq,
-                        last: e.seq,
-                        count: 1,
-                        cc: Some(CcRun {
+                    self.push_row(
+                        e.seq,
+                        Some(CcRun {
                             key,
                             first: d2,
                             last: d2,
@@ -417,16 +435,23 @@ impl View {
                             max: d2,
                             recent: VecDeque::from([d2]),
                         }),
-                    });
+                    );
                     return;
                 }
             }
         }
+        self.push_row(e.seq, None);
+    }
+
+    fn push_row(&mut self, seq: u64, cc: Option<CcRun>) {
+        let n = self.rows_made;
+        self.rows_made += 1;
         self.rows.push_back(RowData {
-            first: e.seq,
-            last: e.seq,
+            first: seq,
+            last: seq,
             count: 1,
-            cc: None,
+            cc,
+            n,
         });
     }
 
@@ -571,8 +596,19 @@ impl View {
     /// The rows a front end with `height` lines shows now, and sets the
     /// page size for paging.
     pub fn window(&mut self, height: usize) -> Range<usize> {
+        let shrunk = height.max(1) < self.page;
         self.page = height.max(1);
         let len = self.rows.len();
+        if !self.follow && shrunk {
+            // A smaller window still shows the selection.
+            if let Some(i) = self.selected_index() {
+                if i >= self.top + self.page {
+                    self.top = i + 1 - self.page;
+                } else if i < self.top {
+                    self.top = i;
+                }
+            }
+        }
         let start = if self.follow {
             len.saturating_sub(height)
         } else {
@@ -650,6 +686,7 @@ impl View {
             expandable: !notes.is_empty() || e.msg.blob().is_some(),
             selected: self.selected == Some(data.first),
             expanded: self.expanded.contains(&data.first),
+            stripe: data.n % 2 == 1,
             spark,
         }
     }
@@ -719,9 +756,31 @@ impl View {
                     self.update(store);
                 }
             }
+            Command::Scroll(lines) => {
+                let len = self.rows.len();
+                let max_top = len.saturating_sub(self.page);
+                let from = if self.follow {
+                    max_top
+                } else {
+                    self.top.min(max_top)
+                };
+                let top = (from as i64 + lines).clamp(0, max_top as i64) as usize;
+                self.top = top;
+                self.follow = top >= max_top && lines > 0;
+                if self.follow {
+                    self.selected = None;
+                }
+            }
+            Command::SetTypes(types) => {
+                let mut s = self.state.clone();
+                s.types = types;
+                self.set_state(s, store);
+            }
+            Command::SetTime(time) => self.state.time = time,
             Command::Clear => {
                 store.clear();
                 self.alerts.clear();
+                self.alerts_next = store.next_seq();
                 self.selected = None;
                 self.expanded.clear();
                 self.follow = true;
@@ -1213,6 +1272,107 @@ mod tests {
         }
         assert_eq!(view.len(), 3);
         assert_eq!(view.rows(&store, 0..3)[0].seq, 2);
+    }
+
+    #[test]
+    fn a_filter_change_does_not_count_alerts_again() {
+        let mut f = fixture();
+        let cut = Parsed::SysEx {
+            at: at(0),
+            bytes: vec![0xF0, 0x42],
+            end: SysExEnd::Cut(0x90),
+        };
+        f.store.record(f.port, Dir::In, cut);
+        f.rows();
+        f.view.apply(Command::ToggleFold, &mut f.store);
+        f.view
+            .apply(Command::SetTypes(TypeMask::NONE), &mut f.store);
+        assert_eq!(f.view.alerts(&f.store)[0].count, 1);
+        f.view.apply(Command::Clear, &mut f.store);
+        assert!(f.view.alerts(&f.store).is_empty());
+        assert_eq!(f.rows().len(), 0);
+    }
+
+    #[test]
+    fn the_wheel_scrolls_without_moving_the_selection() {
+        let mut f = fixture();
+        for n in 0..50 {
+            f.voice(n, 0x90, n as u8, 1);
+        }
+        f.rows();
+        f.view.window(10);
+        f.view.apply(Command::Up, &mut f.store);
+        f.view.apply(Command::Up, &mut f.store);
+        let selected = f.view.selected();
+        f.view.apply(Command::Scroll(-15), &mut f.store);
+        assert_eq!(f.view.window(10), 24..34);
+        assert_eq!(f.view.selected(), selected);
+        f.view.apply(Command::Scroll(100), &mut f.store);
+        assert!(f.view.is_following());
+        assert_eq!(f.view.window(10), 40..50);
+    }
+
+    #[test]
+    fn a_smaller_window_keeps_the_selection_in_view() {
+        let mut f = fixture();
+        for n in 0..50 {
+            f.voice(n, 0x90, n as u8, 1);
+        }
+        f.rows();
+        f.view.window(20);
+        f.view.apply(Command::Home, &mut f.store);
+        for _ in 0..15 {
+            f.view.apply(Command::Down, &mut f.store);
+        }
+        assert_eq!(f.view.selected(), Some(15));
+        let w = f.view.window(5);
+        assert!(w.contains(&15), "{w:?}");
+    }
+
+    #[test]
+    fn stripes_stay_put_when_old_rows_leave() {
+        let mut store = Store::new(StoreConfig {
+            events: 4,
+            bytes: 100,
+        });
+        let port = store.port(PortRef::new(PortKind::Alsa, "a", "A"));
+        let mut view = View::new(ViewState::default());
+        let note = |n| Parsed::Voice {
+            at: at(n),
+            status: 0x90,
+            d1: n as u8,
+            d2: 1,
+        };
+        for n in 0..4 {
+            store.record(port, Dir::In, note(n));
+        }
+        view.update(&store);
+        let before: Vec<(u64, bool)> = view
+            .rows(&store, 0..4)
+            .iter()
+            .map(|r| (r.seq, r.stripe))
+            .collect();
+        store.record(port, Dir::In, note(4));
+        view.update(&store);
+        let after: Vec<(u64, bool)> = view
+            .rows(&store, 0..4)
+            .iter()
+            .map(|r| (r.seq, r.stripe))
+            .collect();
+        assert_eq!(before[1..], after[..3]);
+    }
+
+    #[test]
+    fn set_time_takes_the_local_offset() {
+        let mut f = fixture();
+        f.voice(1500, 0x90, 60, 1);
+        f.view.apply(
+            Command::SetTime(TimeFormat::Wall {
+                utc_offset_min: -60,
+            }),
+            &mut f.store,
+        );
+        assert_eq!(f.rows()[0].time, "00:00:01.500");
     }
 
     #[test]
