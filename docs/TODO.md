@@ -142,7 +142,11 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
   `db1-midi`), `HidDevice` trait (shape of `tec-device`), mocks that replay
   captures
 - [ ] platform: `ctrl-engine`: procedure runner (exchange, repeat, verify
-  with paths, gates, restore points, tx log from `db1-session`)
+  with paths, gates, restore points, tx log from `db1-session`). First
+  slice in place (send, exchange, await, gate, restore-point, verify,
+  call, repeat over ranges, delay, ok-when, require; editor and device
+  documents with addressed memory); missing: read-into, from=, drivers,
+  expect-identity, HID, the tx log
 - [ ] platform+db1: DB-1 runs on `ctrl-engine` from its descriptor; every
   `db1-protocol` test vector reproduced byte for byte
 - [ ] platform+korg: adapters so the engine and front ends can drive
@@ -255,9 +259,14 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
 - [x] user+platform: write measured on 02.03: a one-setup dump (kind 2)
   into SE16, read back, restored; final dump byte-identical. A one-chunk
   kind-3 dump was not stored (`dump-out-all` stays decoded)
-- [ ] platform: a write procedure for `dump-out`: blocks → records → one
-  SysEx, behind a gate that tells the user to select the setup and arm
-  receive; procedures cannot yet build a `records` array from blocks
+- [x] platform: UC4 `write-setup` (kind 2) as CDL: `await` for dumps the
+  user starts, `records-from` builds the records from blocks, backup as
+  restore point, verify against both copies; `ctrl-engine` (first slice)
+  and `ctrl-cli run`; tests rebuild the measured file byte for byte
+- [ ] user+platform: run `write-setup` end to end on the unit, then mark it
+  measured
+- [ ] user+platform: a full kind-3 write (restore a backup): paced records
+  (`pace=20`, inferred) on `dump-out-all`; then a `restore-all` procedure
 - [ ] user: still unknown: the rest of the group-name character table
   (K, E, …), why a one-chunk kind-3 dump is not stored, and the firmware
   page check value (the bootloader is not in the update file)

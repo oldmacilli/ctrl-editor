@@ -575,6 +575,7 @@ pub static SCHEMA: &[NodeSpec] = &[
             p("pattern", "the named pattern of one record"),
             p("address", "expression: a record's memory address"),
             p("data", "the record's data bytes, a byte array of the pattern"),
+            p("pace", "ms the host waits after each record it sends"),
         ]),
         true,
         "8.3",
@@ -628,7 +629,19 @@ pub static SCHEMA: &[NodeSpec] = &[
         "11",
         "Send, or send and wait for the reply. Properties are message arguments, \
        except `into` (block path for the reply), `from` (block path for the \
-       template) and `timeout`.",
+       template), `records-from` (block paths that fill the message's \
+       `records`, §8.3) and `timeout`.",
+    ),
+    n(
+        "step await",
+        (1, 1),
+        "a message",
+        None,
+        false,
+        "11",
+        "Wait up to `timeout` ms for a message the device sends by itself (a dump \
+       the user starts). Properties are values the reply must carry, except \
+       `into` and `timeout`. A reply with `records` fills the addressed blocks.",
     ),
     n(
         "step repeat",

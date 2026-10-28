@@ -13,7 +13,7 @@
 ; Procedure steps
 ((node name: (identifier) @keyword.function)
   (#any-of? @keyword.function
-    "send" "exchange" "repeat" "read-into" "delay" "verify" "gate"
+    "send" "exchange" "await" "repeat" "read-into" "delay" "verify" "gate"
     "restore-point" "require" "call" "expect-identity" "ok-when"))
 
 ; Nodes inside the others

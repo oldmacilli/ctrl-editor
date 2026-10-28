@@ -182,7 +182,12 @@ impl Codec<'_> {
                 }
                 out
             }
-            _ => vec![(name.to_string(), full)],
+            _ => {
+                if let Some(paced) = self.paced(m, args, &full, limit)? {
+                    return Ok(vec![paced]);
+                }
+                vec![(name.to_string(), full)]
+            }
         };
         Ok(frames
             .into_iter()
@@ -207,6 +212,79 @@ impl Codec<'_> {
                 }
             })
             .collect())
+    }
+}
+
+impl<'d> Codec<'d> {
+    /// A message whose `records` carry `pace` (CDL §8.3): one host write per
+    /// record (the first with the bytes before the records, the last with
+    /// those after), the pause after each; a write over the transport's
+    /// `sysex-limit` is split further.
+    fn paced(
+        &self,
+        m: &'d ctrl_cdl::Message,
+        args: &Bindings,
+        full: &[u8],
+        limit: Option<(usize, u32)>,
+    ) -> Result<Option<Planned>, CodecError> {
+        let Some((r, pace)) = m.records.iter().find_map(|r| r.pace.map(|p| (r, p))) else {
+            return Ok(None);
+        };
+        let Some(Val::Bytes(array)) = args.get(&r.name) else {
+            return Ok(None);
+        };
+        let records = self.decode_records(&m.name, &r.name, array)?;
+        // where the array sits: encode without it and compare
+        let mut empty_args = args.clone();
+        empty_args.insert(r.name.clone(), Val::Bytes(Vec::new()));
+        let empty = self.encode(&m.name, &empty_args)?;
+        let len = array.len();
+        let mut at = empty.iter().zip(full).take_while(|(a, b)| a == b).count();
+        at = at.min(empty.len());
+        while at > 0 && empty[at..] != full[at + len..] {
+            at -= 1;
+        }
+        if full[at..at + len] != array[..] {
+            return Err(CodecError::Unsupported(format!(
+                "cannot place records `{}` in `{}`",
+                r.name, m.name
+            )));
+        }
+        // cut after each record
+        let mut cuts = Vec::new();
+        let mut pos = at;
+        for rec in &records {
+            let one = self.encode_records(&m.name, &r.name, std::slice::from_ref(&rec.values))?;
+            pos += one.len();
+            cuts.push(pos);
+        }
+        if let Some(last) = cuts.last_mut() {
+            *last = full.len();
+        }
+        let mut writes = Vec::new();
+        let mut start = 0;
+        for cut in cuts {
+            let piece = &full[start..cut];
+            let parts = match limit {
+                Some((l, _)) => split_sysex(piece, l),
+                None => vec![piece.to_vec()],
+            };
+            let n = parts.len();
+            for (i, bytes) in parts.into_iter().enumerate() {
+                let delay_ms = if i + 1 == n {
+                    pace
+                } else {
+                    limit.map_or(0, |l| l.1)
+                };
+                writes.push(Write { bytes, delay_ms });
+            }
+            start = cut;
+        }
+        Ok(Some(Planned {
+            message: m.name.clone(),
+            frame: full.to_vec(),
+            writes,
+        }))
     }
 }
 

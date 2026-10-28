@@ -560,3 +560,23 @@ fn records_derive_and_addressed_blocks_are_checked() {
         "`chunk` needs an `address` and a `size` that it divides",
     );
 }
+
+#[test]
+fn await_and_records_from_are_checked() {
+    let base = "transport \"m\" kind=\"midi\" role=\"config\" status=\"measured\"\n\
+                message \"cc\" transport=\"m\" status=\"measured\" { send \"B0 01 {v}\" }\n\
+                block \"b\" size=4 address=0 { field \"x\" offset=0 type=\"u8\" }\n";
+    assert_one(
+        errors(&format!(
+            "{base}procedure \"p\" kind=\"read\" {{ await \"cc\" }}"
+        )),
+        "`await` waits for a reply",
+    );
+    assert_one(
+        errors(&format!(
+            "{base}procedure \"p\" kind=\"write\" {{ gate \"confirm\"; restore-point \"b\"\n\
+             send \"cc\" v=1 records-from=\"b\" }}"
+        )),
+        "has no `records`",
+    );
+}

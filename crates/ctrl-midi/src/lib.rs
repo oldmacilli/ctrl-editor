@@ -317,6 +317,28 @@ pub fn open_output(backend: Backend, port: &Port, policy: SysexPolicy) -> Result
 }
 
 impl Output {
+    /// Sends a planned message (`Codec::plan`): each write as it is, then
+    /// its pause. On JACK the writes are joined and sent as one event.
+    pub fn send_writes(&mut self, writes: &[ctrl_codec::Write]) -> Result<(), Error> {
+        match &mut self.inner {
+            OutputInner::Midir(conn) => {
+                for w in writes {
+                    conn.send(&w.bytes)
+                        .map_err(|e| Error::Backend(e.to_string()))?;
+                    if w.delay_ms > 0 {
+                        std::thread::sleep(Duration::from_millis(u64::from(w.delay_ms)));
+                    }
+                }
+                Ok(())
+            }
+            #[cfg(feature = "jack")]
+            OutputInner::Jack(j) => {
+                let joined: Vec<u8> = writes.iter().flat_map(|w| w.bytes.clone()).collect();
+                j.send(&joined)
+            }
+        }
+    }
+
     /// Sends one whole message. On midir backends a SysEx longer than the
     /// policy's limit goes out in pieces with the policy's pause between
     /// them; JACK sends it as one event.

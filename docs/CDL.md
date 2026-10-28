@@ -684,6 +684,21 @@ The validator checks that the array exists in the message, that the
 pattern exists, that `address=` and `data=` name values of the pattern, and
 that a block's `chunk` divides its `size` and comes with an `address`.
 
+`pace=` on `records` is the time in milliseconds the host waits after each
+record it sends; `Codec::plan` then makes one host write per record (the
+first with the bytes before the records, the last with those after),
+split further by the transport's `sysex-limit`. A device that stores each
+record before it can take the next needs it.
+
+A procedure fills the array from blocks with `records-from` (§11): the
+engine takes each named block element from the editor document, cuts it
+into `chunk` pieces, binds `address` and the data, and lets `derive` do
+the rest:
+
+```kdl
+send "dump-out" kind=2 records-from="names[setup] fader9[setup] controls[setup]"
+```
+
 ## 9. USB parameter patching
 
 HID and bulk frames use the same messages as SysEx, with 8-bit bytes. The
@@ -852,6 +867,7 @@ A procedure is an ordered list of steps:
 | `gate "arm"` / `gate "confirm"` | write policy (below) |
 | `restore-point "block…"` | snapshot before writing |
 | `require #"firmware >= 0x0210"#` | precondition, LBMT expression |
+| `await "msg" timeout=…` | wait for a message the device sends by itself (a dump the user starts on the device); properties are values it must carry, `kind=3` |
 | `call "procedure"` | sub-procedure |
 | `driver "name" step="…"` | Rust step (§14) |
 
@@ -865,6 +881,23 @@ procedure "write-all" kind="write" transport="aux" {
     verify "read-all"
 }
 ```
+
+Step properties are message arguments, numbers or `{expressions}` over the
+run's variables (`setup=15` on the command line) and the values earlier
+replies captured (`fw-major="{fw-major}"`). Gate texts may hold
+`{expressions}` too: `SE{setup + 1}`.
+
+`ctrl-engine` runs procedures with two documents: the **editor document**
+(what the user wants on the device: loaded from a dump file, edited by
+path) and the **device document** (what the device sent during the run). A
+`restore-point` needs the device document to hold the named blocks and
+hands the raw messages to the operator to keep; nothing is written until it
+is kept. A `send` with `records-from` takes its data from the editor
+document. A `verify` runs a read procedure into a fresh device document and
+compares the paths with the editor document. `ctrl-cli run` drives it from
+a terminal (gates answered `yes` on stdin, restore points kept in
+`--backup-dir`, nothing sent without `--apply`; `--replay` files stand in
+for the device in a dry run).
 
 The write policy is the same for every device:
 

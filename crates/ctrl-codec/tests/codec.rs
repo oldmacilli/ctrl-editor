@@ -817,3 +817,33 @@ message "out" transport="m" kind="write" {
     wrong.insert("s-lo".into(), int(0));
     assert!(codec.encode_records("out", "recs", &[wrong]).is_err());
 }
+
+#[test]
+fn paced_records_go_out_one_write_each() {
+    let d = synthetic(
+        r#"transport "m" kind="midi" role="config"
+pattern "rec" "{a:nib3(9)} {data:nib3-bytes(13)}"
+message "out" transport="m" kind="write" {
+    send "F0 01 {recs:raw} F7"
+    records "recs" pattern="rec" address="a" data="data" pace=20 { derive "a" "address" }
+}"#,
+    );
+    let codec = Codec::new(&d);
+    let recs = codec
+        .records_for("out", "recs", &[(1, vec![7]), (2, vec![8, 9])])
+        .unwrap();
+    let array = codec.encode_records("out", "recs", &recs).unwrap();
+    let plan = codec
+        .plan("out", &args(&[("recs", Val::Bytes(array))]))
+        .unwrap();
+    let writes = &plan[0].writes;
+    assert_eq!(writes.len(), 2);
+    assert_eq!(
+        writes[0].bytes,
+        [0xF0, 0x01, 0x49, 0x20, 0x11, 0x4D, 0x20, 0x17]
+    );
+    assert_eq!(writes[0].delay_ms, 20);
+    assert_eq!(writes[1].bytes.last(), Some(&0xF7));
+    let joined: Vec<u8> = writes.iter().flat_map(|w| w.bytes.clone()).collect();
+    assert_eq!(joined, plan[0].frame);
+}

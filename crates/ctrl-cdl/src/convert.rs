@@ -1235,6 +1235,7 @@ fn message(cx: &mut Cx, n: &RawNode) -> Message {
                     element,
                     address: cx.prop_str(c, "address"),
                     data: cx.prop_str(c, "data"),
+                    pace: cx.prop_u32(c, "pace"),
                 });
             }
             "arg" => {
@@ -1398,22 +1399,29 @@ fn steps(cx: &mut Cx, parent: &str, nodes: &[RawNode]) -> Vec<Step> {
 fn step(cx: &mut Cx, parent: &str, n: &RawNode) -> Option<Step> {
     let meta = cx.meta(n);
     let step = match n.name.as_str() {
-        "send" | "exchange" => {
+        "send" | "exchange" | "await" => {
             // Every property but these is a message argument.
-            const RESERVED: &[&str] = &["into", "from", "timeout"];
-            cx.node(n, "step send|exchange");
+            const RESERVED: &[&str] = &["into", "from", "records-from", "timeout"];
+            if n.name == "await" {
+                cx.node(n, "step await");
+            } else {
+                cx.node(n, "step send|exchange");
+            }
             let s = MessageStep {
                 message: cx.name(n),
                 args: cx.args(n, RESERVED),
                 into: cx.prop_with(n, "into", Path::parse),
                 from: cx.prop_with(n, "from", Path::parse),
+                records_from: cx
+                    .prop_with(n, "records-from", Path::parse_list)
+                    .unwrap_or_default(),
                 timeout: cx.prop_u32(n, "timeout"),
                 meta,
             };
-            if n.name == "send" {
-                Step::Send(s)
-            } else {
-                Step::Exchange(s)
+            match n.name.as_str() {
+                "send" => Step::Send(s),
+                "exchange" => Step::Exchange(s),
+                _ => Step::Await(s),
             }
         }
         "repeat" => {

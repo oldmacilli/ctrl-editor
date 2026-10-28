@@ -608,6 +608,8 @@ pub struct Records {
     pub address: Option<String>,
     /// The record's data bytes, a byte array of the pattern.
     pub data: Option<String>,
+    /// Milliseconds the host waits after each record it sends (§8.3).
+    pub pace: Option<u32>,
 }
 
 /// `arg "s" index="sensor"` or `arg "x" range="0..=3"`: the values a
@@ -725,6 +727,9 @@ pub enum RepeatOver {
 pub enum Step {
     Send(MessageStep),
     Exchange(MessageStep),
+    /// Wait for a message the device sends by itself, as a dump the user
+    /// starts on the device (§11).
+    Await(MessageStep),
     Repeat {
         meta: Meta,
         var: String,
@@ -790,6 +795,9 @@ pub struct MessageStep {
     pub into: Option<Path>,
     /// Take template fields from here.
     pub from: Option<Path>,
+    /// Build the message's `records` from these addressed block elements
+    /// (§8.3), in this order.
+    pub records_from: Vec<Path>,
     pub timeout: Option<u32>,
 }
 

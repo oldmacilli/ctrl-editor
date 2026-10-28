@@ -143,6 +143,8 @@ version = "0.1.0"
 dependencies = [
  "ctrl-cdl",
  "ctrl-codec",
+ "ctrl-engine",
+ "ctrl-midi",
  "serde_json",
 ]
 
@@ -158,6 +160,15 @@ name = "ctrl-descriptors"
 version = "0.1.0"
 dependencies = [
  "ctrl-cdl",
+]
+
+[[package]]
+name = "ctrl-engine"
+version = "0.1.0"
+dependencies = [
+ "ctrl-cdl",
+ "ctrl-codec",
+ "ctrl-descriptors",
 ]
 
 [[package]]

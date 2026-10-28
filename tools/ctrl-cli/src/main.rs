@@ -3,6 +3,9 @@
 //!     ctrl-cli check <file>...
 //!     ctrl-cli explain <file> <message> [name=value]...
 //!     ctrl-cli trace <file> <capture>...
+//!     ctrl-cli run <file> <procedure> [options]
+
+mod run;
 
 use std::collections::BTreeSet;
 use std::process::ExitCode;
@@ -15,6 +18,7 @@ usage: ctrl-cli check <file>...
        ctrl-cli explain <file> <message> [name=value]...
        ctrl-cli trace <file> [--matched] <capture>...
        ctrl-cli schema > docs/cdl-schema.md
+       ctrl-cli run <file> <procedure> [var=value] [options]
 
 check    load and validate each descriptor, check its images, run its test
          vectors and list send paths that are not measured or decoded
@@ -44,12 +48,15 @@ fn main() -> ExitCode {
                 .collect();
             trace(&args[1], &rest, matched_only)
         }
+        Some("run") if args.len() > 2 => {
+            load(&args[1]).and_then(|d| run::run(&d, &args[2], &args[3..]))
+        }
         Some("schema") if args.len() == 1 => {
             print!("{}", ctrl_cdl::schema::markdown());
             Ok(true)
         }
         Some("-h" | "--help" | "help") => {
-            println!("{USAGE}");
+            println!("{USAGE}\n{}", run::USAGE);
             Ok(true)
         }
         _ => Err(USAGE.to_string()),

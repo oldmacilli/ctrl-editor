@@ -317,12 +317,47 @@ message "dump-out" transport="usb" kind="write" status="measured" evidence="unit
 message "dump-out-all" transport="usb" kind="write" status="decoded" evidence="firmware 02.05: dump receiver; unit 02.03: a one-chunk dump was not stored" {
     arg "kind" range="3..=3"
     send "F0 00 00 00 41 20 16 {kind:nib3(2)} {fw-major:nib3(3)} {fw-minor:nib3(4)} {chunks:raw} 4F 20 16 F7"
-    records "chunks" pattern="dump-chunk" address="(addr-hi << 8) | addr-lo" data="data" {
+    // a pause after each chunk, so the device can store one before the next
+    // arrives (inferred; 02.03 stored nothing from an unpaced one-chunk dump)
+    records "chunks" pattern="dump-chunk" address="(addr-hi << 8) | addr-lo" data="data" pace=20 {
         derive "addr-hi" "address >> 8"
         derive "addr-lo" "address & 0xFF"
         derive "sum-hi" "(data.sum >> 8) & 0xFF"
         derive "sum-lo" "data.sum & 0xFF"
     }
+}
+
+// ---- Procedures (CDL §11) ----------------------------------------------
+// The UC4 has no request message: every read is a dump the user starts on
+// the device, and every write needs receive armed on the device. The gates
+// say what to press; the engine waits for the dump. Kind-3 (all setups)
+// writes have no procedure: `dump-out-all` is not confirmed.
+
+// All setups, stored copy (SndA). Also the restore point of every write.
+procedure "read-all" kind="read" transport="usb" status="measured" evidence="unit, firmware 02.03: SndA 2026-10-28" {
+    gate "confirm" text="On the UC4, setup mode must be on (red setup LED; if it is off, hold Shift and press Edit twice). Confirm here, then within 5 minutes hold encoder 8's push button until the bars run (SndA: Sn00..Sn99). Stay in setup mode."
+    await "dump" kind=3 timeout=300000
+}
+
+// The current setup (Sndc). On firmware 02.03 this is the working copy:
+// read it before leaving setup mode, which stores the working copy.
+procedure "read-setup" kind="read" transport="usb" status="measured" evidence="unit, firmware 02.03: Sndc 2026-10-28" {
+    gate "confirm" text="Still in setup mode, on SE{setup + 1}: confirm here, then hold encoder 4's push button until the bars run (Sndc; the display may show nothing). Do not leave setup mode yet."
+    await "dump" kind=2 timeout=300000
+}
+
+// One setup from the document into setup `setup` (0-based; SE{setup + 1}).
+// A backup of all setups comes first and is kept; then the user selects the
+// setup and arms receive; then the write; then both copies are read back
+// and compared. Leave setup mode only after the run has verified.
+procedure "write-setup" kind="write" transport="usb" status="decoded" evidence="sends the bytes of the measured kind-2 write (SE16, 2026-10-28); the procedure itself not yet run on the unit" {
+    call "read-all"
+    restore-point "names" "fader9" "controls"
+    gate "confirm" text="This overwrites setup SE{setup + 1} on the UC4 (names, fader 9, all controls). In setup mode, turn encoder 1 to SE{setup + 1}, then hold encoder 7's push button until the display shows rEc, then rc00. Do not press Shift. Confirm when it shows rc00."
+    send "dump-out" kind=2 fw-major="{fw-major}" fw-minor="{fw-minor}" records-from="names[setup] fader9[setup] controls[setup]"
+    verify "read-all" compare="names[setup] fader9[setup] controls[setup]"
+    verify "read-setup" compare="names[setup] fader9[setup] controls[setup]"
+    gate "confirm" text="Verified: SE{setup + 1} on the UC4 holds the document. Press Edit (without Shift) to leave setup mode, then confirm."
 }
 
 // ---- Performance -------------------------------------------------------

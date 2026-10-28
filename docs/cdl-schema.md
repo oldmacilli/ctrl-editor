@@ -504,6 +504,7 @@ A run of addressed records inside one message. (§8.3)
 | `pattern` | the named pattern of one record |
 | `address` | expression: a record's memory address |
 | `data` | the record's data bytes, a byte array of the pattern |
+| `pace` | ms the host waits after each record it sends |
 
 ## `message/records/derive`
 
@@ -541,7 +542,15 @@ Steps the editor runs. (§11)
 
 ## `step send`, `exchange`
 
-Send, or send and wait for the reply. Properties are message arguments, except `into` (block path for the reply), `from` (block path for the template) and `timeout`. (§11)
+Send, or send and wait for the reply. Properties are message arguments, except `into` (block path for the reply), `from` (block path for the template), `records-from` (block paths that fill the message's `records`, §8.3) and `timeout`. (§11)
+
+- Arguments: 1: a message
+- Children: none
+- Properties: any (see above)
+
+## `step await`
+
+Wait up to `timeout` ms for a message the device sends by itself (a dump the user starts). Properties are values the reply must carry, except `into` and `timeout`. A reply with `records` fills the addressed blocks. (§11)
 
 - Arguments: 1: a message
 - Children: none

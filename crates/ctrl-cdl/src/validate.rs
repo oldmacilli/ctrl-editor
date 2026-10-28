@@ -1062,6 +1062,7 @@ impl<'d> V<'d> {
             match step {
                 Step::Send(s) => self.message_step(what, kind, runnable, s, false),
                 Step::Exchange(s) => self.message_step(what, kind, runnable, s, true),
+                Step::Await(s) => self.await_step(s),
                 Step::Repeat { steps, .. } => self.steps(what, kind, runnable, steps),
                 Step::ReadInto { meta, target, .. } => self.path(meta.pos, target),
                 Step::Verify {
@@ -1100,6 +1101,50 @@ impl<'d> V<'d> {
         }
     }
 
+    /// `await` (§11): a message with a reply; nothing is sent.
+    fn await_step(&mut self, s: &MessageStep) {
+        for path in s.into.iter().chain(&s.from).chain(&s.records_from) {
+            self.path(s.meta.pos, path);
+        }
+        match self.d.message(&s.message) {
+            None => self.error(s.meta.pos, format!("unknown message `{}`", s.message)),
+            Some(m) if m.replies.is_empty() => self.error(
+                s.meta.pos,
+                format!("`await` waits for a reply, and `{}` has none", m.name),
+            ),
+            Some(_) => {}
+        }
+        if !s.records_from.is_empty() || s.from.is_some() {
+            self.error(
+                s.meta.pos,
+                "`await` sends nothing: no `from` or `records-from`",
+            );
+        }
+    }
+
+    /// `records-from` (§8.3): the message carries records, and each path
+    /// names an element of an addressed block.
+    fn records_from(&mut self, s: &MessageStep, m: &Message) {
+        if s.records_from.is_empty() {
+            return;
+        }
+        if m.records.is_empty() {
+            self.error(
+                s.meta.pos,
+                format!("`records-from`: message `{}` has no `records`", m.name),
+            );
+        }
+        for path in &s.records_from {
+            let block = self.d.block(&path.segments[0].name);
+            if path.segments.len() != 1 || block.is_some_and(|b| b.address.is_none()) {
+                self.error(
+                    s.meta.pos,
+                    format!("`records-from`: `{path}` is not an element of an addressed block"),
+                );
+            }
+        }
+    }
+
     fn message_step(
         &mut self,
         what: &str,
@@ -1108,7 +1153,7 @@ impl<'d> V<'d> {
         s: &MessageStep,
         exchange: bool,
     ) {
-        for path in s.into.iter().chain(&s.from) {
+        for path in s.into.iter().chain(&s.from).chain(&s.records_from) {
             self.path(s.meta.pos, path);
         }
         for arg in &s.args {
@@ -1122,6 +1167,7 @@ impl<'d> V<'d> {
             self.error(s.meta.pos, format!("unknown message `{}`", s.message));
             return;
         };
+        self.records_from(s, m);
         // §6: a message without a reply is send-only. An `unknown` message
         // is a placeholder whose shape is not known yet.
         let placeholder = m.meta.status == Some(Status::Unknown);

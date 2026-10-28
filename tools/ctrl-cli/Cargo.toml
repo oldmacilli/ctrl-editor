@@ -9,4 +9,6 @@ publish.workspace = true
 [dependencies]
 ctrl-cdl.workspace = true
 ctrl-codec.workspace = true
+ctrl-engine.workspace = true
+ctrl-midi = { path = "../../crates/ctrl-midi" }
 serde_json.workspace = true
