@@ -9,7 +9,7 @@ One monitor component, written once, used in four places:
 | Where | What it gets |
 | --- | --- |
 | `ctrl-monitor` (this repo) | the data model, the parser, the real-time tap, the store, the describers, one view model, a Slint component and a ratatui widget |
-| `midi-tools` (new repo) | two apps, **Monitor** and **Librarian**, each with GUI and TUI at feature parity |
+| `midi-tools` (new repo) | two apps, **lb-monitor** (LightBow Monitor) and **lb-librarian** (LightBow Librarian), each with GUI and TUI at feature parity |
 | the device editors (KORG, DB-1, TEC, UC-33) | the monitor pane; KORG's current monitor is replaced and enhanced |
 | LightBow (zigtact) | the Mesh Monitor's model becomes `ctrl-monitor`; the mesh is one producer among several |
 
@@ -288,7 +288,7 @@ device on any operating system, including a device on another computer:
   Standard MIDI File (`midly`, real timing), tab-separated text.
 - MIDI Monitor's `.midimonitor` (NSKeyedArchiver) is not imported.
 
-## 8. Librarian (midi-tools)
+## 8. lb-librarian (midi-tools)
 
 SysEx Librarian's feature set, cross-platform, on the same core:
 
@@ -312,7 +312,7 @@ SysEx Librarian's feature set, cross-platform, on the same core:
 - **Find missing**, rename on disk, delete or move to trash, details with hex view and
   checksums.
 
-The Librarian's send and record show up in the Monitor as port `Editor` traffic when
+lb-librarian's send and record show up in lb-monitor as port `Editor` traffic when
 both run in one process, and as ordinary traffic otherwise.
 
 ## 9. What the editors and LightBow change
@@ -338,8 +338,8 @@ both run in one process, and as ordinary traffic otherwise.
 | M2 | descriptor describer; view model: list, filters, folding, alerts, details | each descriptor's vectors come back described |
 | M3 | `ctrl-monitor-tui` and `ctrl-monitor-slint`: list, details, filters, alert strip | parity tests over the view model; headless render on Weston (tools/linux-check) |
 | M4 | KORG adopts it | KORG's monitor tests pass on the shared component; editor sends shown |
-| M5 | `midi-tools` Monitor: source tree, passive taps (ALSA, JACK/PipeWire, CoreMIDI), virtual port, several windows, `.ctrlcap`, exports | the linux-check container watches a JACK and an ALSA conversation between two other clients |
-| M6 | `midi-tools` Librarian | paced send measured on the loopback; `.syx`/`.mid` round trip |
+| M5 | `lb-monitor`: source tree, passive taps (ALSA, JACK/PipeWire, CoreMIDI), virtual port, several windows, `.ctrlcap`, exports | the linux-check container watches a JACK and an ALSA conversation between two other clients |
+| M6 | `lb-librarian` | paced send measured on the loopback; `.syx`/`.mid` round trip |
 | M7 | thru (virtual pairs), Windows MIDI Services | both directions recorded on macOS and Linux |
 | M8 | AppleMIDI producer and network thru | interoperates with macOS Network MIDI |
 | M9 | Streams and Map views; LightBow mesh producer; egui pane on the view model | Mesh Monitor tests pass on the new model |
@@ -349,9 +349,8 @@ DB-1, TEC and UC-33 adopt it after M4, each in its own PR.
 
 ## 11. Open questions
 
-1. App names in `midi-tools`: "Monitor" and "Librarian", or names of their own?
-2. A macOS CoreMIDI driver plug-in for spying without thru: worth it later, or is
+1. A macOS CoreMIDI driver plug-in for spying without thru: worth it later, or is
    thru enough?
-3. Windows: Windows MIDI Services only (Windows 11), or WinMM with a virtual-port
+2. Windows: Windows MIDI Services only (Windows 11), or WinMM with a virtual-port
    driver too?
-4. Should the LightBow egui pane move to Slint, or stay egui on the shared view model?
+3. Should the LightBow egui pane move to Slint, or stay egui on the shared view model?
