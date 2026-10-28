@@ -16,7 +16,9 @@ typed IR.
 - `crates/ctrl-cdl`: CDL loader: KDL 2.0 into a typed IR, includes merged,
   errors as `file:line:col`
 - `crates/ctrl-codec`: message templates to bytes and back; runs the
-  descriptors' test vectors
+  descriptors' test vectors; long SysEx plans and joins (CDL §8.2)
+- `crates/ctrl-descriptors`: every descriptor embedded, for the editors'
+  conformance tests
 - `tools/ctrl-cli`: `check` (validate, images, test vectors, send paths
   without evidence), `explain` (the bytes of a message, piece by piece) and
   `trace` (decode a capture) (CDL §16)

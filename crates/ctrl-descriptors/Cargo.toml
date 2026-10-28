@@ -1,0 +1,10 @@
+[package]
+name = "ctrl-descriptors"
+description = "Every CDL descriptor of this repository, embedded: editors load the shared files through a pinned git dependency"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+ctrl-cdl.workspace = true

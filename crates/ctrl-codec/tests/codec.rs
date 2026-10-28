@@ -645,3 +645,29 @@ message "blob" transport="linux" kind="write" { send "F0 7D 03 {data:raw} F7"; }
         .collect();
     assert_eq!(joined, blob[0].frame);
 }
+
+#[test]
+fn korg_scene_write_plans_like_korg_midi_midir() {
+    // korg-midi-midir: SysEx over 256 bytes in 256-byte chunks, 5 ms apart
+    let d = descriptor("korg/nanokontrol-studio.ctrl.kdl");
+    let codec = Codec::new(&d);
+    let plan = codec
+        .plan(
+            "scene-write",
+            &args(&[("device-id", int(0)), ("data", Val::Bytes(vec![0; 560]))]),
+        )
+        .unwrap();
+    assert_eq!(plan.len(), 1);
+    assert_eq!(plan[0].frame.len(), 651);
+    let sizes: Vec<_> = plan[0]
+        .writes
+        .iter()
+        .map(|w| (w.bytes.len(), w.delay_ms))
+        .collect();
+    assert_eq!(sizes, [(256, 5), (256, 5), (139, 5)]);
+    // a short request stays one write
+    let req = codec
+        .plan("global-data-request", &args(&[("device-id", int(0))]))
+        .unwrap();
+    assert_eq!(req[0].writes.len(), 1);
+}

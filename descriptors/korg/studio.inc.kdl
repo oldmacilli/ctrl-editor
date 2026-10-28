@@ -5,6 +5,14 @@
 cdl "0.1"
 
 // The common frame and identity, measured on these two models.
+//
+// Long SysEx: every KORG transport says `sysex-limit=256 segment-delay=5`
+// (CDL §8.2). On Linux, midir puts a whole message into one ALSA sequencer
+// event and the kernel's snd_seq_midi port copies it into a 4096-byte
+// buffer, dropping the tail of a longer event without an error. The KORG
+// editor therefore writes SysEx longer than 256 bytes in 256-byte pieces,
+// 5 ms apart (korg-midi-midir SYSEX_CHUNK, SYSEX_CHUNK_PAUSE); the wire
+// still carries one message. The same values hold on every platform here.
 sysex-frame "korg-native" status="measured" evidence="byte-identical with the captured requests, writes and acks (korg-sysex tests measured_requests_match_the_capture, measured_write_frames_match_the_capture)"
 message "identity" status="measured" evidence="replies captured from both Studios over USB and Bluetooth (korg-sysex identity_replies_parse_for_both_studios)"
 

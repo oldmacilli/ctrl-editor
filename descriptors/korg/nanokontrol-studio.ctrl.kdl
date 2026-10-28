@@ -22,10 +22,10 @@ identify {
 
 // Two config transports: USB is preferred; the user's port choice (p in
 // the TUI, the port preference in the GUI) overrides it.
-transport "usb" kind="midi" port-match="nanoKONTROL Studio CTRL" role="config" preferred=#true sysex-limit=4096 {
+transport "usb" kind="midi" port-match="nanoKONTROL Studio CTRL" role="config" preferred=#true sysex-limit=256 segment-delay=5 {
     capture "device-id" from="identity"
 }
-transport "ble" kind="midi" sysex-limit=4096 port-match="nanoKONTROL Studio Bluetooth" role="config" status="measured" evidence="TUI receive over Bluetooth, 2026-10-20" {
+transport "ble" kind="midi" sysex-limit=256 segment-delay=5 port-match="nanoKONTROL Studio Bluetooth" role="config" status="measured" evidence="TUI receive over Bluetooth, 2026-10-20" {
     capture "device-id" from="identity"
 }
 

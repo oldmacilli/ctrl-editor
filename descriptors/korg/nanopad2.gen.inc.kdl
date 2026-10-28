@@ -15,9 +15,9 @@ device "korg.nanopad2" {
 const "model" 0x112 status="decoded" evidence="KORG analysis/sysex/descriptors.json: X10830SysExGenerator descriptor, length style short_or_long"
 
 // The port name is not recorded; the user picks it, or a scan finds the
-// device by its identity reply (CDL 5.1). SysEx longer than 4096 bytes
-// goes to the host in pieces (CDL 8.2: Linux ALSA rawmidi buffers).
-transport "midi" kind="midi" role="config" scan="identity" sysex-limit=4096 status="decoded" evidence="X10830SysExGenerator in the vendor application" {
+// device by its identity reply (CDL 5.1). Long SysEx goes to the host in
+// 256-byte pieces, 5 ms apart (CDL 8.2; KORG korg-midi-midir SYSEX_CHUNK).
+transport "midi" kind="midi" role="config" scan="identity" sysex-limit=256 segment-delay=5 status="decoded" evidence="X10830SysExGenerator in the vendor application" {
     capture "device-id" from="identity"
 }
 

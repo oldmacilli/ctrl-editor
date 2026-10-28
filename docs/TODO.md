@@ -15,7 +15,7 @@ editor lane (OMP, w5:p2) · **db1** / **tec** = whoever owns those repos ·
 **zigtact** = the LBMT owners · **user** = needs the owner's decision or
 hardware.
 
-Last updated: 2026-10-20 (ctrl-cdl landed).
+Last updated: 2026-10-28 (CDL gaps closed, long SysEx, UC-33).
 
 ## P0 Agree the concept
 
@@ -83,6 +83,22 @@ Last updated: 2026-10-20 (ctrl-cdl landed).
 - [x] platform: `cdl-schema.md`: one entry per node with every property,
   generated from the converter's node table (`schema.rs`, `ctrl-cli
   schema`); a test fails when it is stale (5f02a11)
+- [x] platform: CDL gaps closed (60d33e3): `arg` ranges on reply
+  captures (§6.5); status and real-time bytes in MIDI templates (§6.6);
+  `u21le`/`u21be` and `varlen7` lengths (§8.1); KORG native body written
+  as `{len:u21le} {command} …`, so both Studios share one scene pattern
+- [x] platform: long SysEx (§8.2, 60d33e3): transport `sysex-limit` and
+  `segment-delay` split host writes, `SysexJoiner` rejoins input, a
+  message's `segment` names a device's own multi-part form, `Codec::plan`.
+  KORG transports carry korg-midi-midir's measured 256 bytes / 5 ms
+- [x] platform: USB side of HID in CDL (§9, 60d33e3): `report-descriptor`
+  (parsed, checked against `frame`), `poll`, `pace`; TEC filled in
+- [x] platform: `ctrl-descriptors`: every descriptor embedded, for the
+  editors' conformance tests through a pinned git dependency
+- [ ] korg, db1, tec: conformance test in each editor repo: its protocol
+  code and `ctrl-codec` on the shared descriptor produce the same bytes
+- [ ] platform: `ctrl-transport` applies `sysex-limit` and `pace` when it
+  writes, from `Codec::plan`
 
 ## P2 Prove CDL on the DB-1; KORG stays intact
 
@@ -180,6 +196,14 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
 - [ ] db1: hardware checklist through the platform (read, write, restore)
   equal to the `db1-cli` run in `docs/HANDOVER.md`
 - [ ] db1: retire `db1-tui` (REPL) in favour of `ctrl-tui`
+
+### Evolution UC-33
+
+- [x] platform: `descriptors/evolution/uc33.ctrl.kdl` (60d33e3), from the
+  UC33-Editor repo: original UC-33, USB 0a4d:00f5 release 1.01, no
+  identity reply, no SysEx dump; messages classify what the controls send
+- [ ] uc33: bump UC33-Editor's ctrl-editor pin and drop its channel filter
+  workaround now that reply ranges exist
 
 ### TEC
 

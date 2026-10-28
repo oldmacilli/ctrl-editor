@@ -22,3 +22,7 @@ Shared platform for three device editors. Read docs/CONCEPT.md first.
 - API changes to the core (EditorController, ViewModel) need the KORG lane's
   ack, as in the KORG repo.
 - Run `cargo fmt --all` after Rust edits.
+- Each editor repo proves its own protocol code against the shared
+  descriptor with a conformance test (`ctrl-descriptors` + `ctrl-codec`,
+  pinned git dependencies). A descriptor change that alters bytes must
+  keep those tests green; bump the pins there in the same breath.

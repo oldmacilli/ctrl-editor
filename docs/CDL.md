@@ -559,7 +559,7 @@ KiB. CDL handles it on two layers, both declared in the descriptor:
    platform.
 
    ```kdl
-   transport "usb" kind="midi" port-match="nanoKONTROL Studio CTRL" role="config" sysex-limit=4096
+   transport "usb" kind="midi" port-match="nanoKONTROL Studio CTRL" role="config" sysex-limit=256 segment-delay=5
    ```
 
 2. **The device's own parts.** A device whose protocol has a multi-message
@@ -586,9 +586,14 @@ KiB. CDL handles it on two layers, both declared in the descriptor:
    multi-part form that was not measured.
 
 `Codec::plan` returns what the engine writes: the messages, and for each
-the host writes with their delays. Every KORG transport carries
-`sysex-limit=4096`; no KORG transfer measured so far is longer (the largest
-is a 641-byte scene).
+the host writes with their delays.
+
+The KORG descriptors carry `sysex-limit=256 segment-delay=5`, the values
+the KORG editor already uses on Linux (`korg-midi-midir`): midir puts one
+message into one ALSA sequencer event, and the kernel's `snd_seq_midi`
+port drops the tail of an event over its 4096-byte buffer without an
+error. 256-byte pieces stay well inside it, and 5 ms between them lets the
+port drain. A 651-byte scene write goes out as three writes.
 
 ## 9. USB parameter patching
 

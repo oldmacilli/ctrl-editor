@@ -25,11 +25,11 @@ identify {
 // The USB config port has direction-specific names (CDL §5). The KORG
 // editor resolves them with a directional " CTRL" <-> " KEYBOARD/CTRL"
 // fallback (KORG fbf74bc).
-transport "usb" kind="midi" port-match-in="nanoKEY Studio KEYBOARD/CTRL" port-match-out="nanoKEY Studio CTRL" role="config" preferred=#true sysex-limit=4096 status="measured" evidence="CoreMIDI listing with cable, 2026-10-20; global and scene-set receive and unchanged write byte-identical over USB (KORG fbf74bc)" {
+transport "usb" kind="midi" port-match-in="nanoKEY Studio KEYBOARD/CTRL" port-match-out="nanoKEY Studio CTRL" role="config" preferred=#true sysex-limit=256 segment-delay=5 status="measured" evidence="CoreMIDI listing with cable, 2026-10-20; global and scene-set receive and unchanged write byte-identical over USB (KORG fbf74bc)" {
     capture "device-id" from="identity"
 }
 // Port name as in the original's preferences (docs/app-architecture.md).
-transport "ble" kind="midi" sysex-limit=4096 port-match="nanoKEY Studio Bluetooth" role="config" status="measured" evidence="CoreMIDI listing, 2026-10-20" {
+transport "ble" kind="midi" sysex-limit=256 segment-delay=5 port-match="nanoKEY Studio Bluetooth" role="config" status="measured" evidence="CoreMIDI listing, 2026-10-20" {
     capture "device-id" from="identity"
 }
 
