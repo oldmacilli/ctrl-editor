@@ -173,6 +173,9 @@ dependencies = [
 name = "ctrl-monitor"
 version = "0.1.0"
 dependencies = [
+ "ctrl-cdl",
+ "ctrl-codec",
+ "ctrl-descriptors",
  "rtrb",
 ]
 

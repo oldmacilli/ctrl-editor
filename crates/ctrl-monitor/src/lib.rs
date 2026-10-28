@@ -22,6 +22,8 @@
 //! assert_eq!(text.value, "C4 vel 100");
 //! ```
 
+#[cfg(feature = "cdl")]
+mod cdl;
 mod collector;
 mod describe;
 mod model;
@@ -31,7 +33,9 @@ mod store;
 mod tables;
 mod tap;
 
-pub use collector::{Collector, Running};
+#[cfg(feature = "cdl")]
+pub use cdl::{CdlDescriber, DeviceIdx};
+pub use collector::{Collector, Describer, Running};
 pub use describe::{
     controller_name, describe, hex, manufacturer, note_name, ChannelMask, Class, Description,
     Group, NoteStyle, Radix, Style, TypeMask,

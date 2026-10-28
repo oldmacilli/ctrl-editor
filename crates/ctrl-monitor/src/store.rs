@@ -3,6 +3,7 @@
 //! bounded by bytes, so one long dump does not push out the last minutes of
 //! notes. What was evicted or dropped is counted and shown, never hidden.
 
+use std::borrow::Cow;
 use std::collections::{BTreeMap, VecDeque};
 
 use crate::model::{Annotation, BlobIdx, Dir, Event, Msg, PortIdx, PortKind, PortRef, Stamp};
@@ -202,6 +203,27 @@ impl Store {
         let (idx, bytes) = self.blobs.get(blob.0.checked_sub(front)? as usize)?;
         debug_assert_eq!(*idx, blob);
         Some(bytes)
+    }
+
+    /// The message as it went over the wire: rebuilt for short messages,
+    /// the kept payload for long ones (`None` once evicted, and for UMP).
+    pub fn wire(&self, msg: &Msg) -> Option<Cow<'_, [u8]>> {
+        match *msg {
+            Msg::Voice { status, d1, d2 } => Some(Cow::Owned(match status & 0xF0 {
+                0xC0 | 0xD0 => vec![status, d1],
+                _ => vec![status, d1, d2],
+            })),
+            Msg::Common { status, d1, d2 } => Some(Cow::Owned(match status {
+                0xF1 | 0xF3 => vec![status, d1],
+                0xF2 => vec![status, d1, d2],
+                _ => vec![status],
+            })),
+            Msg::Realtime(status) => Some(Cow::Owned(vec![status])),
+            Msg::Ump(..) => None,
+            Msg::SysEx { blob, .. } | Msg::Hid { blob, .. } | Msg::Invalid { blob, .. } => {
+                self.bytes(blob).map(Cow::Borrowed)
+            }
+        }
     }
 
     /// SysEx messages still arriving.
