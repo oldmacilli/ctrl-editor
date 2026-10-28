@@ -1,0 +1,10 @@
+[package]
+name = "ctrl-monitor"
+description = "MIDI monitor core: real-time tap, parser, bounded store, message names (docs/MONITOR.md)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+rtrb = "0.3"
