@@ -409,7 +409,7 @@ impl View {
         }
         if self.state.fold {
             if let Msg::Voice { status, d1, d2 } = e.msg {
-                if status & 0xF0 == 0xB0 && !e.annotated {
+                if status & 0xF0 == 0xB0 {
                     let key = (e.port, e.dir, status & 0x0F, d1);
                     if let Some(row) = self.rows.back_mut() {
                         if let Some(run) = row.cc.as_mut().filter(|r| r.key == key) {
@@ -667,7 +667,8 @@ impl View {
                 value = hex(&w, 24);
             }
         }
-        let notes = store.notes(e.seq);
+        // A folded run says what its newest event says.
+        let notes = store.notes(data.last);
         Row {
             seq: data.first,
             count: data.count,
@@ -1376,6 +1377,25 @@ mod tests {
             &mut f.store,
         );
         assert_eq!(f.rows()[0].time, "00:00:01.500");
+    }
+
+    #[test]
+    fn a_described_controller_run_still_folds_and_shows_its_newest_note() {
+        let mut f = fixture();
+        for (i, v) in [0u8, 50, 100].into_iter().enumerate() {
+            let seq = f.voice(i as u64, 0xB0, 7, v);
+            f.store.annotate(
+                seq,
+                Annotation::Described {
+                    name: "X: cc".into(),
+                    fields: vec![("value".into(), v.to_string())],
+                },
+            );
+        }
+        let rows = f.rows();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].count, 3);
+        assert_eq!(rows[0].detail, "X: cc · value 100");
     }
 
     #[test]
