@@ -272,9 +272,10 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
 - [x] user+platform: `restore-all` run on the unit through `ctrl-cli run`
   with `--load dump=<backup>`; read-back byte-identical. A write whose
   `records-from` data is not loaded now stops before its first step
-- [ ] user: still unknown: the rest of the group-name character table
-  (K, E, …), and the firmware
-  page check value (the bootloader is not in the update file)
+- [x] user: the group-name character table, codes 0..38 (display order on
+  the unit, four codes confirmed by SndA)
+- [ ] analysis: the firmware page check value (the bootloader is not in the
+  update file); needed only for a modified image
 - [x] user: firmware update 02.03 → 02.05 with the vendor's file
   (2026-10-28); setups kept, dumps differ only in the version tag
 - [x] user+platform: `write-setup` repeated on 02.05 (SE16 dAtA and back,
