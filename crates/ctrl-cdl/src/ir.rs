@@ -380,6 +380,9 @@ pub struct Field {
     pub name: String,
     pub offset: Option<u32>,
     pub ty: TypeRef,
+    /// The bits of the byte at `offset` that hold the value, `lo..=hi`
+    /// (0 = least significant), when several fields share one byte (§4.3).
+    pub bits: Option<IntRange>,
     pub range: Option<IntRange>,
     pub visible_when: Option<String>,
     /// A constant the editor writes back unchanged.

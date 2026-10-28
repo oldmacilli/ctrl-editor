@@ -499,3 +499,31 @@ block "drawbar" count=9 names="1 2 3 4 5 6 7 8" status="measured" { field "cc" t
     assert_eq!(found.len(), 1, "{found:#?}");
     assert!(found[0].contains("8 names for 9 elements"), "{found:#?}");
 }
+
+#[test]
+fn fields_that_share_a_byte_name_their_bits() {
+    // two nibbles of one byte, as the Faderfox UC4 stores channel and type
+    let ok = "types { enum \"t\" { value 0 \"a\"; value 6 \"b\" } }\n\
+              block \"b\" size=1 { field \"ch\" offset=0 bits=\"0..=3\" type=\"u7\" range=\"0..=15\"\n\
+              field \"ty\" offset=0 bits=\"4..=7\" type=\"t\" }";
+    assert_eq!(errors(ok), Vec::<String>::new());
+    assert_one(
+        errors("block \"b\" { field \"x\" offset=0 bits=\"4..=8\" type=\"u8\" }"),
+        "must lie within one byte",
+    );
+    assert_one(
+        errors("block \"b\" { field \"x\" offset=0 bits=\"0..=3\" type=\"u14le\" }"),
+        "needs a one-byte type",
+    );
+    assert_one(
+        errors("block \"b\" { field \"x\" offset=0 bits=\"0..=3\" type=\"u7\" }"),
+        "values 0..=127 do not fit bits 0..=3",
+    );
+    assert_one(
+        errors(
+            "types { enum \"t\" { value 0 \"a\"; value 16 \"b\" } }\n\
+             block \"b\" { field \"x\" offset=0 bits=\"4..=7\" type=\"t\" }",
+        ),
+        "values 0..=16 do not fit bits 4..=7",
+    );
+}

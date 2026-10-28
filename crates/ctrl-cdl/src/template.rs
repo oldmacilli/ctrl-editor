@@ -95,6 +95,12 @@ pub enum Encoding {
     /// A 7-bit length with an escape (KORG's first generation): one byte
     /// below 0x7F, otherwise `7F n` and `n` 7-bit bytes, high first.
     Varlen7,
+    /// `nib3(t)`: one byte as the record `4t 2h 1l`, tag `t` (0..=15), then
+    /// its high and low nibble with marker bits 0x20 and 0x10 (Faderfox
+    /// dumps, CDL §8.1).
+    Nib3(u8),
+    /// `nib3-bytes(t)`: a byte array, one `nib3(t)` record per byte.
+    Nib3Bytes(u8),
     /// A device pack type, registered with the codec (CDL §8).
     Vendor(String),
 }
@@ -106,6 +112,10 @@ impl Encoding {
             "midi-id" => Ok(Self::MidiId),
             "varlen7" => Ok(Self::Varlen7),
             "raw" => Ok(Self::Raw),
+            _ if call_arg(s, "nib3-bytes").is_some() => {
+                nib3_tag(s, call_arg(s, "nib3-bytes")).map(Self::Nib3Bytes)
+            }
+            _ if call_arg(s, "nib3").is_some() => nib3_tag(s, call_arg(s, "nib3")).map(Self::Nib3),
             _ => match Storage::parse(s) {
                 Ok(storage) => Ok(Self::Storage(storage)),
                 Err(_) if is_ident(s) => Ok(Self::Vendor(s.to_string())),
@@ -123,6 +133,8 @@ impl fmt::Display for Encoding {
             Self::MidiId => f.write_str("midi-id"),
             Self::Varlen7 => f.write_str("varlen7"),
             Self::Raw => f.write_str("raw"),
+            Self::Nib3(t) => write!(f, "nib3({t})"),
+            Self::Nib3Bytes(t) => write!(f, "nib3-bytes({t})"),
             Self::Vendor(name) => f.write_str(name),
         }
     }
@@ -416,6 +428,19 @@ pub(crate) fn is_ident(s: &str) -> bool {
         && chars.all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.' | '$'))
 }
 
+/// The tag of `nib3(t)`: decimal or `0x` hex, 0..=15.
+fn nib3_tag(s: &str, arg: Option<&str>) -> Result<u8, String> {
+    let arg = arg.unwrap_or_default().trim();
+    let tag = match arg.strip_prefix("0x") {
+        Some(hex) => u8::from_str_radix(hex, 16).ok(),
+        None => arg.parse::<u8>().ok(),
+    };
+    match tag {
+        Some(t @ 0..=15) => Ok(t),
+        _ => Err(format!("`{s}`: the tag is 0..=15")),
+    }
+}
+
 fn call_arg<'a>(s: &'a str, function: &str) -> Option<&'a str> {
     s.strip_prefix(function)?
         .strip_prefix('(')?
@@ -515,6 +540,14 @@ mod tests {
         assert!(Template::parse("  ").is_err());
         assert!(Template::parse("{sum:crc(1,2)}").is_err());
         assert!(Template::parse("{x:bits(9)}").is_err());
+        assert_eq!(Encoding::parse("nib3(13)"), Ok(Encoding::Nib3(13)));
+        assert_eq!(Encoding::parse("nib3(0x0F)"), Ok(Encoding::Nib3(15)));
+        assert_eq!(
+            Encoding::parse("nib3-bytes(13)"),
+            Ok(Encoding::Nib3Bytes(13))
+        );
+        assert!(Encoding::parse("nib3(16)").is_err());
+        assert_eq!(Encoding::Nib3Bytes(13).to_string(), "nib3-bytes(13)");
     }
 
     #[test]

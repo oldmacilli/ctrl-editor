@@ -706,3 +706,61 @@ fn typed_args_refuse_values_outside_their_type() {
         .decode_variant("get-drawbar", &ok, &Bindings::new())
         .is_ok());
 }
+
+#[test]
+fn nib3_records_round_trip_and_check_their_markers() {
+    // Faderfox: every byte goes out as `4t 2h 1l`; synthetic values.
+    let d = synthetic(
+        r#"transport "m" kind="midi" role="config"
+message "chunk" transport="m" {
+    send "F0 00 00 00 {dev:nib3(1)} {data:nib3-bytes(13)} {end:nib3(15)} F7"
+}"#,
+    );
+    let codec = Codec::new(&d);
+    let bytes = codec
+        .encode(
+            "chunk",
+            &args(&[
+                ("dev", int(6)),
+                ("data", Val::Bytes(vec![0x00, 0xA5, 0xFF])),
+                ("end", int(6)),
+            ]),
+        )
+        .unwrap();
+    assert_eq!(
+        bytes,
+        [
+            0xF0, 0x00, 0x00, 0x00, 0x41, 0x20, 0x16, 0x4D, 0x20, 0x10, 0x4D, 0x2A, 0x15, 0x4D,
+            0x2F, 0x1F, 0x4F, 0x20, 0x16, 0xF7
+        ]
+    );
+    let back = codec
+        .decode_send("chunk", &bytes, &Bindings::new())
+        .unwrap();
+    assert_eq!(back["dev"], int(6));
+    assert_eq!(back["data"], Val::Bytes(vec![0x00, 0xA5, 0xFF]));
+
+    // a wrong tag, a missing marker and a broken record are refused
+    let mut bad = bytes.clone();
+    bad[7] = 0x4C;
+    assert!(codec.decode_send("chunk", &bad, &Bindings::new()).is_err());
+    let mut bad = bytes.clone();
+    bad[8] = 0x0A;
+    assert!(codec.decode_send("chunk", &bad, &Bindings::new()).is_err());
+    let mut short = bytes.clone();
+    short.remove(9);
+    assert!(codec
+        .decode_send("chunk", &short, &Bindings::new())
+        .is_err());
+    // one record holds one byte
+    assert!(codec
+        .encode(
+            "chunk",
+            &args(&[
+                ("dev", int(256)),
+                ("data", Val::Bytes(vec![])),
+                ("end", int(6))
+            ]),
+        )
+        .is_err());
+}

@@ -158,7 +158,23 @@ block "scene" size=560 count=5 status="measured" evidence="korg-devices measured
 ```
 
 `array` repeats fields with a stride. `visible-when` hides fields as the
-original editor does (the jog panel shows CW/CCW CC only for Inc/Dec). A
+original editor does (the jog panel shows CW/CCW CC only for Inc/Dec).
+
+Fields that share a byte name their bits, `lo..=hi` with 0 the lowest. The
+Faderfox UC4 keeps a control's channel in the low nibble and its type in the
+high nibble of one byte; the validator checks that the bits lie in one byte,
+that the type is one byte wide, and that its values (an enum's codes, an
+int's range) fit:
+
+```kdl
+field "channel" offset=0 bits="0..=3" type="channel"
+field "type" offset=0 bits="4..=7" type="encoder-type"
+```
+
+Array elements may be planar: a field's offset counts from the element's
+start and may lie past the stride. The UC4 stores one property of all 64
+encoders in a row of 64 bytes (`array "encoder" count=8 stride=1` with
+`field "number" offset=64`). A
 `field` without `offset` in a block whose size is unknown is allowed only
 when the block is never written.
 
@@ -283,6 +299,7 @@ A template is a string of bytes and placeholders:
 | `{name:packed7}` | bytes, 8→7 bit packed (§8.1) |
 | `{name:raw}` | bytes as they are |
 | `{name:ascii(n)}` | text, padded with spaces to `n` bytes |
+| `{name:nib3(t)}`, `{name:nib3-bytes(t)}` | one byte, or each byte of an array, as the record `4t 2h 1l` (§8.1) |
 | `{len:type}` | the number of body bytes after this field, up to the first checksum or the end of the body; `type` is a storage type (`u21le` for KORG Studios) or `varlen7` (§8.1) |
 | `{sum:roland(from,to)}` | checksum over a range of the body (§6.4) |
 | `{expr}`, `{=expr}` | a computed byte, a CDL expression (§10.1) |
@@ -477,6 +494,7 @@ per part, so a frame needs no vendor code:
 | 8-bit data in 7-bit bytes | KORG 7-in-8 | `{data:packed7}` |
 | plain data, text | | `{data:raw}`, `{name:ascii(16)}`, slices `{v[6]}` |
 | checksum | Roland | `{sum:roland(1,-1)}` (§6.4) |
+| tagged nibble records | Faderfox | `{value:nib3(t)}`, `{data:nib3-bytes(13)}` |
 
 **`midi-id`**: a value below `0x80` is one byte; any other is three bytes
 `00 hi lo` with `hi = v >> 8` and `lo = v & 0xFF`, both below `0x80`
@@ -491,6 +509,15 @@ into `n + ceil(n / 7)`, and a packed region of `m` bytes unpacks into
 
 Names in a frame come from the device, not from message arguments: each is
 a `const` or a transport `capture`. `ctrl_cdl::validate` checks this.
+
+**`nib3`**: Faderfox writes every value as a record of three bytes:
+`0x40 | tag`, `0x20 | high nibble`, `0x10 | low nibble`. The tag (0..=15)
+says what the byte is: in a UC4 dump, 1 the device, 9 and 10 an address,
+13 data, 11 and 12 a sum. `{v:nib3(t)}` is one such byte (3 wire bytes, a
+value 0..=255); `{data:nib3-bytes(t)}` is a byte array, one record per
+byte, and runs to the fixed-width pieces after it, like `packed7`. Decoding
+checks the tag and both markers of every record. `A5` with tag 13 is
+`4D 2A 15`.
 
 **`varlen7`**: a length with an escape, as KORG's first generation writes
 it: one byte below `7F`; from `7F` up, `7F`, a byte count, then that many

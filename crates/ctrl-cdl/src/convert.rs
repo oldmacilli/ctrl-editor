@@ -952,6 +952,7 @@ fn items(cx: &mut Cx, parent: &str, nodes: &[RawNode]) -> Vec<Item> {
                     name: cx.name(n),
                     offset: cx.prop_u32(n, "offset"),
                     ty: ty.unwrap_or(TypeRef::Storage(Storage::U7)),
+                    bits: cx.prop_with(n, "bits", parse_range),
                     range: cx.prop_with(n, "range", parse_range),
                     visible_when: cx.prop_str(n, "visible-when"),
                     fixed: cx.prop_i64(n, "fixed"),

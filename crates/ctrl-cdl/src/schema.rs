@@ -333,6 +333,7 @@ pub static SCHEMA: &[NodeSpec] = &[
         Some(&[
             p("offset", "byte offset in the block or group"),
             p("type", "a storage or `types` name"),
+            p("bits", "the bits of the byte that hold it, `lo..=hi`, 0 lowest"),
             p("range", "allowed values, `lo..=hi`"),
             p("visible-when", "expression; hidden otherwise"),
             p("fixed", "a value the editor never changes"),

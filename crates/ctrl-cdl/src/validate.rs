@@ -239,6 +239,9 @@ impl<'d> V<'d> {
                             );
                         }
                     }
+                    if let Some(bits) = f.bits {
+                        self.field_bits(f, bits, width, f.range.or(range));
+                    }
                     if let (Some(own), Some(full)) = (f.range, range) {
                         if own.lo < full.lo || own.hi > full.hi {
                             self.error(
@@ -288,6 +291,52 @@ impl<'d> V<'d> {
                     self.items(&a.name, &a.items, base, None);
                 }
             }
+        }
+    }
+
+    /// `bits="lo..=hi"`: inside one byte, and wide enough for the values.
+    fn field_bits(&mut self, f: &Field, bits: IntRange, width: u32, range: Option<IntRange>) {
+        if bits.lo < 0 || bits.hi > 7 || bits.lo > bits.hi {
+            self.error(
+                f.meta.pos,
+                format!(
+                    "field `{}`: bits {}..={} must lie within one byte, 0..=7",
+                    f.name, bits.lo, bits.hi
+                ),
+            );
+            return;
+        }
+        if width != 1 {
+            self.error(
+                f.meta.pos,
+                format!(
+                    "field `{}`: `bits` needs a one-byte type, not {width} bytes",
+                    f.name
+                ),
+            );
+            return;
+        }
+        let max = (1i64 << (bits.hi - bits.lo + 1)) - 1;
+        // an enum's values are its range
+        let range = range.or_else(|| match &f.ty {
+            TypeRef::Named(name) => match self.type_def(name) {
+                Some(TypeDef::Enum(e)) => {
+                    let lo = e.values.iter().map(|v| v.value).min()?;
+                    let hi = e.values.iter().map(|v| v.value).max()?;
+                    Some(IntRange { lo, hi })
+                }
+                _ => None,
+            },
+            TypeRef::Storage(_) => None,
+        });
+        if let Some(r) = range.filter(|r| r.lo < 0 || r.hi > max) {
+            self.error(
+                f.meta.pos,
+                format!(
+                    "field `{}`: values {}..={} do not fit bits {}..={}",
+                    f.name, r.lo, r.hi, bits.lo, bits.hi
+                ),
+            );
         }
     }
 
@@ -1455,6 +1504,7 @@ fn template_len(t: &Template, default: u32) -> Option<u32> {
     let width = |e: &Option<Encoding>| match e {
         None => Some(default),
         Some(Encoding::Storage(s)) => Some(storage_width(*s)),
+        Some(Encoding::Nib3(_)) => Some(3),
         Some(_) => None,
     };
     t.pieces.iter().try_fold(0, |n, piece| {

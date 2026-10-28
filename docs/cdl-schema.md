@@ -270,6 +270,7 @@ One value. (§4.3)
 |---|---|
 | `offset` | byte offset in the block or group |
 | `type` | a storage or `types` name |
+| `bits` | the bits of the byte that hold it, `lo..=hi`, 0 lowest |
 | `range` | allowed values, `lo..=hi` |
 | `visible-when` | expression; hidden otherwise |
 | `fixed` | a value the editor never changes |

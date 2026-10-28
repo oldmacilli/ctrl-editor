@@ -551,6 +551,12 @@ impl<'d> Codec<'d> {
             Encoding::Varlen7 => varlen7(name, int()?),
             Encoding::Packed7 => Ok(pack7(&bytes()?)),
             Encoding::Raw => bytes(),
+            Encoding::Nib3(tag) => {
+                let v = int()?;
+                let b = u8::try_from(v).map_err(|_| range_error(name, &encoding, v))?;
+                Ok(nib3(*tag, &[b]))
+            }
+            Encoding::Nib3Bytes(tag) => Ok(nib3(*tag, &bytes()?)),
             Encoding::Vendor(vendor) => self
                 .vendor
                 .get(vendor)
@@ -905,6 +911,15 @@ impl<'d> Codec<'d> {
                 let raw = region()?;
                 Ok((Val::Bytes(raw.to_vec()), raw.len()))
             }
+            Encoding::Nib3(tag) => {
+                let raw = bytes.get(..3).ok_or_else(truncated)?;
+                let v = unnib3(name, *tag, raw, at)?;
+                Ok((Val::Int(i64::from(v[0])), 3))
+            }
+            Encoding::Nib3Bytes(tag) => {
+                let raw = region()?;
+                Ok((Val::Bytes(unnib3(name, *tag, raw, at)?), raw.len()))
+            }
             Encoding::Vendor(vendor) => self
                 .vendor
                 .get(vendor)
@@ -1167,8 +1182,46 @@ fn fixed_width(encoding: Option<&Encoding>, _medium: Medium) -> Option<usize> {
     match encoding {
         None => Some(1),
         Some(Encoding::Storage(s)) => Some(storage_width(*s)),
+        Some(Encoding::Nib3(_)) => Some(3),
         Some(_) => None,
     }
+}
+
+/// `nib3(t)` records (CDL §8.1): each byte as `4t 2h 1l`.
+fn nib3(tag: u8, data: &[u8]) -> Vec<u8> {
+    data.iter()
+        .flat_map(|b| [0x40 | tag, 0x20 | b >> 4, 0x10 | (b & 0x0F)])
+        .collect()
+}
+
+/// Reads `nib3(t)` records; every record must carry tag `t` and the
+/// marker bits. `at` is the offset of `raw` in the message, for errors.
+fn unnib3(name: &str, tag: u8, raw: &[u8], at: usize) -> Result<Vec<u8>, CodecError> {
+    if raw.len() % 3 != 0 {
+        return Err(CodecError::Range(format!(
+            "`{name}`: {} bytes are not whole nib3 records",
+            raw.len()
+        )));
+    }
+    raw.chunks(3)
+        .enumerate()
+        .map(|(i, r)| {
+            let marks = [0x40 | tag, 0x20, 0x10];
+            let got = [r[0], r[1] & 0xF0, r[2] & 0xF0];
+            match (0..3).find(|&k| got[k] != marks[k]) {
+                None => Ok((r[1] & 0x0F) << 4 | (r[2] & 0x0F)),
+                Some(k) => Err(CodecError::Mismatch {
+                    index: at + 3 * i + k,
+                    expected: match k {
+                        0 => format!("{:02X}", marks[0]),
+                        1 => "2x".into(),
+                        _ => "1x".into(),
+                    },
+                    found: format!("{:02X}", r[k]),
+                }),
+            }
+        })
+        .collect()
 }
 
 fn storage_width(s: Storage) -> usize {
