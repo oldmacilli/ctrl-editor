@@ -764,3 +764,56 @@ message "chunk" transport="m" {
         )
         .is_err());
 }
+
+#[test]
+fn records_split_address_and_check_their_sums() {
+    // a run of addressed records in one SysEx (CDL §8.3), synthetic bytes
+    let d = synthetic(
+        r#"transport "m" kind="midi" role="config"
+pattern "rec" "{hi:nib3(9)} {lo:nib3(10)} {data:nib3-bytes(13)} {s-hi:nib3(11)} {s-lo:nib3(12)} 00 00 00"
+block "mem" address=0x1000 size=8 chunk=4 count=2 { field "x" offset=0 type="u8" }
+message "out" transport="m" kind="write" {
+    send "F0 00 {recs:raw} F7"
+    records "recs" pattern="rec" address="(hi << 8) | lo" data="data" {
+        derive "hi" "address >> 8"
+        derive "lo" "address & 0xFF"
+        derive "s-hi" "(data.sum >> 8) & 0xFF"
+        derive "s-lo" "data.sum & 0xFF"
+    }
+}"#,
+    );
+    let codec = Codec::new(&d);
+    // block element 1 lives at 0x1008, in chunks of 4
+    let pieces = codec
+        .block_pieces("mem", 1, &[0xFF, 0xFF, 1, 2, 3, 4, 5, 6])
+        .unwrap();
+    assert_eq!(
+        pieces,
+        vec![(0x1008, vec![0xFF, 0xFF, 1, 2]), (0x100C, vec![3, 4, 5, 6])]
+    );
+    let recs = codec.records_for("out", "recs", &pieces).unwrap();
+    let bytes = codec.encode_records("out", "recs", &recs).unwrap();
+    // first record: 49 21 10 | 4A 20 18 | data | sum 0x0201 | 00 00 00
+    assert_eq!(&bytes[..6], &[0x49, 0x21, 0x10, 0x4A, 0x20, 0x18]);
+    assert_eq!(
+        &bytes[18..27],
+        &[0x4B, 0x20, 0x12, 0x4C, 0x20, 0x11, 0, 0, 0]
+    );
+    let back = codec.decode_records("out", "recs", &bytes).unwrap();
+    assert_eq!(back.len(), 2);
+    assert_eq!(back[1].address, Some(0x100C));
+    let mem = Memory::from_records(&back);
+    assert_eq!(
+        codec.block_bytes(&mem, "mem", 1),
+        Some(vec![0xFF, 0xFF, 1, 2, 3, 4, 5, 6])
+    );
+    assert_eq!(codec.block_bytes(&mem, "mem", 0), None);
+
+    // a wrong sum is refused, and so is a given value that disagrees
+    let mut bad = bytes.clone();
+    bad[23] = 0x12;
+    assert!(codec.decode_records("out", "recs", &bad).is_err());
+    let mut wrong = recs[0].clone();
+    wrong.insert("s-lo".into(), int(0));
+    assert!(codec.encode_records("out", "recs", &[wrong]).is_err());
+}

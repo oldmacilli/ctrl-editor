@@ -258,6 +258,8 @@ A unit of device memory: a scene, a sensor. (§4.3)
 | `size` | bytes |
 | `count` | elements |
 | `names` | element names, space separated |
+| `address` | device memory address of element 0 (§8.3) |
+| `chunk` | bytes per addressed record (§8.3) |
 
 ## `block … field`
 
@@ -481,6 +483,35 @@ When a reply means success. (§6)
 - Arguments: 1: expression
 - Children: none
 - Properties: none besides the common ones
+
+## `message/derive`
+
+A value computed from the others: sent when left out, checked on decode. (§6.7)
+
+- Arguments: 2: name, expression
+- Children: none
+- Properties: any (see above)
+
+## `message/records`
+
+A run of addressed records inside one message. (§8.3)
+
+- Arguments: 1: the byte array that holds the records
+- Children: yes
+
+| Property | Meaning |
+|---|---|
+| `pattern` | the named pattern of one record |
+| `address` | expression: a record's memory address |
+| `data` | the record's data bytes, a byte array of the pattern |
+
+## `message/records/derive`
+
+A record's value computed from the others. (§8.3)
+
+- Arguments: 2: name, expression
+- Children: none
+- Properties: any (see above)
 
 ## `message/segment`
 

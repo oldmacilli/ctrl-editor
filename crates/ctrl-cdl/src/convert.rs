@@ -934,6 +934,8 @@ fn block(cx: &mut Cx, n: &RawNode) -> Block {
         name: cx.name(n),
         size: cx.prop_u32(n, "size"),
         count: cx.prop_u32(n, "count"),
+        address: cx.prop_u32(n, "address"),
+        chunk: cx.prop_u32(n, "chunk"),
         names: cx.prop_with(n, "names", words).unwrap_or_default(),
         items: items(cx, &n.name, &n.children),
     }
@@ -1179,9 +1181,62 @@ fn message(cx: &mut Cx, n: &RawNode) -> Message {
         ok_when: None,
         args: Vec::new(),
         segment: None,
+        derive: Vec::new(),
+        records: Vec::new(),
     };
     for c in &n.children {
         match c.name.as_str() {
+            "derive" => {
+                cx.node(c, "message/derive");
+                if let Some(d) = derive(cx, c) {
+                    m.derive.push(d);
+                }
+            }
+            "records" => {
+                cx.node(c, "message/records");
+                let pattern = cx.prop_str(c, "pattern");
+                let pattern = cx.required(c, "pattern", pattern).unwrap_or_default();
+                let template = cx
+                    .patterns
+                    .iter()
+                    .find(|p| p.name == pattern)
+                    .map(|p| p.template.clone());
+                if template.is_none() && !pattern.is_empty() {
+                    cx.err(c.pos, format!("unknown pattern `{pattern}`"));
+                }
+                let mut element = Message {
+                    meta: cx.meta(c),
+                    name: format!("{}.{}", m.name, cx.name(c)),
+                    transport: m.transport.clone(),
+                    frame: None,
+                    kind: m.kind,
+                    send: template,
+                    replies: Vec::new(),
+                    ok_when: None,
+                    args: Vec::new(),
+                    segment: None,
+                    derive: Vec::new(),
+                    records: Vec::new(),
+                };
+                for d in &c.children {
+                    if d.name == "derive" {
+                        cx.node(d, "message/records/derive");
+                        if let Some(d) = derive(cx, d) {
+                            element.derive.push(d);
+                        }
+                    } else {
+                        cx.unknown_child("records", d, &["derive"]);
+                    }
+                }
+                m.records.push(Records {
+                    meta: cx.meta(c),
+                    name: cx.name(c),
+                    pattern,
+                    element,
+                    address: cx.prop_str(c, "address"),
+                    data: cx.prop_str(c, "data"),
+                });
+            }
             "arg" => {
                 cx.node(c, "message/arg");
                 let arg = ArgDecl {
@@ -1245,7 +1300,9 @@ fn message(cx: &mut Cx, n: &RawNode) -> Message {
             _ => cx.unknown_child(
                 "message",
                 c,
-                &["arg", "send", "reply", "ok-when", "segment"],
+                &[
+                    "arg", "send", "reply", "ok-when", "segment", "derive", "records",
+                ],
             ),
         }
     }
@@ -1268,6 +1325,17 @@ fn message(cx: &mut Cx, n: &RawNode) -> Message {
 }
 
 /// The template of a `send` or `reply`: its argument, or a named `pattern=`.
+/// `derive "name" "expression"` (§6.7).
+/// The caller checks the node against its schema path.
+fn derive(cx: &mut Cx, n: &RawNode) -> Option<Derive> {
+    let expr = cx.arg_str(n, 1)?;
+    Some(Derive {
+        meta: cx.meta(n),
+        name: cx.name(n),
+        expr,
+    })
+}
+
 fn template_or_pattern(cx: &mut Cx, n: &RawNode) -> Option<(Template, Option<String>)> {
     let named = cx.prop_str(n, "pattern");
     match (n.args.is_empty(), named) {

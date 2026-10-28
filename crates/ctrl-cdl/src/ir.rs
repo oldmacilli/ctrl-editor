@@ -361,6 +361,11 @@ pub struct Block {
     pub name: String,
     pub size: Option<u32>,
     pub count: Option<u32>,
+    /// Device memory address of element 0; element `i` starts at
+    /// `address + i * size` (§8.3).
+    pub address: Option<u32>,
+    /// Bytes per addressed record when the block travels in records (§8.3).
+    pub chunk: Option<u32>,
     /// Element names, `names="Breath Bite Nod Tilt"`.
     pub names: Vec<String>,
     pub items: Vec<Item>,
@@ -570,6 +575,39 @@ pub struct Message {
     pub args: Vec<ArgDecl>,
     /// The device's multi-message form for long sends (§8.2).
     pub segment: Option<SysexSegment>,
+    /// Values computed from others: sent when the caller leaves them out,
+    /// checked when they are decoded (§6.7).
+    pub derive: Vec<Derive>,
+    /// Byte arrays of the template that hold a run of records (§8.3).
+    pub records: Vec<Records>,
+}
+
+/// `derive "sum-hi" "(data.sum >> 8) & 0xFF"`: a value computed from the
+/// others (§6.7). `x.sum` and `x.len` are the byte sum and the length of a
+/// byte array `x`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Derive {
+    pub meta: Meta,
+    pub name: String,
+    pub expr: String,
+}
+
+/// `records "chunks" pattern="dump-chunk" address="…" data="data"`: the
+/// byte array `chunks` of the message is a run of `pattern` instances, each
+/// an addressed piece of device memory (§8.3).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Records {
+    pub meta: Meta,
+    /// The byte-array capture or argument that holds the records.
+    pub name: String,
+    pub pattern: String,
+    /// One record as a message without a frame: the pattern as its `send`,
+    /// the record's `derive` nodes, the parent's transport.
+    pub element: Message,
+    /// The memory address of a record, an expression over its values.
+    pub address: Option<String>,
+    /// The record's data bytes, a byte array of the pattern.
+    pub data: Option<String>,
 }
 
 /// `arg "s" index="sensor"` or `arg "x" range="0..=3"`: the values a

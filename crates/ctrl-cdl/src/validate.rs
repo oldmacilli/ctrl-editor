@@ -208,6 +208,20 @@ impl<'d> V<'d> {
                     ),
                 );
             }
+            if let Some(chunk) = b.chunk {
+                let fits = b.address.is_some()
+                    && chunk > 0
+                    && b.size.is_some_and(|size| size % chunk == 0);
+                if !fits {
+                    self.error(
+                        b.meta.pos,
+                        format!(
+                            "block `{}`: `chunk` needs an `address` and a `size` that it divides",
+                            b.name
+                        ),
+                    );
+                }
+            }
             self.items(&b.name, &b.items, 0, b.size);
         }
     }
@@ -676,6 +690,10 @@ impl<'d> V<'d> {
             }
         }
         for m in &self.d.messages {
+            self.derived(m);
+            for r in &m.records {
+                self.records(m, r);
+            }
             if let Some(t) = &m.transport {
                 self.transport_ref(m.meta.pos, t);
             }
@@ -761,6 +779,85 @@ impl<'d> V<'d> {
                     }
                     _ => {}
                 }
+            }
+        }
+    }
+
+    /// `derive` (§6.7): the expression parses, and the value is one the
+    /// templates carry.
+    fn derived(&mut self, m: &'d Message) {
+        let named: Vec<String> = m
+            .send
+            .iter()
+            .chain(m.replies.iter().map(|r| &r.pattern))
+            .flat_map(template_names)
+            .collect();
+        for d in &m.derive {
+            self.expr(d.meta.pos, "derive", &d.expr);
+            if !named.contains(&d.name) {
+                self.error(
+                    d.meta.pos,
+                    format!(
+                        "`derive \"{}\"`: `{}` carries no such value",
+                        d.name, m.name
+                    ),
+                );
+            }
+        }
+    }
+
+    /// `records` (§8.3): a byte array of the message, a known pattern, and
+    /// an address and data the pattern can supply.
+    fn records(&mut self, m: &'d Message, r: &'d Records) {
+        let pos = r.meta.pos;
+        let arrays: Vec<&str> = m
+            .send
+            .iter()
+            .chain(m.replies.iter().map(|r| &r.pattern))
+            .flat_map(|t| &t.pieces)
+            .filter_map(|p| match p {
+                Piece::Rest { name } => Some(name.as_str()),
+                Piece::Field {
+                    name,
+                    encoding: Some(Encoding::Raw | Encoding::Nib3Bytes(_) | Encoding::Packed7),
+                } => Some(name.as_str()),
+                _ => None,
+            })
+            .collect();
+        if !arrays.contains(&r.name.as_str()) {
+            self.error(
+                pos,
+                format!(
+                    "records `{}`: `{}` has no byte array of that name",
+                    r.name, m.name
+                ),
+            );
+        }
+        let Some(element) = &r.element.send else {
+            return; // unknown pattern: reported by the converter
+        };
+        self.template_exprs(pos, "records pattern", element);
+        let names = template_names(element);
+        self.derived(&r.element);
+        if let Some(a) = &r.address {
+            self.expr(pos, "records address", a);
+            if let Ok(e) = Expr::parse(a) {
+                for n in e.names() {
+                    if !names.iter().any(|x| x == n) {
+                        self.error(
+                            pos,
+                            format!("records address: pattern `{}` has no `{n}`", r.pattern),
+                        );
+                    }
+                }
+            }
+        }
+        if let Some(data) = &r.data {
+            if !names.contains(data) {
+                self.error(
+                    pos,
+                    format!("records data: pattern `{}` has no `{data}`", r.pattern),
+                );
             }
         }
     }

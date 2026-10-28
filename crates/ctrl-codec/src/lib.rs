@@ -10,6 +10,7 @@
 //! encoding is `u7`, on USB `u8`; every SysEx data byte must be 7-bit.
 
 mod pack;
+mod records;
 mod segment;
 
 use std::collections::BTreeMap;
@@ -21,6 +22,7 @@ use ctrl_cdl::{
 };
 
 pub use pack::{pack7, unpack7};
+pub use records::{Memory, Record};
 pub use segment::{split_sysex, Joined, Planned, SysexJoiner, Write};
 
 /// A bound value: a number, or bytes for arrays, blocks and text.
@@ -280,12 +282,51 @@ impl<'d> Codec<'d> {
         out
     }
 
+    /// Names for expressions: bindings, then consts. A byte array `x` also
+    /// gives `x.sum` (the sum of its bytes) and `x.len` (§6.7).
     fn lookup<'a>(&'a self, bound: &'a Bindings) -> impl Fn(&str) -> Option<i64> + 'a {
         move |name| match bound.get(name) {
             Some(Val::Int(i)) => Some(*i),
             Some(Val::Bytes(_)) => None,
-            None => self.d.constant(name).map(|c| c.value),
+            None => {
+                let array = |suffix: &str| match name.strip_suffix(suffix).map(|b| bound.get(b)) {
+                    Some(Some(Val::Bytes(b))) => Some(b),
+                    _ => None,
+                };
+                if let Some(b) = array(".sum") {
+                    return Some(b.iter().map(|x| i64::from(*x)).sum());
+                }
+                if let Some(b) = array(".len") {
+                    return Some(b.len() as i64);
+                }
+                self.d.constant(name).map(|c| c.value)
+            }
         }
+    }
+
+    /// Adds the message's derived values that `args` leaves out, and checks
+    /// those it gives (§6.7).
+    fn derive(&self, m: &Message, args: &Bindings) -> Result<Bindings, CodecError> {
+        let mut out = args.clone();
+        for d in &m.derive {
+            let e = Expr::parse(&d.expr).map_err(CodecError::Expr)?;
+            let v = e.eval(&self.lookup(&out)).map_err(CodecError::Expr)?;
+            match out.get(&d.name) {
+                None => {
+                    out.insert(d.name.clone(), Val::Int(v));
+                }
+                Some(Val::Int(given)) if *given == v => {}
+                Some(given) => {
+                    return Err(CodecError::Range(format!(
+                        "`{}` is {}, but `{}` gives {v}",
+                        d.name,
+                        show(given),
+                        d.expr
+                    )))
+                }
+            }
+        }
+        Ok(out)
     }
 
     fn value(&self, name: &str, bound: &Bindings) -> Result<Val, CodecError> {
@@ -320,6 +361,8 @@ impl<'d> Codec<'d> {
         body: &'d Template,
         args: &Bindings,
     ) -> Result<(Vec<u8>, Vec<Span>), CodecError> {
+        let derived = self.derive(m, args)?;
+        let args = &derived;
         self.check_args(m, args)?;
         let medium = self.medium(m);
         let layout = self.layout(m, body);
@@ -636,6 +679,41 @@ impl<'d> Codec<'d> {
         bytes: &[u8],
         known: &Bindings,
     ) -> Result<Bindings, CodecError> {
+        let (bound, _) = self.decode_at(m, body, bytes, known, false)?;
+        self.check_derived(m, &bound)?;
+        Ok(bound)
+    }
+
+    /// Each derived value that arrived must equal its expression (§6.7).
+    fn check_derived(&self, m: &Message, bound: &Bindings) -> Result<(), CodecError> {
+        for d in &m.derive {
+            let Some(got) = bound.get(&d.name) else {
+                continue;
+            };
+            let e = Expr::parse(&d.expr).map_err(CodecError::Expr)?;
+            let want = e.eval(&self.lookup(bound)).map_err(CodecError::Expr)?;
+            if *got != Val::Int(want) {
+                return Err(CodecError::Range(format!(
+                    "`{}` is {}, but `{}` gives {want}",
+                    d.name,
+                    show(got),
+                    d.expr
+                )));
+            }
+        }
+        Ok(())
+    }
+
+    /// Decodes `body` from the start of `bytes`. With `prefix`, bytes after
+    /// it are allowed and the bytes used are returned (records, §8.3).
+    fn decode_at(
+        &self,
+        m: &'d Message,
+        body: &'d Template,
+        bytes: &[u8],
+        known: &Bindings,
+        prefix: bool,
+    ) -> Result<(Bindings, usize), CodecError> {
         let medium = self.medium(m);
         let layout = self.layout(m, body);
         let mut bound = known.clone();
@@ -763,7 +841,7 @@ impl<'d> Codec<'d> {
         }
         // A fixed-size frame is padded with zeros after the template.
         let padding = self.frame_len(m) == Some(bytes.len()) && bytes[at..].iter().all(|b| *b == 0);
-        if at < bytes.len() && !padding {
+        if at < bytes.len() && !padding && !prefix {
             return Err(CodecError::Trailing(at));
         }
         let body_start = body_start.unwrap_or(0);
@@ -795,7 +873,7 @@ impl<'d> Codec<'d> {
             }
         }
         self.check_args(m, &bound)?;
-        Ok(bound)
+        Ok((bound, at))
     }
 
     /// Declared arguments (`arg`) must lie in their range (CDL §6.5).
@@ -917,7 +995,16 @@ impl<'d> Codec<'d> {
                 Ok((Val::Int(i64::from(v[0])), 3))
             }
             Encoding::Nib3Bytes(tag) => {
-                let raw = region()?;
+                // the records run while they carry the tag, up to the tail
+                let limit = match tail {
+                    Some(_) => region()?,
+                    None => bytes,
+                };
+                let n = limit
+                    .chunks(3)
+                    .take_while(|r| r.len() == 3 && r[0] == 0x40 | tag)
+                    .count();
+                let raw = &limit[..3 * n];
                 Ok((Val::Bytes(unnib3(name, *tag, raw, at)?), raw.len()))
             }
             Encoding::Vendor(vendor) => self

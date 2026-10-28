@@ -527,3 +527,36 @@ fn fields_that_share_a_byte_name_their_bits() {
         "values 0..=16 do not fit bits 4..=7",
     );
 }
+
+#[test]
+fn records_derive_and_addressed_blocks_are_checked() {
+    let base = "transport \"m\" kind=\"midi\" role=\"config\"\n\
+                pattern \"rec\" \"{a:nib3(9)} {data:nib3-bytes(13)}\"\n";
+    let ok = format!(
+        "{base}message \"m\" transport=\"m\" {{ send \"F0 {{r:raw}} F7\"\n\
+         records \"r\" pattern=\"rec\" address=\"a\" data=\"data\" {{ derive \"a\" \"address\" }} }}"
+    );
+    assert_eq!(errors(&ok), Vec::<String>::new());
+    assert_one(
+        errors(&format!(
+            "{base}message \"m\" transport=\"m\" {{ send \"F0 {{r:raw}} F7\"\n\
+             records \"q\" pattern=\"rec\" }}"
+        )),
+        "has no byte array of that name",
+    );
+    assert_one(
+        errors(&format!(
+            "{base}message \"m\" transport=\"m\" {{ send \"F0 {{r:raw}} F7\"\n\
+             records \"r\" pattern=\"rec\" address=\"b\" }}"
+        )),
+        "pattern `rec` has no `b`",
+    );
+    assert_one(
+        errors("transport \"m\" kind=\"midi\"\nmessage \"m\" transport=\"m\" { send \"F0 {x} F7\"; derive \"y\" \"x + 1\" }"),
+        "carries no such value",
+    );
+    assert_one(
+        errors("block \"b\" size=10 chunk=4 address=0 { field \"x\" offset=0 type=\"u8\" }"),
+        "`chunk` needs an `address` and a `size` that it divides",
+    );
+}

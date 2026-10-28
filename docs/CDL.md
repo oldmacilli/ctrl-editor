@@ -448,6 +448,20 @@ expression (`{0xB0 + ch}`) is the status byte. A real-time byte (`F8..FF`:
 clock, Active Sensing `FE`) is a message by itself, `reply "FE"`, and the
 validator rejects bytes after it.
 
+### 6.7 Derived values
+
+`derive "name" "expression"` computes a value of the message from the
+others. The codec fills it in when the caller leaves it out, refuses a
+given value that disagrees, and checks it on every decoded message. Besides
+the arguments and captures, an expression may use `x.sum` (the sum of the
+bytes of a byte array `x`) and `x.len` (its length). So a 16-bit sum that a
+device sends as two values is data, not code:
+
+```kdl
+derive "sum-hi" "(data.sum >> 8) & 0xFF"
+derive "sum-lo" "data.sum & 0xFF"
+```
+
 ## 7. Classic MIDI patching
 
 `midi-map` states what the device sends and receives in performance use,
@@ -629,6 +643,46 @@ message into one ALSA sequencer event, and the kernel's `snd_seq_midi`
 port drops the tail of an event over its 4096-byte buffer without an
 error. 256-byte pieces stay well inside it, and 5 ms between them lets the
 port drain. A 651-byte scene write goes out as three writes.
+
+### 8.3 Records: addressed chunks inside one message
+
+Some devices send their memory as one long SysEx made of many records,
+each a piece of memory with its address. The Faderfox UC4 sends one setup
+as 22 chunks and all setups as 430, between one header and one end. A
+`records` node says that a byte array of the message is a run of instances
+of a named pattern, how a record's address is formed, and which of its
+values is the data; `derive` nodes inside it compute what a record carries
+besides (§6.7):
+
+```kdl
+pattern "dump-chunk" "{addr-hi:nib3(9)} {addr-lo:nib3(10)} {data:nib3-bytes(13)} {sum-hi:nib3(11)} {sum-lo:nib3(12)} 00 00 00 …"
+message "dump" transport="usb" {
+    reply "F0 00 00 00 41 20 16 {kind:nib3(2)} {fw-major:nib3(3)} {fw-minor:nib3(4)} {chunks*} 4F 20 16 F7"
+    records "chunks" pattern="dump-chunk" address="(addr-hi << 8) | addr-lo" data="data" {
+        derive "addr-hi" "address >> 8"
+        derive "addr-lo" "address & 0xFF"
+        derive "sum-hi" "(data.sum >> 8) & 0xFF"
+        derive "sum-lo" "data.sum & 0xFF"
+    }
+}
+block "controls" address=0x1C00 size=1280 chunk=64 count=18 { … }
+```
+
+- Decoding (`Codec::decode_records`) matches the pattern from the start
+  of the array again and again until it is used up; each record's address
+  comes from `address=`, bound as `address`, and its derived values are
+  checked. A `nib3-bytes` piece stops at the first record with another tag,
+  so the data's length need not be known.
+- `Memory::from_records` pieces the records together; `block_bytes` reads
+  element `i` of a block at `address + i * size` when all of it is known.
+- Encoding goes the other way: `block_pieces` cuts an element into
+  `chunk`-sized pieces with their addresses, `records_for` binds `address`
+  and the data, the `derive` nodes supply the rest, and `encode_records`
+  writes them; the message is then encoded as usual.
+
+The validator checks that the array exists in the message, that the
+pattern exists, that `address=` and `data=` name values of the pattern, and
+that a block's `chunk` divides its `size` and comes with an `address`.
 
 ## 9. USB parameter patching
 
