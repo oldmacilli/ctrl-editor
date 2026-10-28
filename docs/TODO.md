@@ -101,7 +101,8 @@ Last updated: 2026-10-28 (CDL gaps closed, long SysEx, UC-33).
 - [x] platform: `arg type=` (CDL §6.5): typed arguments, so polarity 2,
   channel 16 or an unknown status fail as in db1-protocol (found by DB-1
   PR #27). The DB-1 descriptor types its set and reply values
-- [ ] db1: bump DB-1 PR #27's pin and un-ignore its typed-value tests
+- [x] db1: bump DB-1 PR #27's pin and un-ignore its typed-value tests
+  (DB-1 8f70768, merged)
 - [ ] korg: `korg_sysex::build_ack` builds the first-generation `5F
   <status>` ack; the Studios send `{len:u21le} <status>` (KORG PR #2,
   ignored test). Unused outside tests: fix or retire it
@@ -275,3 +276,27 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
 - [ ] each lane: the old editor's hardware checklist passes on the platform
 - [ ] each lane: old product crates removed from their repos; the repos keep
   analysis, findings and captures
+
+## PM Shared MIDI monitor ([MONITOR.md](MONITOR.md))
+
+- [x] platform: M1 `ctrl-monitor` core: tap, parser, store, collector,
+  generic names (b1211e3)
+- [x] platform: M2 describers (CDL by descriptor, reply to the last
+  request), view model (filters, folding, chips, alerts, details), capture
+  filter
+- [ ] platform: M3 `ctrl-monitor-tui` and `ctrl-monitor-slint`
+- [ ] platform: `ctrl-monitor-midi`: passive taps and the virtual input in
+  `ctrl-midi` (§6.1, §6.2). blocked: the UC4 lane's `ctrl-midi` send work
+  (feat/faderfox-uc4) lands first
+- [ ] korg: M4, the KORG monitor on the shared component (lit controls as
+  a describer)
+- [ ] user: create the private repo `lb-midi-tools`; M5 lb-monitor, M6
+  lb-librarian
+- [ ] platform: M7 thru (virtual pairs), Windows MIDI Services backend in
+  `ctrl-midi`
+- [ ] platform: M8 RFC 6295 / AppleMIDI producer and network thru
+- [ ] zigtact: M9 `network-midi` produces into `ctrl-monitor` (mini-spec
+  pending the owner's approval); the egui Mesh Monitor pane is retired
+- [ ] platform: M10 UMP
+- [ ] platform: later, spying without thru: CoreMIDI driver plug-in, Linux
+  usbmon producer (§6.5)
