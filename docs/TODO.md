@@ -291,10 +291,11 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
 - [x] platform: view-model gaps the Slint pane found, fixed: alerts counted
   once, `Scroll` for the wheel, the selection kept in a smaller window,
   `SetTypes`, `SetTime`, stable `Row::stripe`
-- [ ] korg: M4 needs the Slint glue as a macro (or a `.slint` library the
-  editor compiles with its own bridge): Slint generates the bridge types
-  per crate, so `MonitorController` binds only this crate's components;
-  one pane per window while the bridge is a global
+- [x] platform: the pane is embeddable (owner's choice: inline, not a
+  separate window): `monitor_glue!()` expands the glue in the editor's
+  crate, `@ctrl-monitor/monitor.slint` through `DEP_CTRL_MONITOR_SLINT_UI`
+  (`links` metadata); `tools/monitor-embed-check` proves it. One pane per
+  window while the bridge is a global
 - [ ] platform: `ctrl-monitor-midi`: passive taps and the virtual input in
   `ctrl-midi` (§6.1, §6.2). blocked: the UC4 lane's `ctrl-midi` send work
   (feat/faderfox-uc4) lands first
