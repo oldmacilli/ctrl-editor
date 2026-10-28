@@ -815,18 +815,41 @@ fn transport(cx: &mut Cx, n: &RawNode) -> Transport {
         }
     };
     let mut captures = Vec::new();
+    let mut report_descriptor = None;
+    let mut poll = None;
     for c in &n.children {
-        if c.name != "capture" {
-            cx.unknown_child("transport", c, &["capture"]);
-            continue;
+        match c.name.as_str() {
+            "capture" => {
+                cx.node(c, "transport/capture");
+                let from = cx.prop_str(c, "from");
+                captures.push(Capture {
+                    meta: cx.meta(c),
+                    name: cx.name(c),
+                    from: cx.required(c, "from", from).unwrap_or_default(),
+                });
+            }
+            "report-descriptor" => {
+                cx.node(c, "transport/report-descriptor");
+                if let Some(bytes) = cx.arg_with(c, 0, parse_hex_bytes) {
+                    let rd = ReportDescriptor {
+                        meta: cx.meta(c),
+                        bytes,
+                    };
+                    once(cx, c, &mut report_descriptor, rd);
+                }
+            }
+            "poll" => {
+                cx.node(c, "transport/poll");
+                let interval = cx.prop_u32(c, "interval");
+                let p = Poll {
+                    meta: cx.meta(c),
+                    message: cx.name(c),
+                    interval: cx.required(c, "interval", interval).unwrap_or(0),
+                };
+                once(cx, c, &mut poll, p);
+            }
+            _ => cx.unknown_child("transport", c, &["capture", "report-descriptor", "poll"]),
         }
-        cx.node(c, "transport/capture");
-        let from = cx.prop_str(c, "from");
-        captures.push(Capture {
-            meta: cx.meta(c),
-            name: cx.name(c),
-            from: cx.required(c, "from", from).unwrap_or_default(),
-        });
     }
     Transport {
         meta: cx.meta(n),
@@ -844,6 +867,11 @@ fn transport(cx: &mut Cx, n: &RawNode) -> Transport {
         ep_in: cx.prop_u32(n, "ep-in"),
         scan: cx.prop_str(n, "scan"),
         captures,
+        sysex_limit: cx.prop_u32(n, "sysex-limit"),
+        segment_delay: cx.prop_u32(n, "segment-delay"),
+        pace: cx.prop_u32(n, "pace"),
+        report_descriptor,
+        poll,
     }
 }
 
@@ -1149,6 +1177,7 @@ fn message(cx: &mut Cx, n: &RawNode) -> Message {
         replies: Vec::new(),
         ok_when: None,
         args: Vec::new(),
+        segment: None,
     };
     for c in &n.children {
         match c.name.as_str() {
@@ -1196,7 +1225,25 @@ fn message(cx: &mut Cx, n: &RawNode) -> Message {
                     once(cx, c, &mut m.ok_when, expr);
                 }
             }
-            _ => cx.unknown_child("message", c, &["arg", "send", "reply", "ok-when"]),
+            "segment" => {
+                cx.node(c, "message/segment");
+                let message = cx.prop_str(c, "message");
+                let over = cx.prop_str(c, "over");
+                let size = cx.prop_u32(c, "size");
+                let seg = SysexSegment {
+                    meta: cx.meta(c),
+                    threshold: cx.prop_u32(c, "threshold"),
+                    message: cx.required(c, "message", message).unwrap_or_default(),
+                    over: cx.required(c, "over", over).unwrap_or_default(),
+                    size: cx.required(c, "size", size).unwrap_or(0),
+                };
+                once(cx, c, &mut m.segment, seg);
+            }
+            _ => cx.unknown_child(
+                "message",
+                c,
+                &["arg", "send", "reply", "ok-when", "segment"],
+            ),
         }
     }
     // Several replies are variants: each is named, once.

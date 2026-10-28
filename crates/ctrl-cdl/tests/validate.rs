@@ -456,9 +456,36 @@ message "m" status="measured" {
     );
     assert_eq!(found.len(), 3, "{found:#?}");
     assert!(
-        found[0].contains("`arg \"a\"` does not appear in `send`"),
+        found[0].contains("`arg \"a\"` appears in neither `send` nor a `reply`"),
         "{found:#?}"
     );
     assert!(found[1].contains("unknown block `none`"), "{found:#?}");
     assert!(found[2].contains("the block has no `count`"), "{found:#?}");
+}
+
+#[test]
+fn reply_captures_take_arg_ranges_and_status_bytes() {
+    // a device-originated channel message: the range keeps `{0x90 + ch}`
+    // from reading a CC status byte, and a real-time byte stands alone
+    let found = errors(
+        r#"
+transport "t" kind="midi" role="performance" status="measured"
+message "note-on" transport="t" status="measured" {
+    arg "ch" range="0..=15"
+    reply "{0x90 + ch} {note} {velocity}"
+}
+message "cc" transport="t" status="measured" { reply "B0 {cc} {value}"; }
+message "sensing" transport="t" status="measured" { reply "FE"; }
+message "bad-clock" transport="t" status="measured" { reply "F8 00"; }
+message "bad-cc" transport="t" status="measured" { reply "B0 80 00"; }"#,
+    );
+    assert_eq!(found.len(), 2, "{found:#?}");
+    assert!(
+        found[0].contains("real-time byte F8 is a message by itself"),
+        "{found:#?}"
+    );
+    assert!(
+        found[1].contains("byte 80 after the status byte"),
+        "{found:#?}"
+    );
 }

@@ -173,6 +173,28 @@ A path to the device. (§5)
 | `ep-out` | bulk OUT endpoint |
 | `ep-in` | bulk IN endpoint |
 | `scan` | a read message sent on each output to find the device |
+| `sysex-limit` | longest SysEx the host carries in one write; longer ones are split |
+| `segment-delay` | milliseconds between the pieces of a split write |
+| `pace` | shortest time between two frames, milliseconds |
+
+## `transport/report-descriptor`
+
+What the device reports; `frame` must match its reports. (§9)
+
+- Arguments: 1: the HID report descriptor, hex bytes
+- Children: none
+- Properties: none besides the common ones
+
+## `transport/poll`
+
+A message repeated for live values. (§9)
+
+- Arguments: 1: a read message
+- Children: none
+
+| Property | Meaning |
+|---|---|
+| `interval` | milliseconds between polls |
 
 ## `transport/capture`
 
@@ -457,6 +479,20 @@ When a reply means success. (§6)
 - Arguments: 1: expression
 - Children: none
 - Properties: none besides the common ones
+
+## `message/segment`
+
+The device's own multi-message form of a long send. (§8.2)
+
+- Arguments: none
+- Children: none
+
+| Property | Meaning |
+|---|---|
+| `message` | the message that carries one piece |
+| `over` | the byte-array argument that is split |
+| `size` | bytes of that argument per piece, before encoding |
+| `threshold` | split when the whole message is longer; default the transport's `sysex-limit` |
 
 ## `procedure`
 

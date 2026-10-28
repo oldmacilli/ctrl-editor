@@ -10,6 +10,7 @@
 //! encoding is `u7`, on USB `u8`; every SysEx data byte must be 7-bit.
 
 mod pack;
+mod segment;
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -20,6 +21,7 @@ use ctrl_cdl::{
 };
 
 pub use pack::{pack7, unpack7};
+pub use segment::{split_sysex, Joined, Planned, SysexJoiner, Write};
 
 /// A bound value: a number, or bytes for arrays, blocks and text.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -546,6 +548,7 @@ impl<'d> Codec<'d> {
             }
             Encoding::Storage(s) => store(name, *s, int()?),
             Encoding::MidiId => midi_id(name, int()?),
+            Encoding::Varlen7 => varlen7(name, int()?),
             Encoding::Packed7 => Ok(pack7(&bytes()?)),
             Encoding::Raw => bytes(),
             Encoding::Vendor(vendor) => self
@@ -868,6 +871,21 @@ impl<'d> Codec<'d> {
                 let raw = bytes.get(..3).ok_or_else(truncated)?;
                 Ok((Val::Int(i64::from(raw[1]) << 8 | i64::from(raw[2])), 3))
             }
+            Encoding::Varlen7 => {
+                let first = *bytes.first().ok_or_else(truncated)?;
+                if first != 0x7F {
+                    return Ok((Val::Int(i64::from(first)), 1));
+                }
+                let n = usize::from(*bytes.get(1).ok_or_else(truncated)?);
+                let raw = bytes.get(2..2 + n).ok_or_else(truncated)?;
+                let v = raw.iter().fold(0i64, |v, b| v << 7 | i64::from(*b));
+                // the long form is used only from 0x7F up, so each value
+                // has one encoding (CDL §8.1)
+                if varlen7(name, v)? != bytes[..2 + n] {
+                    return Err(range_error(name, "varlen7", v));
+                }
+                Ok((Val::Int(v), 2 + n))
+            }
             Encoding::Packed7 => {
                 let packed = region()?;
                 Ok((Val::Bytes(unpack7(packed)), packed.len()))
@@ -964,11 +982,18 @@ impl<'d> Codec<'d> {
         out
     }
 
+    /// Bytes a frame must have exactly: literals, and a fixed-width length
+    /// field, which is checked as strictly (`{len:u21le}` counts 3).
     fn literals(&self, m: &'d Message, body: &'d Template) -> usize {
+        let medium = self.medium(m);
         self.layout(m, body)
             .iter()
-            .filter(|(p, _)| matches!(p, Piece::Byte { .. }))
-            .count()
+            .map(|(p, _)| match p {
+                Piece::Byte { .. } => 1,
+                Piece::Length { encoding } => fixed_width(Some(encoding), medium).unwrap_or(0),
+                _ => 0,
+            })
+            .sum()
     }
 
     // ---- test vectors -----------------------------------------------------
@@ -1139,6 +1164,7 @@ fn storage_width(s: Storage) -> usize {
     match s {
         Storage::U7 | Storage::U8 | Storage::S7 | Storage::Bool | Storage::Bits(_) => 1,
         Storage::U14le | Storage::U14be | Storage::U16le | Storage::U16be => 2,
+        Storage::U21le | Storage::U21be => 3,
         Storage::Ascii(n) => usize::from(n),
     }
 }
@@ -1192,6 +1218,14 @@ fn store(name: &str, s: Storage, v: i64) -> Result<Vec<u8>, CodecError> {
             fits(0, 0xFFFF)?;
             vec![(v >> 8) as u8, (v & 0xFF) as u8]
         }
+        Storage::U21le => {
+            fits(0, 0x1F_FFFF)?;
+            vec![(v & 0x7F) as u8, (v >> 7 & 0x7F) as u8, (v >> 14) as u8]
+        }
+        Storage::U21be => {
+            fits(0, 0x1F_FFFF)?;
+            vec![(v >> 14) as u8, (v >> 7 & 0x7F) as u8, (v & 0x7F) as u8]
+        }
         Storage::Ascii(_) => unreachable!("handled by the caller"),
     })
 }
@@ -1205,6 +1239,8 @@ fn load(name: &str, s: Storage, raw: &[u8]) -> Result<i64, CodecError> {
         Storage::U14be => b(0) << 7 | b(1),
         Storage::U16le => b(0) | b(1) << 8,
         Storage::U16be => b(0) << 8 | b(1),
+        Storage::U21le => b(0) | b(1) << 7 | b(2) << 14,
+        Storage::U21be => b(0) << 14 | b(1) << 7 | b(2),
         Storage::Ascii(_) => unreachable!("handled by the caller"),
     };
     // Re-encoding must give the same bytes: a u7 of 0x80 or a bool of 2 is
@@ -1227,6 +1263,31 @@ fn midi_id(name: &str, v: i64) -> Result<Vec<u8>, CodecError> {
     } else {
         Err(range_error(name, "midi-id", v))
     }
+}
+
+/// One 7-bit byte below 0x7F, otherwise `7F n` and `n` 7-bit bytes, high
+/// first, at least two of them as KORG writes it (`0x7F` is `7F 02 00 7F`,
+/// KORG docs/midi-sysex.md "two length forms").
+fn varlen7(name: &str, v: i64) -> Result<Vec<u8>, CodecError> {
+    if (0..0x7F).contains(&v) {
+        return Ok(vec![v as u8]);
+    }
+    if !(0..=0x0FFF_FFFF).contains(&v) {
+        return Err(range_error(name, "varlen7", v));
+    }
+    let mut digits = Vec::new();
+    let mut rest = v;
+    while rest > 0 {
+        digits.push((rest & 0x7F) as u8);
+        rest >>= 7;
+    }
+    while digits.len() < 2 {
+        digits.push(0);
+    }
+    digits.reverse();
+    let mut out = vec![0x7F, digits.len() as u8];
+    out.extend(digits);
+    Ok(out)
 }
 
 fn checksum(c: &ctrl_cdl::Checksum, body: &[u8]) -> Result<u8, CodecError> {

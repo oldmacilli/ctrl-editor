@@ -56,7 +56,14 @@ fn has(found: &[(String, String)], capture: &str, text: &str) -> bool {
 fn highlights_mark_cdl_nodes_status_and_templates() {
     let q = query(tree_sitter_kdl::HIGHLIGHTS_QUERY, HIGHLIGHTS);
     let found = captures(&q, &descriptor("korg/nanokontrol-studio.ctrl.kdl"));
-    assert!(has(&found, "keyword", "message"), "{found:?}");
+    // the messages themselves live in the shared Studio file
+    let shared = captures(&q, &descriptor("korg/studio.inc.kdl"));
+    assert!(has(&shared, "keyword", "message"), "{shared:?}");
+    assert!(has(
+        &shared,
+        "string.special",
+        "{len:u21le} 40 {data:packed7}"
+    ));
     assert!(has(&found, "keyword", "procedure"));
     assert!(has(&found, "keyword.function", "exchange"));
     assert!(has(&found, "keyword.function", "gate"));
@@ -64,7 +71,6 @@ fn highlights_mark_cdl_nodes_status_and_templates() {
     assert!(has(&found, "constant.builtin", "measured"));
     assert!(has(&found, "comment.warning", "inferred"));
     assert!(has(&found, "comment.warning", "unknown"));
-    assert!(has(&found, "string.special", "01 05 00 40 {data:packed7}"));
     assert!(found
         .iter()
         .any(|(c, t)| c == "string.documentation" && t.contains("korg-sysex")));

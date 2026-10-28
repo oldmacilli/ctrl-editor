@@ -231,6 +231,51 @@ pub struct Transport {
     /// A read message the engine sends on each MIDI output to find the
     /// device; the input that answers pairs with that output (§5.1).
     pub scan: Option<String>,
+    /// The longest SysEx message the host stack carries in one write, in
+    /// bytes (§8.2). Longer messages go out in pieces of at most this many
+    /// bytes; the wire still carries one message.
+    pub sysex_limit: Option<u32>,
+    /// Milliseconds between the pieces of one split SysEx write.
+    pub segment_delay: Option<u32>,
+    /// The shortest time between two frames, in milliseconds (§9).
+    pub pace: Option<u32>,
+    /// The HID report descriptor the device reports (§9): the validator
+    /// checks `frame` against its input and output reports.
+    pub report_descriptor: Option<ReportDescriptor>,
+    /// A message the engine repeats for live values (§9).
+    pub poll: Option<Poll>,
+}
+
+/// `report-descriptor "05 0C …"`: the HID report descriptor, as read from
+/// the device.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ReportDescriptor {
+    pub meta: Meta,
+    pub bytes: Vec<u8>,
+}
+
+/// `poll "poll" interval=52`: send a read message every `interval` ms
+/// while the device is shown.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Poll {
+    pub meta: Meta,
+    pub message: String,
+    pub interval: u32,
+}
+
+/// `segment message="write-part" over="data" size=1024`: the device's own
+/// multi-message form of a long message (§8.2). When the whole message
+/// would be longer than `threshold` bytes (default: the transport's
+/// `sysex-limit`), the engine sends `message` once per `size`-byte piece
+/// of the byte array `over`, with the arguments `part`, `parts` and
+/// `offset`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SysexSegment {
+    pub meta: Meta,
+    pub threshold: Option<u32>,
+    pub message: String,
+    pub over: String,
+    pub size: u32,
 }
 
 /// `capture "device-id" from="identity"`.
@@ -520,6 +565,8 @@ pub struct Message {
     pub ok_when: Option<String>,
     /// Declared arguments with their allowed values (§6.5).
     pub args: Vec<ArgDecl>,
+    /// The device's multi-message form for long sends (§8.2).
+    pub segment: Option<SysexSegment>,
 }
 
 /// `arg "s" index="sensor"` or `arg "x" range="0..=3"`: the values a

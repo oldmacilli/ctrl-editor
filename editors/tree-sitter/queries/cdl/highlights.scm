@@ -20,7 +20,7 @@
 ((node name: (identifier) @tag.attribute)
   (#any-of? @tag.attribute
     "vendor" "model" "class" "file-key" "manual" "replaces" "aka" "image"
-    "usb" "midi-port" "sysex-identity" "hid" "key" "listen" "capture"
+    "usb" "midi-port" "sysex-identity" "hid" "key" "listen" "capture" "report-descriptor" "poll" "segment"
     "enum" "errors" "int" "value" "field" "group" "array" "control" "list"
     "item" "source" "sink" "prefix" "suffix" "arg" "reply" "owns"
     "version-from" "stage" "recovery" "args" "bytes" "data"))

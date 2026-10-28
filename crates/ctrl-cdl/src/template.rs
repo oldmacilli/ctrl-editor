@@ -15,6 +15,10 @@ pub enum Storage {
     S7,
     U16le,
     U16be,
+    /// Three 7-bit bytes, low first (KORG Studio lengths): 0..=0x1F_FFFF.
+    U21le,
+    /// Three 7-bit bytes, high first.
+    U21be,
     Bool,
     /// `bits(n)` inside a byte, 1..=8.
     Bits(u8),
@@ -32,6 +36,8 @@ impl Storage {
             "s7" => Some(Self::S7),
             "u16le" => Some(Self::U16le),
             "u16be" => Some(Self::U16be),
+            "u21le" => Some(Self::U21le),
+            "u21be" => Some(Self::U21be),
             "bool" => Some(Self::Bool),
             _ => None,
         };
@@ -50,7 +56,7 @@ impl Storage {
                 _ => Err(format!("`{s}`: ascii(n) takes a length above 0")),
             };
         }
-        Err(format!("`{s}` is not a storage type (u7, u8, u14le, u14be, s7, u16le, u16be, bool, bits(n), ascii(n))"))
+        Err(format!("`{s}` is not a storage type (u7, u8, u14le, u14be, s7, u16le, u16be, u21le, u21be, bool, bits(n), ascii(n))"))
     }
 }
 
@@ -64,6 +70,8 @@ impl fmt::Display for Storage {
             Self::S7 => f.write_str("s7"),
             Self::U16le => f.write_str("u16le"),
             Self::U16be => f.write_str("u16be"),
+            Self::U21le => f.write_str("u21le"),
+            Self::U21be => f.write_str("u21be"),
             Self::Bool => f.write_str("bool"),
             Self::Bits(n) => write!(f, "bits({n})"),
             Self::Ascii(n) => write!(f, "ascii({n})"),
@@ -84,6 +92,9 @@ pub enum Encoding {
     /// `hi = v >> 8` and `lo = v & 0xFF`, both 7-bit. Manufacturer IDs and
     /// KORG model IDs use it.
     MidiId,
+    /// A 7-bit length with an escape (KORG's first generation): one byte
+    /// below 0x7F, otherwise `7F n` and `n` 7-bit bytes, high first.
+    Varlen7,
     /// A device pack type, registered with the codec (CDL §8).
     Vendor(String),
 }
@@ -93,6 +104,7 @@ impl Encoding {
         match s {
             "packed7" => Ok(Self::Packed7),
             "midi-id" => Ok(Self::MidiId),
+            "varlen7" => Ok(Self::Varlen7),
             "raw" => Ok(Self::Raw),
             _ => match Storage::parse(s) {
                 Ok(storage) => Ok(Self::Storage(storage)),
@@ -109,6 +121,7 @@ impl fmt::Display for Encoding {
             Self::Storage(storage) => storage.fmt(f),
             Self::Packed7 => f.write_str("packed7"),
             Self::MidiId => f.write_str("midi-id"),
+            Self::Varlen7 => f.write_str("varlen7"),
             Self::Raw => f.write_str("raw"),
             Self::Vendor(name) => f.write_str(name),
         }

@@ -150,15 +150,17 @@ fn includes_merge_by_kind_and_name() {
             .as_deref(),
         Some("scene-data")
     );
-    // Messages come from both files.
+    // The Studio messages are shared (studio.inc.kdl); the length makes one
+    // scene-write fit both scene sizes. The model comes from the device.
     let write = d.message("scene-write").unwrap();
     assert_eq!(
         write.send.as_ref().unwrap().to_string(),
-        "14 02 00 40 {data:packed7}"
+        "{len:u21le} 40 {data:packed7}"
     );
-    assert_eq!(write.meta.pos.file, 0);
+    assert_eq!(write.meta.pos.file, 2);
     assert_eq!(d.message("commit-scene").unwrap().meta.pos.file, 2);
     assert_eq!(d.constant("model").unwrap().value, 0x136);
+    assert_eq!(d.constant("model").unwrap().meta.pos.file, 0);
     assert_eq!(d.constant("manufacturer").unwrap().value, 0x42);
 
     // Shared procedures and the frame come from the include.

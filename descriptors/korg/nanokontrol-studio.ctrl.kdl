@@ -22,10 +22,10 @@ identify {
 
 // Two config transports: USB is preferred; the user's port choice (p in
 // the TUI, the port preference in the GUI) overrides it.
-transport "usb" kind="midi" port-match="nanoKONTROL Studio CTRL" role="config" preferred=#true {
+transport "usb" kind="midi" port-match="nanoKONTROL Studio CTRL" role="config" preferred=#true sysex-limit=4096 {
     capture "device-id" from="identity"
 }
-transport "ble" kind="midi" port-match="nanoKONTROL Studio Bluetooth" role="config" status="measured" evidence="TUI receive over Bluetooth, 2026-10-20" {
+transport "ble" kind="midi" sysex-limit=4096 port-match="nanoKONTROL Studio Bluetooth" role="config" status="measured" evidence="TUI receive over Bluetooth, 2026-10-20" {
     capture "device-id" from="identity"
 }
 
@@ -52,7 +52,6 @@ types {
 
 // Frame, identity, requests, global read/write: common.inc.kdl.
 const "model" 0x137 status="measured" evidence="identity reply 37 01, captured 2026-10-20; korg-devices measured_layout(0x137)"
-pattern "scene-data" "01 05 00 40 {data:packed7}"
 
 block "scene" size=560 count=5 status="measured" evidence="measured_layout(0x137)" {
     field "name" offset=0 type="ascii(16)"
@@ -71,16 +70,6 @@ block "scene" size=560 count=5 status="measured" evidence="measured_layout(0x137
     array "slider" count=8 status="unknown"
 }
 block "global" size=128 status="measured" evidence="measured_layout(0x137)"
-
-// Acks use the frame: 01 00 00, then the status (korg-sysex ack_status reads
-// only that byte; the captured commit ack is 01 00 00 21). Scene data is
-// acked with 23 (data received), the commit with 21 (write complete), as in
-// korg-sysex Phase::expected.
-message "scene-write" frame="korg-native" transport="selected" kind="write" status="measured" evidence="korg-sysex X14802_SCENE_WRITE_HEADER, build_write_frame; capture" {
-    send "01 05 00 40 {data:packed7}"
-    reply pattern="korg-ack" variant="ack" timeout=2000
-    ok-when "status == data-received"
-}
 
 procedure "receive-scene-set" kind="read" status="measured" {
     exchange "scene-set-info-request"
@@ -142,9 +131,13 @@ test-vector "commit-ack" message="commit-scene" reply=#true variant="ack" status
     args device-id=0 status=0x21
     bytes "F0 42 40 00 01 37 01 00 00 21 F7"
 }
-// The header is captured; the packed payload follows korg-sysex pack_7in8.
-test-vector "scene-write" message="scene-write" status="decoded" evidence="korg-sysex measured_write_frames_match_the_capture, pack_7in8" {
+// The whole 560-byte scene from the scene-read capture, written back: the
+// length (01 05 00 = 641) comes from the block size, as captured in
+// korg-sysex measured_write_frames_match_the_capture. (The earlier vector
+// put that captured header on a 4-byte payload, a length the device would
+// reject; computing `{len}` exposed it.)
+test-vector "scene-write" message="scene-write" status="decoded" evidence="korg-sysex measured_write_frames_match_the_capture (header); payload from the scene-read capture" {
     args device-id=0
-    data "data" "AA 55 80 01"
-    bytes "F0 42 40 00 01 37 01 05 00 40 05 2A 55 00 01 F7"
+    data "data" "54 52 41 4B 54 4F 52 20 20 20 20 20 01 FF FF FF 00 00 0D 00 7F FF FF FF 00 00 0E 00 7F FF FF FF 00 00 0F 00 7F FF FF FF 00 00 10 00 7F FF FF FF 00 00 11 00 7F FF FF FF 00 00 12 00 7F FF FF FF 00 00 13 00 7F FF FF FF 00 00 14 00 7F FF FF FF 00 00 02 00 7F FF FF FF 00 00 03 00 7F FF FF FF 00 00 04 00 7F FF FF FF 00 00 05 00 7F FF FF FF 00 00 06 00 7F FF FF FF 00 00 08 00 7F FF FF FF 00 00 09 00 7F FF FF FF 00 00 0C 00 7F FF FF FF 00 00 1D 00 7F 00 FF FF 00 00 1E 00 7F 00 FF FF 00 00 1F 00 7F 00 FF FF 00 00 21 00 7F 00 FF FF 00 00 22 00 7F 00 FF FF 00 00 23 00 7F 00 FF FF 00 00 24 00 7F 00 FF FF 00 00 25 00 7F 00 FF FF 00 00 15 00 7F 00 FF FF 00 00 16 00 7F 00 FF FF 00 00 17 00 7F 00 FF FF 00 00 18 00 7F 00 FF FF 00 00 19 00 7F 00 FF FF 00 00 1A 00 7F 00 FF FF 00 00 1B 00 7F 00 FF FF 00 00 1C 00 7F 00 FF FF 00 00 26 00 7F 00 FF FF 00 00 27 00 7F 00 FF FF 00 00 28 00 7F 00 FF FF 00 00 29 00 7F 00 FF FF 00 00 2A 00 7F 00 FF FF 00 00 2B 00 7F 00 FF FF 00 00 2C 00 7F 00 FF FF 00 00 2D 00 7F 00 FF FF 00 00 2E 00 7F 00 FF FF 00 00 2F 00 7F 00 FF FF 00 00 30 00 7F 00 FF FF 00 00 31 00 7F 00 FF FF 00 00 32 00 7F 00 FF FF 00 00 33 00 7F 00 FF FF 00 00 34 00 7F 00 FF FF 00 00 35 00 7F 00 FF FF 00 00 50 00 7F 00 FF FF 00 00 3F 00 7F 00 FF FF 00 00 51 00 7F 00 FF FF 00 00 3A 00 7F 00 FF FF 00 00 3B 00 7F 00 FF FF 00 00 36 00 7F 00 FF FF 00 00 3E 00 7F 00 FF FF 00 00 37 00 7F 00 FF FF 00 00 38 00 7F 00 FF FF 00 00 39 00 7F 00 FF FF 00 00 3C 00 7F 00 FF FF 00 00 3D 00 7F 00 FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF 00 00 02 51 54 55 56 00 7F FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF"
+    bytes "F0 42 40 00 01 37 01 05 00 40 00 54 52 41 4B 54 4F 52 40 20 20 20 20 20 01 7F 03 7F 7F 00 00 0D 00 7F 07 7F 7F 7F 00 00 0E 00 0E 7F 7F 7F 7F 00 00 0F 1C 00 7F 7F 7F 7F 00 00 38 10 00 7F 7F 7F 7F 00 70 00 11 00 7F 7F 7F 7F 60 00 00 12 00 7F 7F 7F 41 7F 00 00 13 00 7F 7F 03 7F 7F 00 00 14 00 7F 07 7F 7F 7F 00 00 02 00 0E 7F 7F 7F 7F 00 00 03 1C 00 7F 7F 7F 7F 00 00 38 04 00 7F 7F 7F 7F 00 70 00 05 00 7F 7F 7F 7F 60 00 00 06 00 7F 7F 7F 41 7F 00 00 08 00 7F 7F 03 7F 7F 00 00 09 00 7F 07 7F 7F 7F 00 00 0C 00 0E 7F 7F 7F 7F 00 00 1D 18 00 7F 00 7F 7F 00 00 30 1E 00 7F 00 7F 7F 00 60 00 1F 00 7F 00 7F 7F 40 00 00 21 00 7F 00 7F 01 7F 00 00 22 00 7F 00 03 7F 7F 00 00 23 00 7F 06 00 7F 7F 00 00 24 00 0C 7F 00 7F 7F 00 00 25 18 00 7F 00 7F 7F 00 00 30 15 00 7F 00 7F 7F 00 60 00 16 00 7F 00 7F 7F 40 00 00 17 00 7F 00 7F 01 7F 00 00 18 00 7F 00 03 7F 7F 00 00 19 00 7F 06 00 7F 7F 00 00 1A 00 0C 7F 00 7F 7F 00 00 1B 18 00 7F 00 7F 7F 00 00 30 1C 00 7F 00 7F 7F 00 60 00 26 00 7F 00 7F 7F 40 00 00 27 00 7F 00 7F 01 7F 00 00 28 00 7F 00 03 7F 7F 00 00 29 00 7F 06 00 7F 7F 00 00 2A 00 0C 7F 00 7F 7F 00 00 2B 18 00 7F 00 7F 7F 00 00 30 2C 00 7F 00 7F 7F 00 60 00 2D 00 7F 00 7F 7F 40 00 00 2E 00 7F 00 7F 01 7F 00 00 2F 00 7F 00 03 7F 7F 00 00 30 00 7F 06 00 7F 7F 00 00 31 00 0C 7F 00 7F 7F 00 00 32 18 00 7F 00 7F 7F 00 00 30 33 00 7F 00 7F 7F 00 60 00 34 00 7F 00 7F 7F 40 00 00 35 00 7F 00 7F 01 7F 00 00 50 00 7F 00 03 7F 7F 00 00 3F 00 7F 06 00 7F 7F 00 00 51 00 0C 7F 00 7F 7F 00 00 3A 18 00 7F 00 7F 7F 00 00 30 3B 00 7F 00 7F 7F 00 60 00 36 00 7F 00 7F 7F 40 00 00 3E 00 7F 00 7F 01 7F 00 00 37 00 7F 00 03 7F 7F 00 00 38 00 7F 06 00 7F 7F 00 00 39 00 0C 7F 00 7F 7F 00 00 3C 18 00 7F 00 7F 7F 00 00 70 3D 00 7F 00 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 01 7F 00 00 02 51 54 55 78 56 00 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F F7"
 }

@@ -15,13 +15,14 @@ device "korg.triton-taktile-25-49" {
 const "model" 0x127 status="decoded" evidence="KORG analysis/sysex/descriptors.json: X12880SysExGenerator descriptor, length style short_or_long"
 
 // The port name is not recorded; the user picks it, or a scan finds the
-// device by its identity reply (CDL 5.1).
-transport "midi" kind="midi" role="config" scan="identity" status="decoded" evidence="X12880SysExGenerator in the vendor application" {
+// device by its identity reply (CDL 5.1). SysEx longer than 4096 bytes
+// goes to the host in pieces (CDL 8.2: Linux ALSA rawmidi buffers).
+transport "midi" kind="midi" role="config" scan="identity" sysex-limit=4096 status="decoded" evidence="X12880SysExGenerator in the vendor application" {
     capture "device-id" from="identity"
 }
 
 block "scene" size=640 count=16 status="decoded" evidence="KORG analysis/products/catalog.json (factory data)"
-block "global" size=88 status="decoded" evidence="KORG analysis/products/catalog.json (factory data)"
+block "global" size=104 status="decoded" evidence="KORG analysis/products/catalog.json (factory data)"
 
 driver "korg-file" provides="file:tr_taktile_data file:tr_taktile_glob file:tr_taktile_set" status="decoded" evidence="KORG analysis/products/catalog.json (Info.plist document types)"
 

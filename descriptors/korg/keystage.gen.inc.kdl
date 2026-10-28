@@ -15,8 +15,9 @@ device "korg.keystage" {
 const "model" 0x169 status="decoded" evidence="KORG analysis/sysex/descriptors.json: X20870SysExGenerator descriptor, length style fixed3"
 
 // The port name is not recorded; the user picks it, or a scan finds the
-// device by its identity reply (CDL 5.1).
-transport "midi" kind="midi" role="config" scan="identity" status="decoded" evidence="X20870SysExGenerator in the vendor application" {
+// device by its identity reply (CDL 5.1). SysEx longer than 4096 bytes
+// goes to the host in pieces (CDL 8.2: Linux ALSA rawmidi buffers).
+transport "midi" kind="midi" role="config" scan="identity" sysex-limit=4096 status="decoded" evidence="X20870SysExGenerator in the vendor application" {
     capture "device-id" from="identity"
 }
 

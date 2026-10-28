@@ -1,22 +1,53 @@
 // Shared by every KORG device descriptor (include "common.inc.kdl"): what
 // korg-sysex builds for every model. Decoded here; studio.inc.kdl raises it
 // to measured for the two Studios. Each device declares `const "model"`.
-// Evidence: KORG_Kontrol_Editor crates/korg-sysex.
+// Evidence: KORG_Kontrol_Editor crates/korg-sysex, docs/midi-sysex.md.
 cdl "0.1"
+
+// KORG native SysEx, in one picture
+// =================================
+//
+//   F0  42  4d  00 01 37  | length    command  arguments or data  | F7
+//   |   |   |   |         | (body)                                 |
+//   |   |   |   model id: 0x137 as a MIDI ID (CDL §8.1)            end
+//   |   |   0x40 | device id (the stored setting from the identity reply,
+//   |   |   not a MIDI channel: nanoKONTROL Studio 00, nanoKEY Studio 0F)
+//   |   KORG's manufacturer id
+//   start
+//
+// The frame below is the part every model shares. What follows the model
+// id, the body, comes in two generations:
+//
+//   Studio generation (measured, studio.inc.kdl):
+//     {len:u21le} {command} {arguments…}
+//     a 3-byte 7-bit length, low byte first, counting every body byte after
+//     it. "01 00 00 12" is length 1, command 12 (scene-set info request);
+//     "01 05 00 40 <640 packed bytes>" is length 641: data marker 40 and a
+//     560-byte scene, 7-in-8 packed.
+//
+//   First generation (decoded from the shared generator, not
+//   seen on hardware; nanoKONTROL2, nanoKEY2, nanoPAD2, microKEY …):
+//     7F {len:varlen7} 51 {data:packed7}
+//     command 7F (data transfer), a length that is one byte below 7F and
+//     `7F 02 hi lo` from 7F up, the data marker 51, then the packed data.
+//     The vendor generator counts the payload; korg-sysex counts the
+//     encoded bytes (marker and packed data), which `{len}` does. Captures
+//     decide (docs/midi-sysex.md "two length forms").
+//
+// Acknowledgements are an ordinary body with a one-byte argument, the
+// status: "{len:u21le} {status}" on the Studios (01 00 00 23), so they need
+// no separate syntax.
 
 const "manufacturer" 0x42 status="measured" evidence="korg-sysex KORG_ID; byte 5 of the identity replies captured 2026-10-20"
 
-// KORG native SysEx, built from generic parts (CDL §8.1):
-//   F0, the manufacturer as a MIDI ID (42), 0x40 | device id, the model as
-//   a MIDI ID (0x137 is 00 01 37), then the command bytes, then F7.
-// The device id is the stored setting from the identity reply (nanoKONTROL
-// Studio 00, nanoKEY Studio 0F, over USB and Bluetooth alike); it is not a
-// MIDI channel. Replies use the same frame, so `{0x40 | device-id}` checks
-// the id when it is known and captures it when it is not.
 sysex-frame "korg-native" status="decoded" evidence="korg-sysex build_request, build_write_frame, build_commit, build_data_message (push_model)" {
     prefix "F0 {manufacturer:midi-id} {0x40 | device-id} {model:midi-id}"
     suffix "F7"
 }
+
+// First-generation data body. No message uses it until a capture confirms
+// the command and the length rule for a device.
+pattern "korg-gen1-data" "7F {len:varlen7} 51 {data:packed7}"
 
 // The universal identity request. The reply carries the device id and the
 // model as two bytes, low first (0x137 is 37 01); a reply from another

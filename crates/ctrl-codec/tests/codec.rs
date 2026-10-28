@@ -525,3 +525,123 @@ fn args_out_of_range_neither_encode_nor_match() {
     assert!(Codec::new(&small).encode("select-scene", &seven).is_err());
     assert!(Codec::new(&big).encode("select-scene", &seven).is_ok());
 }
+
+#[test]
+fn korg_lengths_u21le_and_varlen7() {
+    // Studio generation: a 3-byte 7-bit length, low first, then the command
+    // (01 05 00 40 is length 641: the marker and 640 packed bytes).
+    let d = synthetic(
+        r#"const "manufacturer" 0x42
+const "model" 0x137
+transport "m" kind="midi" role="config" { capture "device-id" from="x"; }
+sysex-frame "korg-native" { prefix "F0 {manufacturer:midi-id} {0x40 | device-id} {model:midi-id}"; suffix "F7"; }
+message "scene-write" frame="korg-native" transport="m" { send "{len:u21le} 40 {data:packed7}"; }
+message "request" frame="korg-native" transport="m" { send "{len:u21le} 12"; }
+message "gen1-data" frame="korg-native" transport="m" { send "7F {len:varlen7} 51 {data:raw}"; }"#,
+    );
+    let codec = Codec::new(&d);
+    let scene = codec
+        .encode(
+            "scene-write",
+            &args(&[("device-id", int(0)), ("data", Val::Bytes(vec![0; 560]))]),
+        )
+        .unwrap();
+    assert_eq!(
+        &scene[..10],
+        &[0xF0, 0x42, 0x40, 0x00, 0x01, 0x37, 0x01, 0x05, 0x00, 0x40]
+    );
+    let req = codec
+        .encode("request", &args(&[("device-id", int(0))]))
+        .unwrap();
+    assert_eq!(
+        req,
+        [0xF0, 0x42, 0x40, 0x00, 0x01, 0x37, 0x01, 0x00, 0x00, 0x12, 0xF7]
+    );
+
+    // first generation: one length byte below 7F, else 7F 02 hi lo
+    let short = codec
+        .encode(
+            "gen1-data",
+            &args(&[("device-id", int(0)), ("data", Val::Bytes(vec![1; 10]))]),
+        )
+        .unwrap();
+    assert_eq!(&short[6..9], &[0x7F, 11, 0x51]);
+    let long = codec
+        .encode(
+            "gen1-data",
+            &args(&[("device-id", int(0)), ("data", Val::Bytes(vec![1; 200]))]),
+        )
+        .unwrap();
+    assert_eq!(&long[6..11], &[0x7F, 0x7F, 0x02, 0x01, 0x49]); // 201 = 1 * 128 + 73
+    let back = codec
+        .decode_send("gen1-data", &long, &Bindings::new())
+        .unwrap();
+    assert_eq!(back["data"], Val::Bytes(vec![1; 200]));
+}
+
+#[test]
+fn reply_arg_ranges_separate_status_bytes() {
+    let d = synthetic(
+        r#"transport "t" kind="midi" role="performance"
+message "cc" transport="t" { arg "ch" range="0..=15"; reply "{0xB0 + ch} {cc} {value}"; }
+message "note-on" transport="t" { arg "ch" range="0..=15"; reply "{0x90 + ch} {note} {velocity}"; }
+message "sensing" transport="t" { reply "FE"; }"#,
+    );
+    let codec = Codec::new(&d);
+    let names = |b: &[u8]| -> Vec<String> {
+        codec
+            .identify(b, Some(Direction::In), &Bindings::new())
+            .into_iter()
+            .map(|m| m.message)
+            .collect()
+    };
+    assert_eq!(names(&[0xB8, 0x07, 0x7F]), ["cc"]);
+    assert_eq!(names(&[0x95, 0x40, 0x64]), ["note-on"]);
+    assert_eq!(names(&[0xFE]), ["sensing"]);
+}
+
+#[test]
+fn long_sysex_is_split_for_the_host_and_by_the_protocol() {
+    let d = synthetic(
+        r#"transport "linux" kind="midi" role="config" sysex-limit=4096 segment-delay=5
+message "dump" transport="linux" kind="write" {
+    send "F0 7D 01 {data:raw} F7"
+    segment message="dump-part" over="data" size=2000
+}
+message "dump-part" transport="linux" kind="write" { send "F0 7D 02 {part} {parts} {data:raw} F7"; }
+message "blob" transport="linux" kind="write" { send "F0 7D 03 {data:raw} F7"; }"#,
+    );
+    let report = ctrl_cdl::validate(&d);
+    assert_eq!(report.errors().count(), 0, "{:?}", report.findings);
+    let codec = Codec::new(&d);
+    let data = |n: usize| Val::Bytes((0..n).map(|i| (i % 128) as u8).collect());
+
+    // fits: one message, one write
+    let small = codec.plan("dump", &args(&[("data", data(100))])).unwrap();
+    assert_eq!(small.len(), 1);
+    assert_eq!(small[0].message, "dump");
+    assert_eq!(small[0].writes.len(), 1);
+
+    // too long for 4096: the device's own parts, each under the limit
+    let big = codec.plan("dump", &args(&[("data", data(5000))])).unwrap();
+    assert_eq!(big.len(), 3);
+    assert!(big
+        .iter()
+        .all(|p| p.message == "dump-part" && p.frame.len() <= 4096));
+    assert_eq!(&big[2].frame[..5], &[0xF0, 0x7D, 0x02, 2, 3]);
+
+    // no protocol form: the host writes are split, the wire is one message
+    let blob = codec.plan("blob", &args(&[("data", data(9000))])).unwrap();
+    assert_eq!(blob.len(), 1);
+    assert_eq!(blob[0].writes.len(), 3);
+    assert!(blob[0]
+        .writes
+        .iter()
+        .all(|w| w.bytes.len() <= 4096 && w.delay_ms == 5));
+    let joined: Vec<u8> = blob[0]
+        .writes
+        .iter()
+        .flat_map(|w| w.bytes.clone())
+        .collect();
+    assert_eq!(joined, blob[0].frame);
+}

@@ -22,7 +22,19 @@ identify {
 }
 
 // Configuration is HID only. The firmware emits MIDI by itself.
-transport "hid" kind="hid" usage-page=0x0C frame=8 report-id=0 seize=#true role="config" status="measured" evidence="firmware/descriptors-2026-10-14.txt; HANDOVER.md Framing (hidapi strips the report id)"
+// The USB side in full (TECcontrol firmware/descriptors-2026-10-14.txt):
+// one full-speed device (12 Mbit/s, bcdUSB 2.00, EP0 8 bytes) with a
+// class-compliant MIDI function, which CoreMIDI's MIDIServer owns, and a HID
+// interface on usage page 0x0C (consumer) that carries the configuration.
+// Its report descriptor declares one 8-byte input and one 8-byte output
+// report without a report id; hidapi and IOKit pass the 8 bytes as they are.
+// The serial number is string 3 and also ends the product string
+// ("Breath Controller 5.0-<serial>"); it keys the hub.
+transport "hid" kind="hid" usage-page=0x0C frame=8 report-id=0 seize=#true role="config" status="measured" evidence="firmware/descriptors-2026-10-14.txt; HANDOVER.md Framing (hidapi strips the report id)" {
+    report-descriptor "05 0C 09 00 A1 02 09 00 95 08 75 08 81 00 09 00 95 08 75 08 91 00 C0" status="measured" evidence="IORegistry ReportDescriptor, firmware/descriptors-2026-10-14.txt"
+    // the original polls the four sensor values at about 19 Hz
+    poll "poll" interval=52 status="measured" evidence="HANDOVER.md opcode table: 0x00 poll ~19 Hz; 1947 polls in the 2026-10-20 trace"
+}
 transport "midi" kind="midi" port-match="Breath" role="performance"
 
 types {

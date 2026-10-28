@@ -237,10 +237,34 @@ pub static SCHEMA: &[NodeSpec] = &[
                 "scan",
                 "a read message sent on each output to find the device",
             ),
+            p(
+                "sysex-limit",
+                "longest SysEx the host carries in one write; longer ones are split",
+            ),
+            p("segment-delay", "milliseconds between the pieces of a split write"),
+            p("pace", "shortest time between two frames, milliseconds"),
         ]),
         true,
         "5",
         "A path to the device.",
+    ),
+    n(
+        "transport/report-descriptor",
+        (1, 1),
+        "the HID report descriptor, hex bytes",
+        NONE,
+        false,
+        "9",
+        "What the device reports; `frame` must match its reports.",
+    ),
+    n(
+        "transport/poll",
+        (1, 1),
+        "a read message",
+        Some(&[p("interval", "milliseconds between polls")]),
+        false,
+        "9",
+        "A message repeated for live values.",
     ),
     n(
         "transport/capture",
@@ -532,6 +556,23 @@ pub static SCHEMA: &[NodeSpec] = &[
         false,
         "6",
         "When a reply means success.",
+    ),
+    n(
+        "message/segment",
+        (0, 0),
+        "",
+        Some(&[
+            p("message", "the message that carries one piece"),
+            p("over", "the byte-array argument that is split"),
+            p("size", "bytes of that argument per piece, before encoding"),
+            p(
+                "threshold",
+                "split when the whole message is longer; default the transport's `sysex-limit`",
+            ),
+        ]),
+        false,
+        "8.2",
+        "The device's own multi-message form of a long send.",
     ),
     // ---- procedures -------------------------------------------------------
     n(

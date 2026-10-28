@@ -1,0 +1,292 @@
+// Evolution UC-33 USB MIDI controller (original model, not the UC-33e).
+// Editor: oldmacilli/UC33-Editor (embeds this file; evidence and captures
+// are listed there and under the local capture archive).
+//
+// Evidence:
+//   usb      ioreg on the owner's unit, 2026-10-28: 0a4d:00f5, bcdDevice 0x0101,
+//            bcdUSB 0x0100, no serial number
+//   capture  the local capture archive
+//            (control moves and one SNAP SHOT, 33 messages)
+//            the local capture archive
+//            (DRAWBAR MODE on and off: the 9 faders resent, values inverted)
+//   manual   "Evolution UC-33e Getting Started" and "UC-33 Advanced User
+//            Guide". Both are written for the UC-33e; on this unit nothing
+//            in them is verified unless a capture says so.
+//
+// What this unit cannot do, measured:
+//   - it does not answer the universal identity request F0 7E 7F 06 01 F7
+//     (probe 2026-10-28: only Active Sensing FE every ~200 ms came back);
+//   - it has no MEMORY DUMP (no such label on the panel; 8 minutes of capture
+//     saw no F0). The UC-33e dump format is undocumented anyway.
+// So the editor never writes to the device. It reads with SNAP SHOT and a
+// learn pass, and writes by printing key sequences (recipes) the owner types
+// on the device.
+cdl "0.1"
+
+device "evolution.uc33" {
+    vendor "Evolution Electronics"
+    model "UC-33"
+    aka "UC-33 USB MIDI Controller"
+    manual "UC-33e Getting Started; UC-33 Advanced User Guide (UC-33e)"
+    replaces "Evolution Librarian 1.0 (Windows, UC-33e only)"
+}
+
+identify {
+    usb vid=0x0A4D pid=0x00F5 bcd=0x0101 status="measured" evidence="ioreg 2026-10-28"
+    // CoreMIDI localises the port suffix ("Anschluss 1" in German, "Port 1"
+    // in English), so the match stops before it.
+    midi-port match="UC-33 USB MIDI Controller" direction="both" status="measured" evidence="CoreMIDI endpoint names 2026-10-28"
+    listen "FE" status="measured" evidence="identity probe 2026-10-28: Active Sensing about every 200 ms on port 1"
+}
+
+// Port 1: the UC-33's own controls (in), and the host's output to the device.
+// Port 2 (input only): whatever arrives at the 5-pin MIDI IN, passed through
+// to the host (manual "About The MIDI In Port"). The editor shows it, never
+// learns from it.
+transport "controls" kind="midi" role="performance" port-match-in="UC-33 USB MIDI Controller Anschluss 1" port-match-out="UC-33 USB MIDI Controller Anschluss 1" status="measured" evidence="CoreMIDI endpoint names, German locale; the app matches the suffix digit, not the word"
+transport "midi-in" kind="midi" role="performance" port-match="UC-33 USB MIDI Controller Anschluss 2" status="measured" evidence="CoreMIDI endpoint names; an input only, no output of that name exists; manual MIDI In section"
+
+types {
+    // Advanced Guide Appendix B. 0..=119 are plain CC numbers; the codes from
+    // 145 up exist for buttons only. On the original UC-33 none of the codes
+    // above 127 is verified.
+    enum "assign" status="inferred" evidence="Advanced Guide Appendix B1/B2 (UC-33e)" {
+        value 120 "All Sound Off (CC 120)"
+        value 121 "Reset All Controllers (CC 121)"
+        value 122 "Local Control (CC 122)"
+        value 123 "All Notes Off (CC 123)"
+        value 124 "Omni Off (CC 124)"
+        value 125 "Omni On (CC 125)"
+        value 126 "Mono On (CC 126)"
+        value 127 "Poly On (CC 127)"
+        value 128 "Pitch Bend Sensitivity (RPN)"
+        value 129 "Channel Fine Tune (RPN)"
+        value 130 "Channel Coarse Tune (RPN)"
+        value 131 "Channel Pressure"
+        value 132 "RPN coarse"
+        value 133 "RPN fine"
+        value 134 "NRPN coarse"
+        value 135 "NRPN fine"
+        value 136 "Master Volume (GM SysEx)"
+        value 137 "Master Pan (GM SysEx)"
+        value 138 "Master Coarse Tune (GM SysEx)"
+        value 139 "Master Fine Tune (GM SysEx)"
+        value 140 "Chorus Mod Rate (GM2 SysEx)"
+        value 141 "Chorus Mod Depth (GM2 SysEx)"
+        value 142 "Chorus Feedback (GM2 SysEx)"
+        value 143 "Chorus Send to Reverb (GM2 SysEx)"
+        value 144 "Pitch Bend"
+        value 145 "Program/Bank preset (button)"
+        value 146 "CC on/off (button)"
+        value 147 "Note on/off (button)"
+        value 148 "Note toggle (button)"
+        value 149 "MMC command (button)"
+        value 150 "Reverb type (GM2 SysEx, button)"
+        value 151 "Reverb time (GM2 SysEx, button)"
+        value 152 "Chorus type (GM2 SysEx, button)"
+        value 255 "Controller off"
+    }
+    enum "mmc" status="inferred" evidence="Advanced Guide p.11 (UC-33e)" {
+        value 1 "Stop"
+        value 2 "Play"
+        value 3 "Deferred Play"
+        value 4 "Fast Forward"
+        value 5 "Rewind"
+        value 6 "Record Strobe"
+        value 7 "Record Exit"
+        value 8 "Record Pause"
+        value 9 "Pause"
+        value 10 "Eject"
+        value 11 "Chase"
+        value 12 "Command Error Reset"
+        value 13 "MMC Reset"
+    }
+    enum "reverb-type" status="inferred" evidence="Advanced Guide Appendix G" {
+        value 0 "Small Room"
+        value 1 "Medium Room"
+        value 2 "Large Room"
+        value 3 "Medium Hall"
+        value 4 "Large Hall"
+        value 8 "Plate"
+    }
+    enum "chorus-type" status="inferred" evidence="Advanced Guide Appendix G" {
+        value 0 "Chorus 1"
+        value 1 "Chorus 2"
+        value 2 "Chorus 3"
+        value 3 "Chorus 4"
+        value 4 "FB Chorus"
+        value 5 "Flanger"
+    }
+    // 0 sends on the global channel; for SysEx assigns the same slot is the
+    // SysEx device id 0..=127 (Advanced Guide "About SysEx Messages").
+    int "control-channel" storage="u8" range="0..=127" special="0=Global" status="inferred" evidence="Advanced Guide p.9, p.12"
+    int "midi-channel" storage="u7" range="1..=16" status="inferred" evidence="Advanced Guide p.9"
+}
+
+// The 33 memories. Their byte layout is unknown (no dump exists on this
+// model), so fields carry no offsets and the block is never written.
+// Controls: F1..F9 faders, C10..C33 knobs, B34..B47 buttons (Getting Started
+// p.5). B38..B47 double as the number keys in edit mode.
+block "preset" count=33 status="inferred" evidence="Getting Started p.9: 33 memories; P03 shown on the owner's LCD" {
+    array "control" count=47 {
+        field "assign" type="u8" range="0..=255"
+        field "channel" type="control-channel"
+        field "data-lsb" type="u7"
+        field "data-msb" type="u7"
+        field "program" type="u7"
+    }
+}
+// Kept in non-volatile memory, outside the presets (Advanced Guide p.13).
+block "global" status="inferred" evidence="Advanced Guide p.9, p.13, p.15" {
+    field "channel" type="midi-channel"
+    field "device-id" type="u7"
+    field "drawbar-mode" type="bool"
+    field "midi-out-from-usb" type="bool"
+}
+
+param "preset.*.control.*.assign" label="Assign" group="Control" ui="combo"
+param "preset.*.control.*.channel" label="Channel / device id" group="Control" ui="spin"
+param "global.channel" label="Global channel" group="Global" ui="spin"
+
+// What the controls send. The channel nibble is captured from the status
+// byte; `arg "ch" range="0..=15"` keeps a CC status byte (B5) from matching
+// the note templates as channel 37 (CDL §6.5).
+message "cc" transport="controls" status="measured" evidence="capture-snapshot-and-moves-1: B0..B8 on CCs 1, 7, 10..13, 20, 21, 28" {
+    arg "ch" range="0..=15"
+    reply "{0xB0 + ch} {cc} {value}"
+}
+message "note-on" transport="controls" status="inferred" evidence="assign 147/148, Advanced Guide p.12" {
+    arg "ch" range="0..=15"
+    reply "{0x90 + ch} {note} {velocity}"
+}
+message "note-off" transport="controls" status="inferred" evidence="assign 147/148" {
+    arg "ch" range="0..=15"
+    reply "{0x80 + ch} {note} {velocity}"
+}
+message "program" transport="controls" status="inferred" evidence="PROGRAM key and assign 145" {
+    arg "ch" range="0..=15"
+    reply "{0xC0 + ch} {program}"
+}
+message "pressure" transport="controls" status="inferred" evidence="assign 131" {
+    arg "ch" range="0..=15"
+    reply "{0xD0 + ch} {value}"
+}
+message "pitch-bend" transport="controls" status="inferred" evidence="assign 144" {
+    arg "ch" range="0..=15"
+    reply "{0xE0 + ch} {value:u14le}"
+}
+// MIDI 1.0 MMC and the GM / GM2 universal real-time SysEx the assigns name.
+message "mmc" transport="controls" status="inferred" evidence="assign 149, MIDI 1.0 MMC" {
+    reply "F0 7F {device} 06 {command} F7"
+}
+message "gm-master" transport="controls" status="inferred" evidence="assigns 136..=139, GM device control 04 01..04" {
+    arg "param" range="1..=4"
+    reply "F0 7F {device} 04 {param} {value:u14le} F7"
+}
+message "gm2-fx" transport="controls" status="inferred" evidence="assigns 140..=143, 150..=152, GM2 global parameter control" {
+    arg "slot" range="1..=2"
+    reply "F0 7F {device} 04 05 01 01 01 01 {slot} {param} {value} F7"
+}
+
+// Sent by the UC-33 every ~200 ms (a real-time byte is a message by itself).
+message "active-sensing" transport="controls" status="measured" evidence="identity probe 2026-10-28" {
+    reply "FE"
+}
+
+midi-map transport="controls" status="inferred" {
+    source "preset.control" count=47 kind="from-field" message="{assign}" channel="{channel}"
+}
+
+panel picture="900x420" source="drawn from Getting Started p.4, not to scale" status="inferred" {
+    repeat "n" "1..=8" {
+        control "F{n}" kind="fader" group="Faders" box="{20 + 70 * (n - 1)},250,40,150" bind="preset.control"
+    }
+    control "F9" kind="fader" group="Faders" box="600,250,40,150" bind="preset.control"
+    repeat "n" "10..=17" {
+        control "C{n}" kind="knob" group="Knobs" box="{20 + 70 * (n - 10)},20,40,40" bind="preset.control"
+    }
+    repeat "n" "18..=25" {
+        control "C{n}" kind="knob" group="Knobs" box="{20 + 70 * (n - 18)},90,40,40" bind="preset.control"
+    }
+    repeat "n" "26..=33" {
+        control "C{n}" kind="knob" group="Knobs" box="{20 + 70 * (n - 26)},160,40,40" bind="preset.control"
+    }
+    repeat "n" "34..=37" {
+        control "B{n}" kind="button" group="Transport" box="{690 + 50 * (n - 34)},20,40,30" bind="preset.control"
+    }
+    repeat "n" "38..=47" {
+        control "B{n}" kind="button" group="Keypad" box="{690 + 50 * ((n - 38) % 4)},{90 + 50 * ((n - 38) / 4)},40,30" bind="preset.control"
+    }
+}
+
+labels "en" source="Getting Started p.9 / Advanced Guide Appendix H (UC-33e factory list)" status="inferred" {
+    list "factory-presets" {
+        item 1 "Cubase multi-channel & channel strip (1-8)"
+        item 2 "NI B4"
+        item 3 "NI Pro-53"
+        item 4 "Reason Mixer"
+        item 5 "Reason Malstrom"
+        item 6 "Reason Subtractor"
+        item 7 "Reason NN-19"
+        item 8 "Reason Dr. Rex"
+        item 9 "Reason ReDrum"
+        item 10 "Cubase multi-channel mixing (9-16)"
+        item 11 "Logic channel strip"
+        item 12 "Sound Studio Pro II 1-8"
+        item 13 "Sound Studio Pro II 9-16"
+        item 14 "Sonar"
+        item 15 "Steinberg Model-E"
+        item 16 "Steinberg Halion"
+        item 17 "Waldorf Attack"
+        item 18 "Waldorf PPG Wave2V"
+        item 19 "NI FM7"
+        item 20 "Rebirth master & synths"
+        item 21 "Rebirth drum modules"
+        item 22 "AAS Lounge Lizard"
+        item 23 "CM DS-404"
+        item 24 "CM SR-202"
+        item 25 "CM 101"
+        item 26 "TC Works Mercury-1"
+        item 27 "Big Tick Rainbow Synth"
+        item 28 "GS/XG/GM2 synth control"
+        item 29 "GS/XG drum mixer"
+        item 30 "SoundBlaster synth control"
+        item 31 "User 1 channel mixer (1-8)"
+        item 32 "User 2 channel mixer (9-16)"
+        item 33 "User 3 undefined to global channel"
+    }
+    // The function keys as the recipes name them. The UC-33e manual's names;
+    // the owner's unit has a "Memory" key the manual does not name, so a key
+    // whose label differs is corrected here, not in code.
+    list "keys" {
+        item 1 "CONTROL SELECT"
+        item 2 "ASSIGN"
+        item 3 "CHANNEL"
+        item 4 "RECALL"
+        item 5 "STORE"
+        item 6 "DATA MSB"
+        item 7 "DATA LSB"
+        item 8 "PROGRAM"
+        item 9 "+"
+        item 10 "-"
+    }
+}
+
+// Nothing in this descriptor is ever sent: there is no config transport.
+// The UC-33e's SysEx memory dump, for the record.
+message "memory-dump" transport="controls" status="unknown" evidence="Advanced Guide p.13 names it, documents no bytes; absent on the original UC-33" {
+    reply "F0 {data*} F7"
+}
+
+test-vector "cc-f1-preset3" message="cc" reply=#true status="measured" evidence="capture-snapshot-and-moves-1, snapshot line 1" {
+    args ch=8 cc=7 value=127
+    bytes "B8 07 7F"
+}
+test-vector "cc-f9-preset3" message="cc" reply=#true status="measured" evidence="capture-snapshot-and-moves-1, snapshot line 33" {
+    args ch=0 cc=28 value=65
+    bytes "B0 1C 41"
+}
+test-vector "mmc-play" message="mmc" reply=#true status="inferred" evidence="MIDI 1.0 MMC" {
+    args device=127 command=2
+    bytes "F0 7F 7F 06 02 F7"
+}

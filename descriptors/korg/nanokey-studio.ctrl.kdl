@@ -25,28 +25,21 @@ identify {
 // The USB config port has direction-specific names (CDL §5). The KORG
 // editor resolves them with a directional " CTRL" <-> " KEYBOARD/CTRL"
 // fallback (KORG fbf74bc).
-transport "usb" kind="midi" port-match-in="nanoKEY Studio KEYBOARD/CTRL" port-match-out="nanoKEY Studio CTRL" role="config" preferred=#true status="measured" evidence="CoreMIDI listing with cable, 2026-10-20; global and scene-set receive and unchanged write byte-identical over USB (KORG fbf74bc)" {
+transport "usb" kind="midi" port-match-in="nanoKEY Studio KEYBOARD/CTRL" port-match-out="nanoKEY Studio CTRL" role="config" preferred=#true sysex-limit=4096 status="measured" evidence="CoreMIDI listing with cable, 2026-10-20; global and scene-set receive and unchanged write byte-identical over USB (KORG fbf74bc)" {
     capture "device-id" from="identity"
 }
 // Port name as in the original's preferences (docs/app-architecture.md).
-transport "ble" kind="midi" port-match="nanoKEY Studio Bluetooth" role="config" status="measured" evidence="CoreMIDI listing, 2026-10-20" {
+transport "ble" kind="midi" sysex-limit=4096 port-match="nanoKEY Studio Bluetooth" role="config" status="measured" evidence="CoreMIDI listing, 2026-10-20" {
     capture "device-id" from="identity"
 }
 
 const "model" 0x136 status="measured" evidence="identity reply 36 01, captured 2026-10-20; korg-devices measured_layout(0x136)"
-pattern "scene-data" "14 02 00 40 {data:packed7}"
 block "scene" size=240 count=8 status="measured" evidence="measured_layout(0x136)" {
     field "name" offset=0 type="ascii(16)"
     array "knob" count=8 status="unknown"
     array "pad" count=8 status="unknown"
 }
 block "global" size=128 status="measured" evidence="measured_layout(0x136)"
-
-message "scene-write" frame="korg-native" transport="selected" kind="write" status="measured" evidence="korg-devices measured_layout(0x136); scene-set write verified unchanged (KORG aaa4f36)" {
-    send "14 02 00 40 {data:packed7}"
-    reply pattern="korg-ack" variant="ack" timeout=2000
-    ok-when "status == data-received"
-}
 
 procedure "receive-scene-set" kind="read" status="measured" {
     exchange "scene-set-info-request"

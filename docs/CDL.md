@@ -12,8 +12,8 @@ CDL covers four areas:
 | Area | Section | Example device |
 |---|---|---|
 | 1. Classic MIDI patching (CC, NRPN, RPN, program change, notes, live rules) | §7 | DB-1 drawbars, TEC sensors |
-| 2. SysEx patching (dumps, set/ack chains, packing, checksums) | §8 | KORG scenes, DB-1 config |
-| 3. USB parameter patching (HID or bulk frames) | §9 | TEC breath controller |
+| 2. SysEx patching (dumps, set/ack chains, packing, checksums, long SysEx) | §8 | KORG scenes, DB-1 config |
+| 3. USB parameter patching (HID or bulk frames, report descriptor, polling) | §9 | TEC breath controller |
 | 4. Firmware update procedure | §12 | template only; no device decoded yet |
 
 ## 1. Syntax: KDL v2
@@ -134,7 +134,7 @@ types {
 ```
 
 Built-in storage types: `u7`, `u8`, `u14le`, `u14be` (two 7-bit bytes),
-`s7` (offset 64), `u16le`/`u16be`, `bits(n)` inside a byte, `ascii(n)`
+`u21le`, `u21be` (three 7-bit bytes), `s7` (offset 64), `u16le`/`u16be`, `bits(n)` inside a byte, `ascii(n)`
 (space padded), `bool`. Ranges are inclusive (`0..=127`). `display` and
 `parse` are LBMT expressions (§10) or the built-ins `+1`, `-64`.
 
@@ -195,6 +195,10 @@ transport "aux"  kind="midi" port-match="DB-1 AUX" role="config"
 transport "hid"  kind="hid" usage-page=0x0C frame=8 seize=#true
 transport "bulk" kind="usb-bulk" interface=1 ep-out=0x02 ep-in=0x81 status="unknown"
 ```
+
+A MIDI transport may say how much SysEx the host takes per write
+(`sysex-limit`, §8.2); a HID transport carries its report descriptor and
+poll (§9). `pace` is the shortest time between two frames on any transport.
 
 Messages and procedures name the transport they use. `role="config"` marks
 the port that the write policy guards. When a device has more than one
@@ -279,7 +283,7 @@ A template is a string of bytes and placeholders:
 | `{name:packed7}` | bytes, 8→7 bit packed (§8.1) |
 | `{name:raw}` | bytes as they are |
 | `{name:ascii(n)}` | text, padded with spaces to `n` bytes |
-| `{len:type}` | the number of body bytes after this field, up to the first checksum or the end of the body |
+| `{len:type}` | the number of body bytes after this field, up to the first checksum or the end of the body; `type` is a storage type (`u21le` for KORG Studios) or `varlen7` (§8.1) |
 | `{sum:roland(from,to)}` | checksum over a range of the body (§6.4) |
 | `{expr}`, `{=expr}` | a computed byte, a CDL expression (§10.1) |
 | `..` | in a reply pattern: any one byte |
@@ -378,7 +382,8 @@ value. Anything else is a `compute` LBMT snippet or a driver.
 
 ### 6.5 Argument ranges
 
-An index argument says which values it takes, with `arg`:
+An index argument says which values it takes, with `arg`. The value may
+be one the message sends or one a reply captures:
 
 ```kdl
 message "select-scene" frame="korg-native" transport="selected" {
@@ -398,6 +403,25 @@ gets 0..=4 on the nanoKONTROL Studio and 0..=7 on the nanoKEY Studio.
 encode a value outside the range, and a frame whose decoded value falls
 outside does not match. Without it, `{0x10 + s}` matches any byte: a trace
 read the TEC read-meta request `10 00 …` as write-meta with `s = -16`.
+
+On a reply the range does the same for what the device sends by itself.
+A UC-33 note-on and its CC look alike to `{0x90 + ch}`: `B5` is `0x90 +
+37`. The range rejects that reading, so `B5 07 57` is a CC only:
+
+```kdl
+message "note-on" transport="controls" {
+    arg "ch" range="0..=15"
+    reply "{0x90 + ch} {note} {velocity}"
+}
+```
+
+### 6.6 Channel and real-time messages
+
+A MIDI template starts with one status byte; every other byte is data
+(`0..=7F`). SysEx runs from `F0` to `F7`. A first piece that is an
+expression (`{0xB0 + ch}`) is the status byte. A real-time byte (`F8..FF`:
+clock, Active Sensing `FE`) is a message by itself, `reply "FE"`, and the
+validator rejects bytes after it.
 
 ## 7. Classic MIDI patching
 
@@ -441,7 +465,7 @@ per part, so a frame needs no vendor code:
 | device ID in a byte with fixed bits | `4d` (KORG), `1n` | an expression, `{0x40 \| device-id}`; the value comes from a transport `capture` of the identity reply |
 | model ID | `00 01 37` (KORG), fixed bytes | `const "model" 0x137` with `{model:midi-id}`, literal bytes, or `{model:u14be}` |
 | command, address | `01 00 00 12` | literal bytes, fields, `{address:u14be}` |
-| byte count | before the data | `{len:u14be}` (§6) |
+| byte count | before the data | `{len:u14be}`, `{len:u21le}`, `{len:varlen7}` (§6) |
 | 8-bit data in 7-bit bytes | KORG 7-in-8 | `{data:packed7}` |
 | plain data, text | | `{data:raw}`, `{name:ascii(16)}`, slices `{v[6]}` |
 | checksum | Roland | `{sum:roland(1,-1)}` (§6.4) |
@@ -460,7 +484,18 @@ into `n + ceil(n / 7)`, and a packed region of `m` bytes unpacks into
 Names in a frame come from the device, not from message arguments: each is
 a `const` or a transport `capture`. `ctrl_cdl::validate` checks this.
 
-The KORG framing (`descriptors/korg/common.inc.kdl`, measured):
+**`varlen7`**: a length with an escape, as KORG's first generation writes
+it: one byte below `7F`; from `7F` up, `7F`, a byte count, then that many
+7-bit bytes, high first, at least two (`200` is `7F 02 01 48`).
+
+#### KORG native SysEx
+
+`descriptors/korg/common.inc.kdl` draws it; in short:
+
+```text
+F0 42 4d [model id] | [length] [command] [arguments or data] | F7
+          frame     |            body                      | frame
+```
 
 ```kdl
 const "manufacturer" 0x42
@@ -468,20 +503,27 @@ sysex-frame "korg-native" status="measured" {
     prefix "F0 {manufacturer:midi-id} {0x40 | device-id} {model:midi-id}"
     suffix "F7"
 }
-message "identity" transport="selected" status="measured" {
-    send "F0 7E 7F 06 01 F7"
-    reply "F0 7E {device-id} 06 02 {manufacturer:midi-id} {model:u16le} {member:u16le} {version:u16le} .. .. F7"
+// Studio generation (measured): a 3-byte length, low first, counts the
+// body bytes after it. 02 00 00 14 03 is length 2, command 14, scene 3.
+message "select-scene" frame="korg-native" transport="selected" {
+    arg "scene" index="scene"
+    send "{len:u21le} 14 {scene}"
 }
-message "select-scene" frame="korg-native" transport="selected" status="measured" {
-    send "02 00 00 14 {scene}"
-}
+pattern "korg-ack" "{len:u21le} {status}"                   // 01 00 00 23
+pattern "scene-data" "{len:u21le} 40 {data:packed7}"        // marker 40, packed scene
+// First generation (decoded, not yet seen on hardware): command 7F,
+// a varlen7 length, marker 51, packed data.
+pattern "korg-gen1-data" "7F {len:varlen7} 51 {data:packed7}"
 ```
 
 Each device adds `const "model" 0x137`. The transports `capture
 "device-id" from="identity"`; the identity reply checks `model`, so another
 model's reply does not match. The frame then gives `F0 42 4F 00 01 36 02 00
 00 14 03 F7` for scene 3 on a nanoKEY Studio with device id `0F`, byte for
-byte the capture that `korg-sysex` tests against.
+byte the capture that `korg-sysex` tests against. Because the length is
+computed, the two Studios share one scene pattern: `01 05 00` (641) and
+`14 02 00` (276) are the lengths of a 560- and a 240-byte scene, packed,
+plus the marker.
 
 Other vendors' framing has the same shape. These sketches show the parts,
 not evidence; a real descriptor needs captures:
@@ -499,6 +541,54 @@ A device pack may register its own encoding (`{x:vendor-name}`, a Rust
 `VendorEncoding` in `ctrl-codec`) only when no generic part fits, and only
 with test vectors. Dump messages carry a block with `{data:packed7}`; the
 engine splits and joins multi-message dumps when the block says `chunk=…`.
+
+### 8.2 Long SysEx
+
+Some host stacks carry only so much SysEx per write: Linux ALSA rawmidi
+buffers hold 4096 bytes by default, and some USB-MIDI drivers stop at a few
+KiB. CDL handles it on two layers, both declared in the descriptor:
+
+1. **The host write.** `sysex-limit` on a MIDI transport is the longest
+   message the engine hands to the host in one write. A longer message
+   goes out in consecutive pieces of at most that many bytes, with
+   `segment-delay` milliseconds between them. The device still receives
+   one SysEx from `F0` to `F7`; only the writes are cut. On input the
+   engine joins pieces back into whole messages (`ctrl_codec::SysexJoiner`:
+   real-time bytes inside a SysEx are passed on, a status byte before `F7`
+   reports the message as broken). This works for every device on every
+   platform.
+
+   ```kdl
+   transport "usb" kind="midi" port-match="nanoKONTROL Studio CTRL" role="config" sysex-limit=4096
+   ```
+
+2. **The device's own parts.** A device whose protocol has a multi-message
+   form of a long transfer names it with `segment`. When the whole message
+   would be longer than `threshold` (default: the transport's
+   `sysex-limit`), the engine sends the `segment` message once per
+   `size`-byte piece of the byte array `over`, with the arguments `part`
+   (0-based), `parts` and `offset`; each piece then goes through layer 1.
+
+   ```kdl
+   message "dump" transport="usb" kind="write" {
+       send "{len:u21le} 40 {data:packed7}"
+       segment message="dump-part" over="data" size=2000
+   }
+   message "dump-part" transport="usb" kind="write" {
+       send "{len:u21le} 41 {part} {parts} {data:packed7}"
+   }
+   ```
+
+   The validator checks that `over` is a byte array of both messages, that
+   the part message carries `{part}` or `{offset}`, that both have the same
+   `kind`, and that a threshold exists. The part message is an ordinary
+   message: its `status` and evidence rules apply, so no device gets a
+   multi-part form that was not measured.
+
+`Codec::plan` returns what the engine writes: the messages, and for each
+the host writes with their delays. Every KORG transport carries
+`sysex-limit=4096`; no KORG transfer measured so far is longer (the largest
+is a 641-byte scene).
 
 ## 9. USB parameter patching
 
@@ -536,6 +626,24 @@ message "write-meta" transport="hid" kind="write" status="measured" {
 transport sets the report ID (`report-id=0`: hidapi strips it, so the wire
 frame is the 8 bytes). A send must fit the frame, and a reply must fill
 it.
+
+The USB side of a HID transport is data too:
+
+```kdl
+transport "hid" kind="hid" usage-page=0x0C frame=8 report-id=0 seize=#true role="config" {
+    report-descriptor "05 0C 09 00 A1 02 09 00 95 08 75 08 81 00 09 00 95 08 75 08 91 00 C0"
+    poll "poll" interval=52            // live values at about 19 Hz
+}
+```
+
+| Node or property | Meaning | Checked |
+|---|---|---|
+| `report-descriptor` | the HID report descriptor as the device reports it | parsed (HID 1.11 §6.2.2); `frame` must equal the input and the output report of `report-id` |
+| `poll "msg" interval=` | a read the engine repeats while the device is shown | the message exists, is a read and has a reply |
+| `pace=` | shortest time between two frames, ms | |
+| `seize` | open the device exclusively (IOKit) | |
+| `identify usb vid= pid= bcd=` | which device and firmware | `bcd` pins the firmware the bytes were measured on |
+| `key "usb-serial"` | tells several units apart (one hub thread each) | |
 
 An array goes out in pages with a slice placeholder. The TEC curve is 32
 values in 6 pages of 6, and the last page is padded with 7F:

@@ -379,6 +379,88 @@ impl<'d> V<'d> {
         }
     }
 
+    /// SysEx limits (§8.2) and the HID details (§9).
+    fn transport_usb(&mut self, t: &'d Transport) {
+        if let Some(limit) = t.sysex_limit {
+            if t.kind != TransportKind::Midi {
+                self.error(
+                    t.meta.pos,
+                    format!("transport `{}`: `sysex-limit` is for MIDI", t.name),
+                );
+            } else if limit < 16 {
+                self.error(
+                    t.meta.pos,
+                    format!(
+                        "transport `{}`: `sysex-limit={limit}` is below 16 bytes",
+                        t.name
+                    ),
+                );
+            }
+        }
+        if t.segment_delay.is_some() && t.sysex_limit.is_none() {
+            self.error(
+                t.meta.pos,
+                format!(
+                    "transport `{}`: `segment-delay` needs `sysex-limit`",
+                    t.name
+                ),
+            );
+        }
+        if let Some(rd) = &t.report_descriptor {
+            if t.kind != TransportKind::Hid {
+                self.error(
+                    rd.meta.pos,
+                    "`report-descriptor` belongs to a hid transport",
+                );
+            }
+            match hid_reports(&rd.bytes) {
+                Err(e) => self.error(rd.meta.pos, format!("report-descriptor: {e}")),
+                Ok(reports) => {
+                    let id = t.report_id.unwrap_or(0);
+                    for (kind, what) in [(HidReport::Input, "input"), (HidReport::Output, "output")]
+                    {
+                        let size = reports
+                            .iter()
+                            .find(|r| r.id == id && r.kind == kind)
+                            .map(|r| r.bits.div_ceil(8));
+                        match (size, t.frame) {
+                            (None, _) => self.error(
+                                rd.meta.pos,
+                                format!("report-descriptor has no {what} report with id {id}"),
+                            ),
+                            (Some(n), Some(f)) if n != f => self.error(
+                                rd.meta.pos,
+                                format!(
+                                    "transport `{}`: `frame={f}`, but the {what} report {id} is {n} bytes",
+                                    t.name
+                                ),
+                            ),
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }
+        if let Some(p) = &t.poll {
+            match self.d.message(&p.message) {
+                None => self.error(
+                    p.meta.pos,
+                    format!("poll with unknown message `{}`", p.message),
+                ),
+                Some(m) if m.replies.is_empty() || m.kind.is_some_and(|k| k != Access::Read) => {
+                    self.error(
+                        p.meta.pos,
+                        format!("poll message `{}` must be a read with a reply", p.message),
+                    )
+                }
+                Some(_) => {}
+            }
+            if p.interval == 0 {
+                self.error(p.meta.pos, "poll needs `interval=` above 0");
+            }
+        }
+    }
+
     fn transports(&mut self) {
         let preferred: Vec<_> = self.d.transports.iter().filter(|t| t.preferred).collect();
         for extra in preferred.iter().skip(1) {
@@ -402,6 +484,7 @@ impl<'d> V<'d> {
                 ),
                 _ => {}
             }
+            self.transport_usb(t);
             if t.preferred && t.role != Some(Role::Config) {
                 self.error(
                     t.meta.pos,
@@ -538,12 +621,23 @@ impl<'d> V<'d> {
             if let Some(send) = &m.send {
                 self.template_exprs(m.meta.pos, "send", send);
             }
-            let sent = m.send.as_ref().map(template_names).unwrap_or_default();
+            // An `arg` ranges a value the message sends or a reply captures
+            // (§6.5): `arg "ch" range="0..=15"` keeps `{0x90 + ch}` from
+            // matching a CC status byte.
+            let named: Vec<String> = m
+                .send
+                .iter()
+                .chain(m.replies.iter().map(|r| &r.pattern))
+                .flat_map(template_names)
+                .collect();
             for a in &m.args {
-                if !sent.contains(&a.name) {
+                if !named.contains(&a.name) {
                     self.error(
                         a.meta.pos,
-                        format!("`arg \"{}\"` does not appear in `send`", a.name),
+                        format!(
+                            "`arg \"{}\"` appears in neither `send` nor a `reply`",
+                            a.name
+                        ),
                     );
                 }
                 if let Some(block) = &a.index {
@@ -565,6 +659,9 @@ impl<'d> V<'d> {
             }
             if let Some(when) = &m.ok_when {
                 self.expr(m.meta.pos, "ok-when", when);
+            }
+            if let Some(seg) = &m.segment {
+                self.segment(m, seg);
             }
             let frame = match &m.frame {
                 Some(name) => {
@@ -599,12 +696,114 @@ impl<'d> V<'d> {
         }
     }
 
+    /// A message's own long-send form (§8.2).
+    fn segment(&mut self, m: &'d Message, seg: &'d SysexSegment) {
+        let pos = seg.meta.pos;
+        let arrays = |t: &Template| -> Vec<String> {
+            t.pieces
+                .iter()
+                .filter_map(|p| match p {
+                    Piece::Field {
+                        name,
+                        encoding: Some(Encoding::Packed7 | Encoding::Raw),
+                    }
+                    | Piece::Rest { name } => Some(name.clone()),
+                    _ => None,
+                })
+                .collect()
+        };
+        if !m
+            .send
+            .as_ref()
+            .is_some_and(|t| arrays(t).contains(&seg.over))
+        {
+            self.error(
+                pos,
+                format!(
+                    "segment over `{}`: message `{}` sends no byte array of that name",
+                    seg.over, m.name
+                ),
+            );
+        }
+        if seg.size == 0 {
+            self.error(pos, "segment needs `size=` above 0");
+        }
+        match self.d.message(&seg.message) {
+            None => self.error(
+                pos,
+                format!("segment with unknown message `{}`", seg.message),
+            ),
+            Some(part) => match &part.send {
+                None => self.error(
+                    pos,
+                    format!("segment message `{}` has no `send`", part.name),
+                ),
+                Some(send) => {
+                    let names = template_names(send);
+                    if !arrays(send).contains(&seg.over) {
+                        self.error(
+                            pos,
+                            format!(
+                                "segment message `{}` must send the piece as `{{{}:packed7}}` or `{{{}:raw}}`",
+                                part.name, seg.over, seg.over
+                            ),
+                        );
+                    }
+                    if !names.iter().any(|n| n == "part" || n == "offset") {
+                        self.error(
+                            pos,
+                            format!(
+                                "segment message `{}` must carry `{{part}}` or `{{offset}}`, or the device cannot place the pieces",
+                                part.name
+                            ),
+                        );
+                    }
+                    if part.kind != m.kind {
+                        self.error(
+                            pos,
+                            format!(
+                                "segment message `{}` must have the same `kind` as `{}`",
+                                part.name, m.name
+                            ),
+                        );
+                    }
+                }
+            },
+        }
+        let limit = self.sysex_limit(m);
+        if seg.threshold.is_none() && limit.is_none() {
+            self.error(
+                pos,
+                "segment needs `threshold=`, or a `sysex-limit` on the message's transport",
+            );
+        }
+    }
+
+    /// The message's transport limit; for `selected`, the smallest of the
+    /// config transports' limits.
+    fn sysex_limit(&self, m: &Message) -> Option<u32> {
+        match m.transport.as_deref() {
+            Some(SELECTED_TRANSPORT) => self
+                .d
+                .transports
+                .iter()
+                .filter(|t| t.role == Some(Role::Config))
+                .filter_map(|t| t.sysex_limit)
+                .min(),
+            Some(name) => self.d.transport(name)?.sysex_limit,
+            None => None,
+        }
+    }
+
     fn hid_frame(&self, m: &Message) -> Option<u32> {
         self.d.transport(m.transport.as_deref()?)?.frame
     }
 
-    /// SysEx data bytes are 7-bit: only the first F0 and the last F7 may
-    /// have the top bit set.
+    /// MIDI bytes (§6): a message starts with one status byte, every other
+    /// byte is data (0..=7F). A SysEx message runs from F0 to F7; a
+    /// real-time byte (F8..FF, e.g. Active Sensing FE) is a message on its
+    /// own. A first piece that is a field or expression (`{0xB0 + ch}`) is
+    /// the status byte.
     fn midi_bytes(
         &mut self,
         pos: Pos,
@@ -622,14 +821,36 @@ impl<'d> V<'d> {
             .flat_map(|t| &t.pieces)
             .collect();
         let last = pieces.len() - 1;
+        let first = match pieces.first() {
+            Some(Piece::Byte { value }) => Some(*value),
+            _ => None,
+        };
+        let sysex = first == Some(0xF0);
+        if let Some(b @ 0xF8..=0xFF) = first {
+            if pieces.len() > 1 {
+                self.error(
+                    pos,
+                    format!(
+                        "message `{name}` {what}: real-time byte {b:02X} is a message by itself"
+                    ),
+                );
+            }
+            return;
+        }
         for (i, piece) in pieces.iter().enumerate() {
             if let Piece::Byte { value } = piece {
-                let edge = (i == 0 && *value == 0xF0) || (i == last && *value == 0xF7);
-                if *value > 0x7F && !edge {
+                let status = i == 0 && *value != 0xF7;
+                let end = sysex && i == last && *value == 0xF7;
+                if *value > 0x7F && !status && !end {
+                    let inside = if sysex {
+                        "inside SysEx"
+                    } else {
+                        "after the status byte"
+                    };
                     self.error(
                         pos,
                         format!(
-                            "message `{name}` {what}: byte {value:02X} inside SysEx; data bytes are 0..=7F"
+                            "message `{name}` {what}: byte {value:02X} {inside}; data bytes are 0..=7F"
                         ),
                     );
                 }
@@ -1183,6 +1404,7 @@ pub(crate) fn storage_width(s: Storage) -> u32 {
     match s {
         Storage::U7 | Storage::U8 | Storage::S7 | Storage::Bool | Storage::Bits(_) => 1,
         Storage::U14le | Storage::U14be | Storage::U16le | Storage::U16be => 2,
+        Storage::U21le | Storage::U21be => 3,
         Storage::Ascii(n) => u32::from(n),
     }
 }
@@ -1194,6 +1416,7 @@ fn storage_range(s: Storage) -> Option<IntRange> {
         Storage::U14le | Storage::U14be => (0, 16383),
         Storage::S7 => (-64, 63),
         Storage::U16le | Storage::U16be => (0, 65535),
+        Storage::U21le | Storage::U21be => (0, 0x1F_FFFF),
         Storage::Bool => (0, 1),
         Storage::Bits(n) => (0, (1i64 << n) - 1),
         Storage::Ascii(_) => return None,
@@ -1223,4 +1446,96 @@ fn template_len(t: &Template, default: u32) -> Option<u32> {
         };
         Some(n + w)
     })
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum HidReport {
+    Input,
+    Output,
+    Feature,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct HidReportSize {
+    pub id: u32,
+    pub kind: HidReport,
+    pub bits: u32,
+}
+
+/// The size of each report a HID report descriptor declares (HID 1.11
+/// §6.2.2): main items Input, Output and Feature add `report size × report
+/// count` bits to their report id. Push and pop are honoured; long items
+/// are skipped.
+pub(crate) fn hid_reports(d: &[u8]) -> Result<Vec<HidReportSize>, String> {
+    let mut out: Vec<HidReportSize> = Vec::new();
+    let (mut size, mut count, mut id) = (0u32, 0u32, 0u32);
+    let mut stack = Vec::new();
+    let mut i = 0;
+    while i < d.len() {
+        let prefix = d[i];
+        if prefix == 0xFE {
+            let n = *d.get(i + 1).ok_or("truncated long item")? as usize;
+            i += 3 + n;
+            continue;
+        }
+        let n = [0, 1, 2, 4][usize::from(prefix & 3)];
+        let data = d
+            .get(i + 1..i + 1 + n)
+            .ok_or_else(|| format!("item at {i} is truncated"))?;
+        let value = data.iter().rev().fold(0u32, |v, b| v << 8 | u32::from(*b));
+        let (kind, tag) = ((prefix >> 2) & 3, prefix >> 4);
+        match (kind, tag) {
+            (0, 8 | 9 | 0xB) => {
+                let k = match tag {
+                    8 => HidReport::Input,
+                    9 => HidReport::Output,
+                    _ => HidReport::Feature,
+                };
+                let bits = size * count;
+                match out.iter_mut().find(|r| r.id == id && r.kind == k) {
+                    Some(r) => r.bits += bits,
+                    None => out.push(HidReportSize { id, kind: k, bits }),
+                }
+            }
+            (1, 7) => size = value,
+            (1, 8) => id = value,
+            (1, 9) => count = value,
+            (1, 0xA) => stack.push((size, count, id)),
+            (1, 0xB) => (size, count, id) = stack.pop().ok_or("pop without push")?,
+            (3, _) => return Err(format!("reserved item type at {i}")),
+            _ => {}
+        }
+        i += 1 + n;
+    }
+    Ok(out)
+}
+
+#[cfg(test)]
+mod hid_tests {
+    use super::*;
+
+    #[test]
+    fn tec_report_descriptor_has_8_byte_reports() {
+        // TECcontrol firmware/descriptors-2026-10-14.txt
+        let d = [
+            0x05, 0x0C, 0x09, 0x00, 0xA1, 0x02, 0x09, 0x00, 0x95, 0x08, 0x75, 0x08, 0x81, 0x00,
+            0x09, 0x00, 0x95, 0x08, 0x75, 0x08, 0x91, 0x00, 0xC0,
+        ];
+        let r = hid_reports(&d).unwrap();
+        assert_eq!(
+            r,
+            vec![
+                HidReportSize {
+                    id: 0,
+                    kind: HidReport::Input,
+                    bits: 64
+                },
+                HidReportSize {
+                    id: 0,
+                    kind: HidReport::Output,
+                    bits: 64
+                },
+            ]
+        );
+    }
 }
