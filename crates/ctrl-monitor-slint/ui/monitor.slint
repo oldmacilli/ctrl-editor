@@ -682,14 +682,15 @@ export component MonitorPane inherits Rectangle {
     // A light / dark button in the toolbar, for a window of its own.
     in property <bool> theme-toggle: false;
     property <length> wheel;
-    // Below 760 px: narrower port and message, no detail column.
-    property <bool> narrow: root.width < 760px;
+    // Below 760 px: narrower port and message, no detail column. Set when
+    // the width changes, not bound to it: the columns it picks size the
+    // pane, so a binding would make the pane's width depend on itself.
+    property <bool> narrow: false;
+    init => { root.narrow = root.width < 760px; }
+    changed width => { root.narrow = root.width < 760px; }
     background: Palette.background;
-    // Explicit horizontal hints: the columns that `narrow` picks must not
-    // size the pane, or its width would depend on itself.
     min-width: 600px;
     preferred-width: 980px;
-    max-width: 100000px;
     horizontal-stretch: 1;
     min-height: 240px;
     clip: true;

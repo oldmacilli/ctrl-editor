@@ -3179,6 +3179,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "monitor-embed-check"
+version = "0.1.0"
+dependencies = [
+ "ctrl-monitor",
+ "ctrl-monitor-slint",
+ "i-slint-backend-testing",
+ "slint",
+ "slint-build",
+]
+
+[[package]]
 name = "moxcms"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

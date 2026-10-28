@@ -1,17 +1,12 @@
-//! From the view model to the Slint structs, and from the pane's callbacks
-//! to [`Command`]s. Plain functions, so the tests need no window.
+//! The parts of the glue that need no generated Slint type: colours, spark
+//! paths, fitting expanded rows, filter columns, and the pane's callbacks
+//! as [`Command`]s. The conversions into the bridge's structs are in
+//! [`monitor_glue!`](crate::monitor_glue).
 
-use ctrl_monitor::{
-    Alert, AlertKind, ChannelMask, Chip, Class, Command, Details, Dir, Group, Row, TimeFormat,
-    Tone, ViewState,
-};
+use ctrl_monitor::{ChannelMask, Class, Command, Details, Dir, Group, TimeFormat, Tone, ViewState};
 use std::ops::Range;
 
-use slint::{Color, ModelRc, SharedString, VecModel};
-
-use crate::{
-    MonitorAlert, MonitorChip, MonitorField, MonitorGroup, MonitorHex, MonitorRow, MonitorType,
-};
+use slint::Color;
 
 /// A tone in the pane's colour scheme.
 pub fn color(tone: Tone, dark: bool) -> Color {
@@ -41,26 +36,6 @@ pub fn spark_path(values: &[u8]) -> String {
         s.push_str(&format!("{} {x:.1} {y:.1}", if i == 0 { "M" } else { "L" }));
     }
     s
-}
-
-/// The fields of an expanded row: the event's fields, then each
-/// annotation as a heading with its own.
-pub fn fields(details: &Details) -> Vec<MonitorField> {
-    let field = |k: &str, v: &str, heading| MonitorField {
-        key: k.into(),
-        value: v.into(),
-        heading,
-    };
-    let mut out: Vec<MonitorField> = details
-        .fields
-        .iter()
-        .map(|(k, v)| field(k, v, false))
-        .collect();
-    for (name, fs) in &details.notes {
-        out.push(field(name, "", true));
-        out.extend(fs.iter().map(|(k, v)| field(k, v, false)));
-    }
-    out
 }
 
 /// List lines (rows of the list) an expanded row's details take below it,
@@ -95,89 +70,11 @@ pub fn fit(heights: &[usize], lines: usize, anchor: Option<usize>) -> Range<usiz
     range
 }
 
-/// One row as the pane draws it. `odd` stripes it; `details` fill it
-/// while it is expanded.
-pub fn row(r: &Row, details: Option<&Details>, odd: bool, dark: bool) -> MonitorRow {
-    let (title, fields, hex) = match details.filter(|_| r.expanded) {
-        Some(d) => (
-            d.title.as_str().into(),
-            fields(d),
-            d.hex
-                .iter()
-                .map(|h| MonitorHex {
-                    offset: h.offset.as_str().into(),
-                    hex: h.hex.as_str().into(),
-                    ascii: h.ascii.as_str().into(),
-                })
-                .collect(),
-        ),
-        None => (SharedString::default(), Vec::new(), Vec::new()),
-    };
-    MonitorRow {
-        time: r.time.as_str().into(),
-        dir: r.dir.into(),
-        port: r.port.as_str().into(),
-        channel: r.channel.as_str().into(),
-        message: r.message.as_str().into(),
-        value: r.value.as_str().into(),
-        detail: r.detail.as_str().into(),
-        count: if r.count > 1 {
-            format!("×{}", r.count).into()
-        } else {
-            SharedString::default()
-        },
-        tone: color(r.tone, dark),
-        editor: r.editor,
-        expandable: r.expandable,
-        selected: r.selected,
-        expanded: r.expanded,
-        odd,
-        spark: spark_path(&r.spark).into(),
-        title,
-        fields: ModelRc::new(VecModel::from(fields)),
-        hex: ModelRc::new(VecModel::from(hex)),
-    }
-}
-
-fn glyph(dir: Dir) -> &'static str {
+pub fn glyph(dir: Dir) -> &'static str {
     match dir {
         Dir::In => "←",
         Dir::Out => "→",
         Dir::Thru => "⇄",
-    }
-}
-
-/// A folded clock or active sense: "Clock 120.0 BPM ×384 ← nanoKEY2".
-pub fn chip(c: &Chip, dark: bool) -> MonitorChip {
-    let tone = if c.class == Class::Clock {
-        Tone::Realtime
-    } else {
-        Tone::Common
-    };
-    MonitorChip {
-        label: c.class.name().into(),
-        port: format!("{} {}", glyph(c.dir), c.port).into(),
-        value: c
-            .bpm
-            .map(|b| format!("{b:.1} BPM"))
-            .unwrap_or_default()
-            .into(),
-        count: format!("×{}", c.count).into(),
-        tone: color(tone, dark),
-    }
-}
-
-/// Lost data and damaged messages are red; what is only cut short amber.
-pub fn alert(a: &Alert, dark: bool) -> MonitorAlert {
-    let tone = match a.kind {
-        AlertKind::Evicted | AlertKind::SysExTruncated => Tone::Program,
-        _ => Tone::Invalid,
-    };
-    MonitorAlert {
-        title: a.title.into(),
-        count: format!("×{}", a.count).into(),
-        tone: color(tone, dark),
-        jump: a.last_seq.is_some(),
     }
 }
 
@@ -192,48 +89,16 @@ pub fn column(class: Class) -> usize {
     }
 }
 
-const COLUMNS: [(&str, bool); 4] = [
+/// The filter pane's columns: name, and whether it has a tri-state box.
+pub const COLUMNS: [(&str, bool); 4] = [
     ("Voice", true),
     ("System Common", true),
     ("Real Time", true),
     ("Other", false),
 ];
 
-fn classes_in(col: usize) -> impl Iterator<Item = Class> {
+pub fn classes_in(col: usize) -> impl Iterator<Item = Class> {
     Class::ALL.into_iter().filter(move |&c| column(c) == col)
-}
-
-/// The filter pane: a column per group, its types inside.
-pub fn groups(state: &ViewState) -> Vec<MonitorGroup> {
-    COLUMNS
-        .iter()
-        .enumerate()
-        .map(|(col, &(name, tri))| {
-            let types: Vec<MonitorType> = Class::ALL
-                .iter()
-                .enumerate()
-                .filter(|(_, &c)| column(c) == col)
-                .map(|(i, &c)| MonitorType {
-                    name: c.name().into(),
-                    index: i as i32,
-                    on: state.types.contains(c),
-                })
-                .collect();
-            let on = types.iter().filter(|t| t.on).count();
-            MonitorGroup {
-                name: name.into(),
-                tri,
-                state: if on == 0 {
-                    0
-                } else if on == types.len() {
-                    2
-                } else {
-                    1
-                },
-                types: ModelRc::new(VecModel::from(types)),
-            }
-        })
-        .collect()
 }
 
 pub fn time_label(time: TimeFormat) -> &'static str {

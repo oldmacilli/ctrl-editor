@@ -1,9 +1,12 @@
 use super::*;
 use convert::*;
 use ctrl_monitor::{
-    tap, Alert, AlertKind, ChannelMask, Chip, Class, Collector, Command, Dir, HexLine,
-    ParserConfig, PortKind, PortRef, Stamp, TapConfig, Tone,
+    tap, Alert, AlertKind, ChannelMask, Chip, Class, Collector, Command, Details, Dir, HexLine,
+    ParserConfig, PortKind, PortRef, Row, Stamp, Store, TapConfig, Tone, View, ViewState,
 };
+use monitor_glue::*;
+use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 /// A store fed through the real tap and collector: `(ms, bytes)` on one
 /// input port.
