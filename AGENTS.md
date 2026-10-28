@@ -10,10 +10,10 @@ Shared platform for three device editors. Read docs/CONCEPT.md first.
   `status` and `evidence`. Never write a byte you have not seen in a
   capture or code; use `status="unknown"` instead.
 - Do not commit vendor binaries, firmware images, manuals or extracted
-  vendor content. Test data lives under `the local capture archive`.
+  vendor content. Test data lives outside the repository.
   Exception, approved by the owner on 2026-10-20: KORG labels and device
   images, converted into our own layer (CDL `labels` and `enum` nodes,
-  `descriptors/korg/assets/`) by `KORG_Kontrol_Editor/tools/gen-korg-cdl`. Generated
+  `descriptors/korg/assets/`) by `tools/gen-korg-cdl` in the private KORG_Kontrol_Editor repository. Generated
   `*.gen.inc.kdl` files are not edited by hand; rerun the generator.
 - The evidence for each device stays in its own repo
   (`KORG_Kontrol_Editor`, `OceanBeach_DB-1`, `TECcontrol`); link to it.
@@ -26,3 +26,7 @@ Shared platform for three device editors. Read docs/CONCEPT.md first.
   descriptor with a conformance test (`ctrl-descriptors` + `ctrl-codec`,
   pinned git dependencies). A descriptor change that alters bytes must
   keep those tests green; bump the pins there in the same breath.
+
+- This repository is public. Evidence names captures, code and documents;
+  keep binary analysis (routines, addresses, resource names, hashes) in the
+  device repositories, which are private.

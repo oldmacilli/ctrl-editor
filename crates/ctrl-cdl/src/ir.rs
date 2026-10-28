@@ -829,7 +829,7 @@ pub struct TestVector {
     pub name: String,
     pub message: Option<String>,
     pub block: Option<String>,
-    /// External, opt-in input under the local capture archive.
+    /// External, opt-in input outside the repository.
     pub file: Option<String>,
     pub sha256: Option<String>,
     pub args: Vec<Arg>,

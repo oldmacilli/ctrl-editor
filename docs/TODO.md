@@ -20,7 +20,7 @@ Last updated: 2026-10-28 (CDL gaps closed, long SysEx, UC-33).
 ## P0 Agree the concept
 
 - [x] user: GitHub repo `oldmacilli/ctrl-editor` created and pushed
-  (196eb94); public since 2026-10-28
+  (9d89ac2); public since 2026-10-28
 - [ ] user: approve the concept
 - [ ] korg: review CONCEPT §3 and §4 (crate moves out of the KORG repo)
 - [ ] db1, tec: review CONCEPT and their descriptors
@@ -42,61 +42,61 @@ Last updated: 2026-10-28 (CDL gaps closed, long SysEx, UC-33).
   §4.4), protocol-regression risk
 - [x] platform: `ctrl-cdl` crate: KDL → typed IR (serde), with errors that
   point at line and column; includes merge (`*.inc.kdl`); templates, paths
-  and ranges parsed; all descriptors load (e44a6e1)
+  and ranges parsed; all descriptors load (3ae75df)
 - [x] platform: slice placeholders `{curve[6] pad=7F}`; the TEC curve pages
-  are CDL again, no driver step (5bd7d4a)
+  are CDL again, no driver step (1d62935)
 - [x] platform: validator (`ctrl_cdl::validate`): references and paths,
   sizes and ranges, `status` rules (CDL §4.1), write policy (§11), port
-  overlap (§5), SysEx data bytes, HID frame sizes, scan messages (5bd7d4a)
+  overlap (§5), SysEx data bytes, HID frame sizes, scan messages (1d62935)
 - [x] platform: CDL §5.1 `scan` and `listen` for DIN-only devices; DB-1
-  found by scanning with its revision request (5bd7d4a)
+  found by scanning with its revision request (1d62935)
 - [x] platform: CDL expressions (§10.1), parsed by the validator; LBMT stays
-  for compute and translators (3179136)
+  for compute and translators (7b765c8)
 - [x] platform: `ctrl-codec`: encode and decode `send`/`reply` (CDL §6),
   checksums (§6.1), lengths, `midi-id`, `packed7`, HID frame padding, reply
-  captures through expressions; test-vector runner in `cdl-parse` (3179136)
+  captures through expressions; test-vector runner in `cdl-parse` (7b765c8)
 - [x] platform: KORG framing from generic parts (CDL §8.1): `const`,
   `midi-id`, `{0x40 | device-id}`; 10 KORG vectors byte for byte with
-  `korg-sysex`'s captures (3179136)
+  `korg-sysex`'s captures (7b765c8)
 - [x] platform: CDL versatility, from the KORG lane's proposal: send-only
   messages (exchange on one is an error), reply variants with first match,
   named patterns, replies into blocks with exact size (`ctrl_codec::fill`),
-  `selected` needs a config transport (7710126)
+  `selected` needs a config transport (8a9e2a2)
 - [x] korg: scene-set-info reply variants, per-device `scene-data`
   patterns for read-block, a scene-read reply vector from a capture, then
-  the procedures off `korg-measured` (2a475d4)
+  the procedures off `korg-measured` (d9aa7fd)
 - [x] platform+db1: DB-1 vectors from `db1-protocol` tests, the app's
-  frames and the hardware ping reply: 10; drawbar `arg` index 0..=8 (f583a07)
+  frames and the hardware ping reply: 10; drawbar `arg` index 0..=8 (0c98374)
 - [x] platform+tec: TEC vectors from the HID captures: 16, and every
-  transaction in the 10 TECcontrol traces decodes to one message (725a2c8)
+  transaction in the 10 TECcontrol traces decodes to one message (37195a4)
 - [x] platform: KORG and TEC descriptors in one style: `arg` ranges (CDL
   §6.5), named ack patterns, reply variants, evidence on every message and
-  procedure; TEC `read-name` and the `51` reply added (725a2c8)
+  procedure; TEC `read-name` and the `51` reply added (37195a4)
 - [ ] platform: a vendor-encoding registry entry only when no generic part
   fits; none needed so far
 - [x] platform: `ctrl-cli check | explain | trace` (CDL §16); replaces
-  `cdl-parse` (2b99ab8)
+  `cdl-parse` (aec51ef)
 - [ ] platform: `ctrl-cli check` compiles LBMT once `lbmt` is a dependency
 - [x] platform: tree-sitter queries (highlights, LBMT injection) on
-  tree-sitter-kdl, checked against the grammar and the node table (5d3a71c)
+  tree-sitter-kdl, checked against the grammar and the node table (fc696e8)
 - [ ] zigtact: a tree-sitter grammar for LBMT, so the injection highlights
 - [x] platform: `cdl-schema.md`: one entry per node with every property,
   generated from the converter's node table (`schema.rs`, `ctrl-cli
-  schema`); a test fails when it is stale (5f02a11)
-- [x] platform: CDL gaps closed (60d33e3): `arg` ranges on reply
+  schema`); a test fails when it is stale (5cdb9a0)
+- [x] platform: CDL gaps closed (214eee4): `arg` ranges on reply
   captures (§6.5); status and real-time bytes in MIDI templates (§6.6);
   `u21le`/`u21be` and `varlen7` lengths (§8.1); KORG native body written
   as `{len:u21le} {command} …`, so both Studios share one scene pattern
-- [x] platform: long SysEx (§8.2, 60d33e3): transport `sysex-limit` and
+- [x] platform: long SysEx (§8.2, 214eee4): transport `sysex-limit` and
   `segment-delay` split host writes, `SysexJoiner` rejoins input, a
   message's `segment` names a device's own multi-part form, `Codec::plan`.
   KORG transports carry korg-midi-midir's measured 256 bytes / 5 ms
-- [x] platform: USB side of HID in CDL (§9, 60d33e3): `report-descriptor`
+- [x] platform: USB side of HID in CDL (§9, 214eee4): `report-descriptor`
   (parsed, checked against `frame`), `poll`, `pace`; TEC filled in
 - [x] platform: `ctrl-descriptors`: every descriptor embedded, for the
   editors' conformance tests through a pinned git dependency
 - [x] korg, db1, tec: conformance test in each editor repo, pinned to
-  a2433bb: KORG_Kontrol_Editor PR #2, OceanBeach_DB-1 PR #27, TECcontrol
+  414ecb3: KORG_Kontrol_Editor PR #2, OceanBeach_DB-1 PR #27, TECcontrol
   PR #4 (open, for the owner to merge)
 - [x] platform: `arg type=` (CDL §6.5): typed arguments, so polarity 2,
   channel 16 or an unknown status fail as in db1-protocol (found by DB-1
@@ -105,6 +105,11 @@ Last updated: 2026-10-28 (CDL gaps closed, long SysEx, UC-33).
 - [ ] korg: `korg_sysex::build_ack` builds the first-generation `5F
   <status>` ack; the Studios send `{len:u21le} <status>` (KORG PR #2,
   ignored test). Unused outside tests: fix or retire it
+- [x] user: history rewritten on 2026-10-28 before wider use: binary-analysis
+  details (routines, addresses, resource names and hashes, local paths) and
+  the generator left this repository; the generator lives in
+  KORG_Kontrol_Editor (`tools/gen-korg-cdl`). Commit ids changed; the ids in
+  this file are the new ones
 - [x] user: ctrl-editor made public on 2026-10-28, as it is (vendor
   pictures and KORG label lists included, by the owner's decision), so the
   editors' packages fetch the shared crates without credentials (KORG PR
@@ -175,20 +180,20 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
 
 - [ ] korg: nanoKONTROL Studio descriptor complete: procedures that use the
   CDL messages (identity, requests, scene write, commit, global write, acks;
-  in place since 3179136) instead of the `korg-measured` driver; data reply
+  in place since 7b765c8) instead of the `korg-measured` driver; data reply
   pattern for the receive (header and packed payload)
-- [ ] korg: Strings XML from the vendor application (`the local capture archive`)
+- [ ] korg: Strings XML from the vendor application (KORG repository)
   → control lists and value labels for all 14 devices
-- [x] platform: `KORG_Kontrol_Editor/tools/gen-korg-cdl`: a generated base for all 16 devices
+- [x] platform: `gen-korg-cdl` (now in KORG_Kontrol_Editor): a generated base for all 16 devices
   (device, decoded model id, scene and global block sizes, file types,
   thumbnails, a MIDI transport found by identity scan); the Studios' hand
   files override it; shared facts split into `common.inc.kdl` (decoded) and
-  `studio.inc.kdl` (measured) (45a2fe2)
+  `studio.inc.kdl` (measured) (a932023)
 - [x] platform: labels, enums, panel pictures, thumbnails and list icons in
-  the generator, from the resource mapping: names come from the vendor's resource table; 13 devices with labels and panels, 16 with images (f6985ca)
+  the generator, from the resource mapping: names come from the vendor's resource table; 13 devices with labels and panels, 16 with images (0f09311)
 - [ ] korg: turn generated value-label lists into enums once getters give
   the wire codes (display order is not code order; X14802 jog: 4 labels, 7
-  codes, found by the KORG lane in 2a475d4)
+  codes, found by the KORG lane in d9aa7fd)
 - [ ] korg: parameter schemas for the 12 devices without one (getters)
 - [ ] korg: exact click areas from the component code
 - [x] korg: nanoKEY Studio (X14800) global write measured: same header
@@ -201,13 +206,13 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
   byte-identical round trip on X14802 (KORG eba516b)
 - [x] user+korg: nanoKEY Studio over USB verified with a cable: input
   "nanoKEY Studio KEYBOARD/CTRL", output "nanoKEY Studio CTRL"; receive and
-  unchanged write byte-identical (KORG fbf74bc; ctrl-editor 8f9aaea). CDL
+  unchanged write byte-identical (KORG fbf74bc; ctrl-editor 8c31b8d). CDL
   got `port-match-in`/`port-match-out`. The identity device id is 0x0F
   over USB too: a stored setting, not tied to the transport
 - [ ] user+korg: check whether the nanoKONTROL Studio's USB input port also
   has its own name; its descriptor uses one `port-match` today
 - [x] platform: overlapping port matches are a validation error (CDL §5)
-  (5bd7d4a)
+  (1d62935)
 - [ ] korg: nanoKEY Studio calibration (`X14800_Calib`). blocked: capture
 - [x] korg: `docs/rewrite/72-feature-parity.md` updated with the Slint
   state (KORG eba516b)
@@ -227,7 +232,7 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
 
 ### Evolution UC-33
 
-- [x] platform: `descriptors/evolution/uc33.ctrl.kdl` (60d33e3), from the
+- [x] platform: `descriptors/evolution/uc33.ctrl.kdl` (214eee4), from the
   UC33-Editor repo: original UC-33, USB 0a4d:00f5 release 1.01, no
   identity reply, no SysEx dump; messages classify what the controls send
 - [ ] uc33: bump UC33-Editor's ctrl-editor pin and drop its channel filter
@@ -237,9 +242,9 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
 
 - [x] korg (OMP): TEC USB gaps closed from the analysis and a read-only
   trace (TECcontrol fb97e8b, findings); applied to
-  the descriptor (5bd7d4a)
+  the descriptor (1d62935)
 - [x] platform: TEC descriptor: USB ids with bcd from HANDOVER.md, 8-byte
-  read replies, curve pages driver-owned (e44a6e1)
+  read replies, curve pages driver-owned (3ae75df)
 - [ ] tec: `ctrl-hid-iokit` from `tec-device/src/macos.rs` (Seize, report
   id 0, 8-byte frames)
 - [ ] tec: Linux configuration over hidraw (`ctrl-hid-hidapi`, hidapi

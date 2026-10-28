@@ -31,10 +31,7 @@ pub const MANY: usize = usize::MAX;
 /// Every node may carry these (CDL §4.1).
 pub const COMMON: &[Prop] = &[
     p("status", "`measured`, `decoded`, `inferred` or `unknown`"),
-    p(
-        "evidence",
-        "where the fact comes from: a capture or code",
-    ),
+    p("evidence", "where the fact comes from: a capture or code"),
     p("note", "free text"),
 ];
 

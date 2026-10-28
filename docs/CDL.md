@@ -913,7 +913,7 @@ test-vector "commit-ack" message="commit-ack" reply=#true {
     args device-id=0 status=0x21
     bytes "F0 42 40 00 01 37 01 00 00 21 F7"
 }
-test-vector "scene-1" block="scene" file="the local capture archive" sha256="…"   // external, opt-in
+test-vector "scene-1" block="scene" file="captures/scene1.bin" sha256="…"   // external, opt-in
 ```
 
 A send vector encodes `args` and `data` and compares the result to `bytes`,
