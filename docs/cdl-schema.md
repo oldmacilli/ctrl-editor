@@ -655,6 +655,243 @@ Waits until the device identifies as expected. (§12)
 | `product` | the identity's product value |
 | `timeout` | milliseconds |
 
+## `hands`
+
+What a person operates on the device: keys, encoders, controls, number entry. (§17.1)
+
+- Arguments: none
+- Children: yes
+- Properties: none besides the common ones
+
+## `hands/key`
+
+A key, encoder, fader or other control a guide names. (§17.1)
+
+- Arguments: 1: id; with `range`, `{n}` in it stands for each value
+- Children: none
+
+| Property | Meaning |
+|---|---|
+| `label` | as printed on the device; may use `{n}` |
+| `range` | `lo..=hi`: one key per value of `n` |
+
+## `hands/entry`
+
+A way of typing numbers digit by digit. (§17.1)
+
+- Arguments: 1: name
+- Children: none
+
+| Property | Meaning |
+|---|---|
+| `text` | how to type a number, shown once per guide |
+
+## `recipe`
+
+Named guide steps; `do` runs them. (§17.3)
+
+- Arguments: 1: name
+- Children: yes
+
+| Property | Meaning |
+|---|---|
+| `args` | parameter names, space-separated |
+
+## `edit`
+
+How a block element's stored fields change by hand. (§17.4)
+
+- Arguments: 1: block
+- Children: yes
+
+| Property | Meaning |
+|---|---|
+| `index` | the element's index variable, `i` when absent |
+
+## `edit/open`, `edit/close`, `edit/check`
+
+Guide steps: make the element current, keep the change in memory, let the editor read it back. (§17.4)
+
+- Arguments: none
+- Children: yes
+- Properties: none besides the common ones
+
+## `edit/item/select`
+
+Guide steps that select the item. (§17.4)
+
+- Arguments: none
+- Children: yes
+- Properties: none besides the common ones
+
+## `edit/item`
+
+An array element: how to select it and set its fields. (§17.4)
+
+- Arguments: 1: array path below the block, `group.encoder`
+- Children: yes
+
+| Property | Meaning |
+|---|---|
+| `index` | one index variable per array, space-separated |
+
+## `edit/field`
+
+The steps that set one field to `v`. (§17.4)
+
+- Arguments: 1: field name
+- Children: yes
+
+| Property | Meaning |
+|---|---|
+| `applies` | expression: the field is set by hand only when it holds |
+| `index` | for an array of values: the element's index variable |
+
+## `guide press`
+
+Press and release a key. (§17.2)
+
+- Arguments: 1: key
+- Children: none
+
+| Property | Meaning |
+|---|---|
+| `with` | keys held down during the act, space-separated |
+| `shows` | what the device shows afterwards |
+| `hint` | why, or what to watch for |
+| `times` | how often, 1 when absent |
+
+## `guide hold`
+
+Hold a key down. (§17.2)
+
+- Arguments: 1: key
+- Children: none
+
+| Property | Meaning |
+|---|---|
+| `with` | keys held down during the act, space-separated |
+| `shows` | what the device shows afterwards |
+| `hint` | why, or what to watch for |
+| `ms` | how long |
+| `until` | what the display shows when to let go |
+
+## `guide chord`
+
+Press keys together. (§17.2)
+
+- Arguments: 2 or more: keys
+- Children: none
+
+| Property | Meaning |
+|---|---|
+| `with` | keys held down during the act, space-separated |
+| `shows` | what the device shows afterwards |
+| `hint` | why, or what to watch for |
+
+## `guide type`
+
+Type a number digit by digit. (§17.2)
+
+- Arguments: 1: number, `{expression}`
+- Children: none
+
+| Property | Meaning |
+|---|---|
+| `with` | keys held down during the act, space-separated |
+| `shows` | what the device shows afterwards |
+| `hint` | why, or what to watch for |
+| `digits` | zero-padded to this many digits |
+| `entry` | the `hands` entry it uses |
+
+## `guide turn`
+
+Turn an encoder until the display shows a value. (§17.2)
+
+- Arguments: 1: key
+- Children: none
+
+| Property | Meaning |
+|---|---|
+| `with` | keys held down during the act, space-separated |
+| `shows` | what the device shows afterwards |
+| `hint` | why, or what to watch for |
+| `to` | what the display shows at the target |
+| `as` | a type: `to` is its value and the guide shows the label |
+
+## `guide move`
+
+Move or touch a control. (§17.2)
+
+- Arguments: 1: key
+- Children: none
+
+| Property | Meaning |
+|---|---|
+| `with` | keys held down during the act, space-separated |
+| `shows` | what the device shows afterwards |
+| `hint` | why, or what to watch for |
+
+## `guide say`
+
+A sentence for the user. (§17.2)
+
+- Arguments: 1: text
+- Children: none
+
+| Property | Meaning |
+|---|---|
+| `with` | keys held down during the act, space-separated |
+| `shows` | what the device shows afterwards |
+| `hint` | why, or what to watch for |
+
+## `guide ask`
+
+The user reads a value on the device and enters it. (§17.2)
+
+- Arguments: 1: path
+- Children: none
+
+| Property | Meaning |
+|---|---|
+| `text` | what to read on the device |
+
+## `guide one-of`
+
+Alternatives, as `option` children. (§17.2)
+
+- Arguments: none
+- Children: yes
+
+| Property | Meaning |
+|---|---|
+| `shows` | what the device shows afterwards |
+| `hint` | why, or what to watch for |
+
+## `guide one-of/option`
+
+Guide steps; any one option will do. (§17.2)
+
+- Arguments: none
+- Children: yes
+- Properties: none besides the common ones
+
+## `guide when`
+
+Guide steps that apply only when the expression holds. (§17.2)
+
+- Arguments: 1: expression
+- Children: yes
+- Properties: none besides the common ones
+
+## `guide do`
+
+Runs a recipe; other properties are its arguments. (§17.3)
+
+- Arguments: 1: recipe
+- Children: none
+- Properties: any (see above)
+
 ## `firmware`
 
 The firmware update. (§12)

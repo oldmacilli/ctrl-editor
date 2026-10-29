@@ -8,13 +8,19 @@
   (#any-of? @keyword
     "cdl" "include" "device" "identify" "transport" "types" "block" "param"
     "panel" "midi-map" "sysex-frame" "message" "procedure" "firmware" "lbmt"
-    "driver" "test-vector" "const" "labels" "pattern"))
+    "driver" "test-vector" "const" "labels" "pattern" "hands" "recipe" "edit"))
 
 ; Procedure steps
 ((node name: (identifier) @keyword.function)
   (#any-of? @keyword.function
     "send" "exchange" "await" "repeat" "read-into" "delay" "verify" "gate"
     "restore-point" "require" "call" "expect-identity" "ok-when"))
+
+; Guide steps: what the user does on the device (CDL §17)
+((node name: (identifier) @keyword.function)
+  (#any-of? @keyword.function
+    "press" "hold" "chord" "type" "turn" "move" "say" "ask" "one-of" "when"
+    "do"))
 
 ; Nodes inside the others
 ((node name: (identifier) @tag.attribute)
@@ -23,7 +29,8 @@
     "usb" "midi-port" "sysex-identity" "hid" "key" "listen" "capture" "report-descriptor" "poll" "segment" "derive" "records"
     "enum" "errors" "int" "value" "field" "group" "array" "control" "list"
     "item" "source" "sink" "prefix" "suffix" "arg" "reply" "owns"
-    "version-from" "stage" "recovery" "args" "bytes" "data"))
+    "version-from" "stage" "recovery" "args" "bytes" "data"
+    "entry" "open" "close" "check" "select" "option"))
 
 ; Evidence status: how far a fact can be trusted (CDL §4.1)
 ((prop
@@ -47,7 +54,7 @@
 ((prop
    key: (identifier) @_key
    value: (value value: (string) @string.special))
-  (#any-of? @_key "ok-when" "visible-when" "display" "parse" "range" "box"))
+  (#any-of? @_key "ok-when" "visible-when" "display" "parse" "range" "box" "applies"))
 
 ; Message templates (CDL §6): byte templates start with hex bytes, `..`
 ; or a `{…}` placeholder. Matched by content: a pattern that puts

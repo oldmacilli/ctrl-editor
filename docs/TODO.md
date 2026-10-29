@@ -133,6 +133,15 @@ Last updated: 2026-10-28 (CDL gaps closed, long SysEx, UC-33, Faderfox UC4).
   switch (GUI, TUI, CLI), as UC33-Editor did
 - [ ] user: on a Linux machine with a device, the hand checks in
   docs/LINUX.md §8 (ALSA run, PipeWire Midi-Bridge port names, a dump)
+- [x] platform: guides (CDL §17): `hands`, guide steps in procedures,
+  `recipe`, `edit` rules and tours; `ctrl_engine::edit_guide`,
+  `Operator::guide`/`ask` (defaults keep old operators working),
+  `ctrl-cli guide`. UC-33 and UC4 descriptors carry them
+- [ ] platform: GUI and TUI cards for `Operator::guide` (key labels as
+  chips, `shows` and `hint` beside them, a "done" button; an `await` card
+  closes itself when the dump arrives)
+- [ ] platform: labels per language for `hands` keys and guide texts
+  (§13.1); today they are English
 
 ## P2 Prove CDL on the DB-1; KORG stays intact
 
@@ -242,6 +251,11 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
   identity reply, no SysEx dump; messages classify what the controls send
 - [ ] uc33: bump UC33-Editor's ctrl-editor pin and drop its channel filter
   workaround now that reply ranges exist
+- [ ] uc33: replace `uc33-core/src/recipe.rs` with `edit_guide` on the
+  descriptor's `edit "preset"` / `edit "global"`, and run the `tour`
+  procedure for the learn pass; then drop `labels "en" list "keys"`
+- [ ] user: check the UC-33 guide and tour on the unit (the rules come from
+  the UC-33e Advanced Guide, `inferred`)
 
 ### Faderfox UC4
 
@@ -285,6 +299,10 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
 - [x] user+platform: pacing vs completeness for kind 3: on 02.05 one chunk
   (paced or not) and a full unpaced dump are all stored; the 02.03
   one-chunk failure is the old firmware's receiver
+- [ ] user: check the UC4 edit-mode guide on the unit (`edit "controls"`,
+  `"fader9"`, `"names"`, `"global"`, from the manual's Edit mode and Setup
+  mode sections, `inferred`); the guided read and write procedures keep
+  their measured steps
 
 ### TEC
 

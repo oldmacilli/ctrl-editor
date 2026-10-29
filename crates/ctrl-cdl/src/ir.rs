@@ -77,6 +77,10 @@ pub struct Descriptor {
     pub consts: Vec<Const>,
     pub labels: Vec<Labels>,
     pub patterns: Vec<Pattern>,
+    /// What a person operates on the device (§17.1).
+    pub hands: Option<Hands>,
+    pub recipes: Vec<Recipe>,
+    pub edits: Vec<Edit>,
 }
 
 impl Descriptor {
@@ -116,6 +120,14 @@ impl Descriptor {
 
     pub fn constant(&self, name: &str) -> Option<&Const> {
         self.consts.iter().find(|c| c.name == name)
+    }
+
+    pub fn recipe(&self, name: &str) -> Option<&Recipe> {
+        self.recipes.iter().find(|r| r.name == name)
+    }
+
+    pub fn edit(&self, block: &str) -> Option<&Edit> {
+        self.edits.iter().find(|e| e.block == block)
     }
 }
 
@@ -783,6 +795,8 @@ pub enum Step {
         meta: Meta,
         expr: String,
     },
+    /// Something the user does on the device (§17.2).
+    Guide(GuideStep),
 }
 
 /// `send` or `exchange`: a message with arguments.
@@ -920,4 +934,163 @@ pub struct Const {
     pub meta: Meta,
     pub name: String,
     pub value: i64,
+}
+
+/// `hands { key …; entry … }`: the keys, encoders and controls a person
+/// operates, and how numbers are typed (§17.1).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Hands {
+    pub meta: Meta,
+    pub keys: Vec<Key>,
+    pub entries: Vec<Entry>,
+}
+
+impl Hands {
+    pub fn key(&self, id: &str) -> Option<&Key> {
+        self.keys.iter().find(|k| k.id == id)
+    }
+}
+
+/// `key "store" label="STORE"`; `key "encoder{n}" range="1..=8"` stands
+/// for one key per value, already expanded here.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Key {
+    pub meta: Meta,
+    pub id: String,
+    /// As printed on the device; the id when absent.
+    pub label: String,
+}
+
+/// `entry "keypad" timeout=3000 text="…"`: how `type` enters a number.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Entry {
+    pub meta: Meta,
+    pub name: String,
+    /// Shown once per guide, before the first number typed this way.
+    pub text: Option<String>,
+}
+
+/// One thing the user does (§17.2). Strings may hold `{expressions}`,
+/// with an optional zero-padded width: `{p + 1:02}`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GuideStep {
+    pub meta: Meta,
+    pub act: Act,
+    /// Keys held down during the act: `with="shift"`.
+    pub with: Vec<String>,
+    /// What the device shows afterwards.
+    pub shows: Option<String>,
+    /// Why, or what to watch for.
+    pub hint: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "act", rename_all = "kebab-case")]
+pub enum Act {
+    Press {
+        key: String,
+        times: u32,
+    },
+    Hold {
+        key: String,
+        ms: Option<u32>,
+        until: Option<String>,
+    },
+    Chord {
+        keys: Vec<String>,
+    },
+    /// A number typed digit by digit.
+    Type {
+        value: String,
+        digits: Option<u32>,
+        entry: Option<String>,
+    },
+    /// Turn an encoder until the display shows `to`; with `as`, `to` is a
+    /// value of that type and the guide shows its label.
+    Turn {
+        key: String,
+        to: String,
+        as_type: Option<String>,
+    },
+    Move {
+        key: String,
+    },
+    Say {
+        text: String,
+    },
+    /// The user reads a value on the device and enters it; it goes into
+    /// the device document at `path`.
+    Ask {
+        path: Path,
+        text: Option<String>,
+    },
+    /// Alternatives, any one will do.
+    OneOf {
+        options: Vec<Vec<GuideStep>>,
+    },
+    /// Steps that apply only when `expr` holds.
+    When {
+        expr: String,
+        steps: Vec<GuideStep>,
+    },
+    /// A recipe with its arguments.
+    Do {
+        recipe: String,
+        args: Vec<Arg>,
+    },
+}
+
+/// `recipe "recall" args="n" { … }`: named guide steps (§17.3).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Recipe {
+    pub meta: Meta,
+    pub name: String,
+    pub params: Vec<String>,
+    pub steps: Vec<GuideStep>,
+}
+
+/// `edit "preset" index="p" { open …; item …; field …; close …; check … }`:
+/// how a block element's stored fields change by hand (§17.4).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Edit {
+    pub meta: Meta,
+    pub block: String,
+    /// The element's index variable; `i` when absent.
+    pub index: String,
+    /// Makes the element current.
+    pub open: Vec<GuideStep>,
+    pub items: Vec<EditItem>,
+    /// Fields of the element outside any array.
+    pub fields: Vec<EditField>,
+    /// Keeps the change in the device's memory.
+    pub close: Vec<GuideStep>,
+    /// Lets the editor read the result back.
+    pub check: Vec<GuideStep>,
+}
+
+/// `item "group.encoder" index="g n" { select …; field … }`: one array
+/// element inside the block element, its selection and its fields.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct EditItem {
+    pub meta: Meta,
+    /// Array names from the block down, without indexes.
+    pub arrays: Vec<String>,
+    /// One index variable per array.
+    pub index: Vec<String>,
+    pub select: Vec<GuideStep>,
+    pub fields: Vec<EditField>,
+}
+
+/// `field "channel" applies="assign < 136" { … }`: the steps that set one
+/// field to `v`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct EditField {
+    pub meta: Meta,
+    pub name: String,
+    /// For an array of values (`array "char" count=4 type=…`): the
+    /// element's index variable.
+    pub index: Option<String>,
+    /// The field is set by hand only when this holds.
+    pub applies: Option<String>,
+    pub steps: Vec<GuideStep>,
 }

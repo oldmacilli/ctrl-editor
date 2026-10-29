@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use ctrl_cdl::{Access, Descriptor, Gate, Status};
 use ctrl_codec::Planned;
-use ctrl_engine::{Operator, Port, Run};
+use ctrl_engine::{Line, Operator, Port, Run, Wait};
 
 pub const USAGE: &str = "\
 run      run a procedure: ctrl-cli run <file> <procedure> [var=value]...
@@ -104,6 +104,31 @@ impl Operator for Terminal {
 
     fn note(&mut self, text: &str) {
         println!("  {text}");
+    }
+
+    fn guide(&mut self, lines: &[Line], wait: &Wait) -> bool {
+        println!("\nOn the device:\n{}", ctrl_engine::guide::to_text(lines));
+        match wait {
+            Wait::Message(m) => {
+                println!("  waiting for `{m}` from the device …");
+                true
+            }
+            Wait::Confirm => {
+                println!("Type yes when done:");
+                std::io::stdout().flush().ok();
+                let mut line = String::new();
+                std::io::stdin().lock().read_line(&mut line).ok();
+                line.trim() == "yes"
+            }
+        }
+    }
+
+    fn ask(&mut self, line: &Line) -> Option<i64> {
+        println!("\n{}\nValue (empty stops):", line.text);
+        std::io::stdout().flush().ok();
+        let mut input = String::new();
+        std::io::stdin().lock().read_line(&mut input).ok();
+        input.trim().parse().ok()
     }
 
     fn restore_point(&mut self, procedure: &str, messages: &[Vec<u8>]) -> Result<(), String> {
