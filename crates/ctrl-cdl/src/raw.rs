@@ -86,11 +86,26 @@ const NAMED: &[&str] = &[
     "list",
     "pattern",
     "arg",
+    "key",
+    "entry",
+    "recipe",
+    "edit",
+    "item",
+    "kinds",
+    "kind",
 ];
 
 /// Kinds whose children are an ordered step list; a local list replaces the
 /// included one as a whole.
-const STEP_LISTS: &[&str] = &["procedure", "stage"];
+const STEP_LISTS: &[&str] = &[
+    "procedure",
+    "stage",
+    "recipe",
+    "open",
+    "close",
+    "check",
+    "select",
+];
 
 pub(crate) fn error(files: &[String], pos: Pos, message: impl Into<String>) -> Error {
     Error {

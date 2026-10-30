@@ -4,6 +4,7 @@
 //!     ctrl-cli explain <file> <message> [name=value]...
 //!     ctrl-cli trace <file> <capture>...
 //!     ctrl-cli run <file> <procedure> [options]
+//!     ctrl-cli guide <file> <path>=<value>...
 
 mod run;
 
@@ -19,6 +20,7 @@ usage: ctrl-cli check <file>...
        ctrl-cli trace <file> [--matched] <capture>...
        ctrl-cli schema > docs/cdl-schema.md
        ctrl-cli run <file> <procedure> [var=value] [options]
+       ctrl-cli guide <file> <path>=<value>...
 
 check    load and validate each descriptor, check its images, run its test
          vectors and list send paths that are not measured or decoded
@@ -32,7 +34,11 @@ trace    decode captures with the descriptor. A capture is text, one frame
          when that message accepts it. --matched hides frames that match
          nothing
 schema   print docs/cdl-schema.md: every CDL node, its arguments, properties
-         and children";
+         and children
+guide    print the key presses that set these fields of one stored element
+         on the device by hand (CDL §17.4), e.g.
+         preset[2].control[0].assign=12. The values given are also what
+         `applies` and `when` read for the other fields";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -51,6 +57,7 @@ fn main() -> ExitCode {
         Some("run") if args.len() > 2 => {
             load(&args[1]).and_then(|d| run::run(&d, &args[2], &args[3..]))
         }
+        Some("guide") if args.len() > 2 => load(&args[1]).and_then(|d| guide(&d, &args[2..])),
         Some("schema") if args.len() == 1 => {
             print!("{}", ctrl_cdl::schema::markdown());
             Ok(true)
@@ -69,6 +76,32 @@ fn main() -> ExitCode {
             ExitCode::from(2)
         }
     }
+}
+
+/// `ctrl-cli guide`: an edit guide for `path=value` changes.
+fn guide(d: &Descriptor, sets: &[String]) -> Result<bool, String> {
+    let mut changes = Vec::new();
+    for s in sets {
+        let (path, value) = s
+            .split_once('=')
+            .ok_or_else(|| format!("`{s}`: expected <path>=<value>"))?;
+        let want = Expr::parse(value)
+            .and_then(|e| e.eval(&|_| None))
+            .map_err(|e| format!("`{s}`: {e}"))?;
+        changes.push(ctrl_engine::Change {
+            path: path.to_string(),
+            want,
+            have: None,
+        });
+    }
+    let want = |p: &str| changes.iter().find(|c| c.path == p).map(|c| c.want);
+    let lines = ctrl_engine::edit_guide(d, &changes, &want).map_err(|e| e.to_string())?;
+    if lines.is_empty() {
+        println!("Nothing to do by hand.");
+    } else {
+        print!("{}", ctrl_engine::guide::to_text(&lines));
+    }
+    Ok(true)
 }
 
 fn load(path: &str) -> Result<Descriptor, String> {

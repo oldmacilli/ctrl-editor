@@ -255,9 +255,10 @@ labels "en" source="Getting Started p.9 / Advanced Guide Appendix H (UC-33e fact
         item 32 "User 2 channel mixer (9-16)"
         item 33 "User 3 undefined to global channel"
     }
-    // The function keys as the recipes name them. The UC-33e manual's names;
-    // the owner's unit has a "Memory" key the manual does not name, so a key
-    // whose label differs is corrected here, not in code.
+    // The function keys as the UC-33 editor's recipes name them, until it
+    // reads `hands` below. The UC-33e manual's names; the owner's unit has a
+    // "Memory" key the manual does not name, so a key whose label differs
+    // is corrected here and in `hands`, not in code.
     list "keys" {
         item 1 "CONTROL SELECT"
         item 2 "ASSIGN"
@@ -270,6 +271,237 @@ labels "en" source="Getting Started p.9 / Advanced Guide Appendix H (UC-33e fact
         item 9 "+"
         item 10 "-"
     }
+}
+
+// ---- By hand (CDL §17) -------------------------------------------------
+// The UC-33 cannot be read or written over MIDI, so changes go in by hand:
+// the edit guide below lists the key presses (Advanced Guide pp.8-12), and
+// the tour walks through the memories so the editor can learn each from
+// SNAP SHOT. Variables: p = memory 0..=32 (P01..P33), c = control 0..=46
+// (F1..F9 = 0..=8, C10..C33 = 9..=32, B34..B47 = 33..=46).
+
+hands status="inferred" evidence="Advanced Guide pp.8-12 (UC-33e); key names from Getting Started p.5" {
+    key "select" label="CONTROL SELECT"
+    key "assign" label="ASSIGN"
+    key "channel" label="CHANNEL"
+    key "recall" label="RECALL"
+    key "store" label="STORE"
+    key "data-msb" label="DATA MSB"
+    key "data-lsb" label="DATA LSB"
+    key "program" label="PROGRAM"
+    key "plus" label="+"
+    key "minus" label="-"
+    key "F{n}" range="1..=9"
+    key "C{n}" range="10..=33"
+    key "B{n}" range="34..=47"
+    entry "keypad" text="Type each digit within 3 seconds; the LCD symbol flashes while the UC-33 takes digits."
+}
+
+recipe "recall" args="n" {
+    press "recall"
+    type "{n}" digits=2 entry="keypad" shows="P{n:02}"
+}
+
+recipe "select" args="c" {
+    press "select"
+    type "{c + 1}" digits=2 entry="keypad"
+}
+
+recipe "snap-shot" {
+    chord "plus" "minus" hint="SNAP SHOT: the UC-33 sends every fader and knob, and the editor learns them."
+}
+
+// A button's data slots depend on its assign (Advanced Guide p.8 and
+// Appendix B); `applies` leaves out the slots an assign does not use.
+edit "preset" index="p" read="snapshot" stays-open=#true status="inferred" evidence="Advanced Guide pp.8-12 (UC-33e)" {
+    open {
+        do "recall" n="{p + 1}" hint="Makes memory {p + 1} the current setup. Skip it if the LCD already shows P{p + 1:02}."
+    }
+    item "control" index="c" {
+        select {
+            when "c < 9" {
+                one-of shows="{c + 1:02}" {
+                    option { move "F{c + 1}"; }
+                    option { do "select" c="{c}"; }
+                }
+            }
+            when "c >= 9 && c < 33" {
+                one-of shows="{c + 1:02}" {
+                    option { move "C{c + 1}"; }
+                    option { do "select" c="{c}"; }
+                }
+            }
+            when "c >= 33 && c < 37" {
+                one-of shows="{c + 1:02}" {
+                    option { press "B{c + 1}"; }
+                    option { do "select" c="{c}"; }
+                }
+            }
+            // B38..B47 are the number keys: in edit mode they type digits
+            when "c >= 37" {
+                do "select" c="{c}" shows="{c + 1:02}" hint="The number keys type digits in edit mode, so they cannot select themselves."
+            }
+        }
+        field "assign" {
+            when "v == 255" {
+                press "assign"
+                type 144 digits=3 entry="keypad"
+                press "plus" hint="Controller off (255) cannot be typed; the manual says 144, then +."
+            }
+            when "v != 255" {
+                press "assign"
+                type "{v}" digits=3 entry="keypad"
+            }
+        }
+        field "channel" {
+            when "(assign >= 136 && assign <= 143) || (assign >= 149 && assign <= 152)" {
+                press "channel"
+                type "{v}" digits=3 entry="keypad" hint="SysEx device id (127 = all devices); no 'c' in the display."
+            }
+            when "((assign >= 136 && assign <= 143) || (assign >= 149 && assign <= 152)) == 0" {
+                press "channel"
+                when "v == 0" {
+                    type 0 digits=2 entry="keypad" shows="c00" hint="Channel 00: the control follows the global channel."
+                }
+                when "v != 0" {
+                    type "{v}" digits=2 entry="keypad" shows="c{v:02}"
+                }
+            }
+        }
+        field "data-msb" applies="(c >= 33 && assign <= 127) || (assign >= 132 && assign <= 139) || assign == 144 || (c >= 33 && assign >= 145 && assign <= 148)" {
+            press "data-msb" times=2 hint="Once only would send a bank change."
+            type "{v}" digits=3 entry="keypad"
+        }
+        field "data-lsb" applies="(c >= 33 && (assign <= 131 || (assign >= 145 && assign <= 152))) || (assign >= 132 && assign <= 144)" {
+            press "data-lsb" times=2 hint="Once only would send a bank change."
+            type "{v}" digits=3 entry="keypad"
+        }
+        field "program" applies="c >= 33 && ((assign >= 132 && assign <= 135) || (assign >= 145 && assign <= 148))" {
+            press "program" times=2 hint="Once only would send a program change."
+            type "{v}" digits=3 entry="keypad"
+        }
+    }
+    close {
+        press "store"
+        type "{p + 1}" digits=2 entry="keypad" hint="Keeps the changes in memory {p + 1}. Without it they stay only until the next recall."
+    }
+    check {
+        do "snap-shot"
+        say "Press each changed button once, so the editor sees what it sends."
+    }
+}
+
+edit "global" status="inferred" evidence="Advanced Guide p.9 (UC-33e)" {
+    field "channel" {
+        chord "assign" "channel"
+        type "{v}" digits=2 entry="keypad" hint="Global channel {v}. It is not part of a memory; it applies to every control on channel 00."
+    }
+}
+
+// What memory p holds now: the UC-33 cannot send a memory, so it is
+// recalled and sent with SNAP SHOT, and the editor learns it from the
+// controls' messages (buttons send only when pressed).
+procedure "snapshot" kind="read" transport="controls" status="inferred" evidence="Getting Started p.9: RECALL; Advanced Guide: SNAP SHOT" {
+    do "recall" n="{p + 1}"
+    do "snap-shot"
+    say "Press each button once (B34..B47), then confirm."
+}
+
+// Guided through all stored memories, one confirm each.
+procedure "tour" kind="read" transport="controls" status="inferred" evidence="as snapshot" {
+    repeat "p" "0..=32" {
+        call "snapshot"
+    }
+}
+
+// What a control can send (Advanced Guide p.8, Appendix B1/B2): the
+// editor's type choice. A kind's params are the slots it uses, under their
+// names for that kind; buttons are c >= 33.
+kinds "preset.control" by="assign" index="p c" status="inferred" evidence="Advanced Guide p.8, Appendix B1/B2 (UC-33e)" {
+    kind "cc" label="Control change" values="0..=119" {
+        param "assign" label="CC number"
+        param "channel" label="Channel (00 = global)"
+        param "data-msb" label="Toggle value 1" default=127 when="c >= 33"
+        param "data-lsb" label="Toggle value 2" default=0 when="c >= 33"
+    }
+    kind "channel-mode" label="Channel mode message" values="120..=127" {
+        param "assign" label="Message"
+        param "channel" label="Channel (00 = global)"
+        param "data-msb" label="Toggle value 1" default=127 when="c >= 33"
+        param "data-lsb" label="Toggle value 2" default=0 when="c >= 33"
+    }
+    kind "bend-range" label="Pitch bend sensitivity (RPN)" values="128" {
+        param "channel" label="Channel (00 = global)"
+        param "data-lsb" label="Sensitivity" default=2 when="c >= 33"
+    }
+    kind "tuning" label="Channel tuning (RPN)" values="129..=130" {
+        param "assign" label="Fine or coarse"
+        param "channel" label="Channel (00 = global)"
+        param "data-lsb" label="Tuning amount" default=64 when="c >= 33"
+    }
+    kind "pressure" label="Channel pressure" values="131" {
+        param "channel" label="Channel (00 = global)"
+        param "data-lsb" label="Pressure amount" default=127 when="c >= 33"
+    }
+    kind "rpn" label="RPN" values="132..=133" {
+        param "assign" label="Coarse or fine"
+        param "channel" label="Channel (00 = global)"
+        param "data-msb" label="RPN MSB" default=0
+        param "data-lsb" label="RPN LSB" default=0
+        param "program" label="Value" default=64 when="c >= 33"
+    }
+    kind "nrpn" label="NRPN" values="134..=135" {
+        param "assign" label="Coarse or fine"
+        param "channel" label="Channel (00 = global)"
+        param "data-msb" label="NRPN MSB" default=0
+        param "data-lsb" label="NRPN LSB" default=0
+        param "program" label="Value" default=64 when="c >= 33"
+    }
+    kind "gm-master" label="GM master (SysEx)" values="136..=139" {
+        param "assign" label="Parameter"
+        param "channel" label="Device id (127 = all)" default=127
+        param "data-msb" label="Value MSB" default=127
+        param "data-lsb" label="Value LSB" default=0
+    }
+    kind "gm2-chorus" label="GM2 chorus (SysEx)" values="140..=143" {
+        param "assign" label="Parameter"
+        param "channel" label="Device id (127 = all)" default=127
+        param "data-lsb" label="Value" default=64
+    }
+    kind "pitch-bend" label="Pitch bend" values="144" {
+        param "channel" label="Channel (00 = global)"
+        param "data-msb" label="Pitch shift MSB" default=64
+        param "data-lsb" label="Pitch shift LSB" default=0
+    }
+    kind "program" label="Program / bank" values="145" when="c >= 33" {
+        param "channel" label="Channel (00 = global)"
+        param "program" label="Program" default=0
+        param "data-msb" label="Bank MSB" default=0
+        param "data-lsb" label="Bank LSB" default=0
+    }
+    kind "cc-switch" label="CC on/off" values="146" when="c >= 33" {
+        param "channel" label="Channel (00 = global)"
+        param "program" label="CC number" default=64
+        param "data-msb" label="Press value" default=127
+        param "data-lsb" label="Release value" default=0
+    }
+    kind "note" label="Note" values="147..=148" when="c >= 33" {
+        param "assign" label="Momentary or toggle"
+        param "channel" label="Channel (00 = global)"
+        param "program" label="Note" default=60
+        param "data-msb" label="Velocity on" default=127
+        param "data-lsb" label="Velocity off" default=0
+    }
+    kind "mmc" label="MMC command" values="149" when="c >= 33" {
+        param "channel" label="Device id (127 = all)" default=127
+        param "data-lsb" label="Command" default=2
+    }
+    kind "gm2-type" label="GM2 reverb / chorus type (SysEx)" values="150..=152" when="c >= 33" {
+        param "assign" label="Parameter"
+        param "channel" label="Device id (127 = all)" default=127
+        param "data-lsb" label="Value" default=0
+    }
+    kind "off" label="Off" values="255"
 }
 
 // Nothing in this descriptor is ever sent: there is no config transport.

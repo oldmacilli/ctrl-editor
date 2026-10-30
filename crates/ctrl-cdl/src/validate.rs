@@ -74,6 +74,7 @@ pub fn validate(d: &Descriptor) -> Report {
     v.lbmt();
     v.drivers();
     v.test_vectors();
+    v.hands();
     v.unknown_and_inferred();
     Report {
         findings: v.findings,
@@ -1096,7 +1097,259 @@ impl<'d> V<'d> {
                 Step::Driver { meta, driver, .. } => self.driver_ref(meta.pos, driver),
                 Step::Require { meta, expr } => self.expr(meta.pos, "require", expr),
                 Step::OkWhen { meta, expr } => self.expr(meta.pos, "ok-when", expr),
-                Step::Delay { .. } | Step::Gate { .. } | Step::ExpectIdentity { .. } => {}
+                Step::Guide(g) => self.guide(g, &[]),
+                Step::Gate { meta, text, .. } => {
+                    if let Some(t) = text {
+                        self.text(meta.pos, "gate text", t);
+                    }
+                }
+                Step::Delay { .. } | Step::ExpectIdentity { .. } => {}
+            }
+        }
+    }
+
+    // ---- by hand (§17) ----------------------------------------------------
+
+    fn text(&mut self, pos: Pos, what: &str, t: &str) {
+        for (e, _) in crate::text::exprs(t) {
+            self.expr(pos, what, e);
+        }
+    }
+
+    /// A key a guide names: a `hands` key, or with `{…}` one of several.
+    fn key_ref(&mut self, pos: Pos, key: &str) {
+        let Some(h) = &self.d.hands else {
+            self.error(pos, format!("key `{key}`: the descriptor has no `hands`"));
+            return;
+        };
+        if key.contains('{') {
+            self.text(pos, "key", key);
+            let prefix = &key[..key.find('{').unwrap_or(0)];
+            if !h.keys.iter().any(|k| k.id.starts_with(prefix)) {
+                self.error(pos, format!("no key in `hands` matches `{key}`"));
+            }
+        } else if h.key(key).is_none() {
+            self.error(pos, format!("unknown key `{key}` (not in `hands`)"));
+        }
+    }
+
+    fn hands(&mut self) {
+        for r in &self.d.recipes {
+            for g in &r.steps {
+                self.guide(g, &[r.name.as_str()]);
+            }
+        }
+        for e in &self.d.edits {
+            self.edit(e);
+        }
+        for k in &self.d.kinds {
+            self.kinds(k);
+        }
+    }
+
+    fn kinds(&mut self, k: &'d Kinds) {
+        let pos = k.meta.pos;
+        let path = k.array.clone();
+        match Path::parse(&path)
+            .map_err(|e| e.to_string())
+            .and_then(|p| self.resolve(&p))
+        {
+            Ok(Target::Array(_)) => {}
+            Ok(_) => return self.error(pos, format!("`kinds`: `{path}` is not an array")),
+            Err(e) => return self.error(pos, e),
+        }
+        if k.index.len() != path.split('.').count() {
+            self.error(
+                pos,
+                format!("`kinds \"{path}\"`: `index` needs one name per array, block first"),
+            );
+        }
+        let field = |v: &mut Self, at: Pos, name: &str| {
+            let p = format!("{path}.{name}");
+            match Path::parse(&p)
+                .map_err(|e| e.to_string())
+                .and_then(|x| v.resolve(&x))
+            {
+                Ok(Target::Field(_)) => {}
+                Ok(_) => v.error(at, format!("`{p}` is not a field")),
+                Err(e) => v.error(at, e),
+            }
+        };
+        field(self, pos, &k.by);
+        for (i, kind) in k.kinds.iter().enumerate() {
+            let at = kind.meta.pos;
+            if let Some(w) = &kind.when {
+                self.expr(at, "when", w);
+            }
+            if kind.values.lo > kind.values.hi {
+                self.error(at, format!("kind `{}`: empty `values`", kind.name));
+            }
+            if k.kinds[..i].iter().any(|o| o.name == kind.name) {
+                self.error(at, format!("kind `{}` appears twice", kind.name));
+            }
+            for p in &kind.params {
+                field(self, p.meta.pos, &p.field);
+                if let Some(w) = &p.when {
+                    self.expr(p.meta.pos, "when", w);
+                }
+            }
+        }
+    }
+
+    /// `recipes`: the recipes being checked, so that one cannot run itself.
+    fn guide(&mut self, g: &'d GuideStep, recipes: &[&str]) {
+        let pos = g.meta.pos;
+        for k in &g.with {
+            self.key_ref(pos, k);
+        }
+        for t in g.shows.iter().chain(&g.hint) {
+            self.text(pos, "text", t);
+        }
+        match &g.act {
+            Act::Press { key, .. } | Act::Move { key } => self.key_ref(pos, key),
+            Act::Hold { key, until, .. } => {
+                self.key_ref(pos, key);
+                if let Some(t) = until {
+                    self.text(pos, "until", t);
+                }
+            }
+            Act::Chord { keys } => {
+                for k in keys {
+                    self.key_ref(pos, k);
+                }
+            }
+            Act::Type { value, entry, .. } => {
+                self.text(pos, "type", value);
+                if let Some(e) = entry {
+                    let known = self
+                        .d
+                        .hands
+                        .as_ref()
+                        .is_some_and(|h| h.entries.iter().any(|x| &x.name == e));
+                    if !known {
+                        self.error(pos, format!("unknown entry `{e}` (not in `hands`)"));
+                    }
+                }
+            }
+            Act::Turn { key, to, as_type } => {
+                self.key_ref(pos, key);
+                self.text(pos, "to", to);
+                if let Some(t) = as_type {
+                    if self.type_def(t).is_none() {
+                        self.error(pos, format!("`as`: unknown type `{t}`"));
+                    }
+                }
+            }
+            Act::Say { text } => self.text(pos, "say", text),
+            Act::Ask { path, text } => {
+                self.path(pos, path);
+                if let Some(t) = text {
+                    self.text(pos, "ask", t);
+                }
+            }
+            Act::OneOf { options } => {
+                for g in options.iter().flatten() {
+                    self.guide(g, recipes);
+                }
+            }
+            Act::When { expr, steps } => {
+                self.expr(pos, "when", expr);
+                for g in steps {
+                    self.guide(g, recipes);
+                }
+            }
+            Act::Do { recipe, args } => {
+                if recipes.contains(&recipe.as_str()) {
+                    self.error(pos, format!("recipe `{recipe}` runs itself"));
+                    return;
+                }
+                let Some(r) = self.d.recipe(recipe) else {
+                    self.error(pos, format!("unknown recipe `{recipe}`"));
+                    return;
+                };
+                for a in args {
+                    if !r.params.contains(&a.name) {
+                        self.error(
+                            pos,
+                            format!("recipe `{recipe}` has no argument `{}`", a.name),
+                        );
+                    }
+                    if let Value::String(v) = &a.value {
+                        self.text(pos, "argument", v);
+                    }
+                }
+                for p in &r.params {
+                    if !args.iter().any(|a| &a.name == p) {
+                        self.error(pos, format!("recipe `{recipe}` needs `{p}=`"));
+                    }
+                }
+            }
+        }
+    }
+
+    fn edit(&mut self, e: &'d Edit) {
+        let pos = e.meta.pos;
+        let Some(block) = self.d.block(&e.block) else {
+            self.error(pos, format!("`edit`: unknown block `{}`", e.block));
+            return;
+        };
+        for g in e.open.iter().chain(&e.close).chain(&e.check) {
+            self.guide(g, &[]);
+        }
+        if let Some(r) = &e.read {
+            match self.d.procedure(r) {
+                None => self.error(pos, format!("`read`: unknown procedure `{r}`")),
+                Some(p) if p.kind.is_some_and(|k| k != Access::Read) => {
+                    self.error(pos, format!("`read`: `{r}` is not a read"))
+                }
+                Some(_) => {}
+            }
+        }
+        let field = |v: &mut Self, f: &'d EditField, under: &[String]| {
+            let mut s = vec![block.name.clone()];
+            s.extend(under.iter().cloned());
+            s.push(f.name.clone());
+            match Path::parse(&s.join("."))
+                .map_err(|e| e.to_string())
+                .and_then(|p| v.resolve(&p))
+            {
+                Ok(Target::Field(_)) if f.index.is_none() => {}
+                Ok(Target::Array(a)) if f.index.is_some() && a.ty.is_some() => {}
+                Ok(Target::Array(_)) if f.index.is_none() => v.error(
+                    f.meta.pos,
+                    format!(
+                        "`{}` is an array of values: give the field an `index`",
+                        s.join(".")
+                    ),
+                ),
+                Ok(_) => v.error(f.meta.pos, format!("`{}` is not a field", s.join("."))),
+                Err(e) => v.error(f.meta.pos, e),
+            }
+            if let Some(a) = &f.applies {
+                v.expr(f.meta.pos, "applies", a);
+            }
+            for g in &f.steps {
+                v.guide(g, &[]);
+            }
+        };
+        for f in &e.fields {
+            field(self, f, &[]);
+        }
+        for item in &e.items {
+            let path = format!("{}.{}", block.name, item.arrays.join("."));
+            match Path::parse(&path)
+                .map_err(|e| e.to_string())
+                .and_then(|p| self.resolve(&p))
+            {
+                Ok(Target::Array(_)) => {}
+                Ok(_) => self.error(item.meta.pos, format!("`{path}` is not an array")),
+                Err(e) => self.error(item.meta.pos, e),
+            }
+            for g in &item.select {
+                self.guide(g, &[]);
+            }
+            for f in &item.fields {
+                field(self, f, &item.arrays);
             }
         }
     }

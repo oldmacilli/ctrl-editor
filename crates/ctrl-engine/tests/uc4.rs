@@ -275,7 +275,8 @@ fn restore_all_sends_the_backup_as_it_came_paced() {
     assert_eq!(writes[429].bytes.last(), Some(&0xF7));
     // the restore point is what the device held before
     assert_eq!(op.kept, vec![dump(3, &all_pieces(&now))]);
-    assert!(op.gates[1].contains("ALL 18 setups"));
+    assert!(op.gates[0].contains("ALL 18 setups"));
+    assert!(op.gates[1].contains("rc00"));
 }
 
 #[test]

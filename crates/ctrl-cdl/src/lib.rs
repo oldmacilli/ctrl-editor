@@ -18,6 +18,7 @@ mod path;
 mod raw;
 pub mod schema;
 mod template;
+pub mod text;
 mod validate;
 
 use std::io;

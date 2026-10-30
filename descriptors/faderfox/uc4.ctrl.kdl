@@ -349,21 +349,62 @@ message "dump-out-all" transport="usb" kind="write" status="measured" evidence="
     }
 }
 
+// ---- By hand (CDL §17) -------------------------------------------------
+// What the user presses on the UC4 (manual "Controller mode", "Edit mode",
+// "Setup mode"). Dumps start on the device and every write needs receive
+// armed on it, so the procedures below guide through both; the edit rules
+// change a setup on the device itself, without a dump.
+
+hands status="inferred" evidence="manual 'Controller mode', 'Edit mode', 'Setup mode'" {
+    key "shift" label="Shift"
+    key "edit" label="Edit"
+    key "encoder{n}" range="1..=8" label="encoder {n}"
+    key "push{n}" range="1..=8" label="encoder {n}'s push button"
+    key "green{n}" range="1..=8" label="green button {n}"
+}
+
+recipe "setup-mode" {
+    press "edit" with="shift" times=2 hint="Setup mode: the red setup LED lights. Skip it if the LED is lit already."
+}
+
+// "Setup and routing selection (encoder 1 and 2) works immediately."
+recipe "select-setup" args="s" {
+    turn "encoder1" to="SE{s + 1:02}"
+}
+
+recipe "leave" {
+    press "edit" hint="Without Shift."
+}
+
+// Edit mode on setup s: select it in setup mode, leave, enter edit mode.
+recipe "edit-setup" args="s" {
+    do "setup-mode"
+    do "select-setup" s="{s}"
+    do "leave" hint="Leaves setup mode; SE{s + 1:02} stays selected."
+    press "edit" with="shift" hint="Edit mode: the red edit LED lights."
+}
+
+recipe "leave-edit" {
+    press "edit" hint="Leaves edit mode; the UC4 stores the setup."
+}
+
 // ---- Procedures (CDL §11) ----------------------------------------------
 // The UC4 has no request message: every read is a dump the user starts on
-// the device, and every write needs receive armed on the device. The gates
-// say what to press; the engine waits for the dump.
+// the device, and every write needs receive armed on the device. The guide
+// steps say what to press; the engine waits for the dump.
 
 // All setups, stored copy (SndA). Also the restore point of every write.
 procedure "read-all" kind="read" transport="usb" status="measured" evidence="unit, firmware 02.03: SndA 2026-10-28" {
-    gate "confirm" text="On the UC4, setup mode must be on (red setup LED; if it is off, hold Shift and press Edit twice). Confirm here, then within 5 minutes hold encoder 8's push button until the bars run (SndA: Sn00..Sn99). Stay in setup mode."
+    do "setup-mode"
+    hold "push8" until="running bars" hint="SndA: the display counts Sn00..Sn99. Stay in setup mode."
     await "dump" kind=3 timeout=300000
 }
 
 // The current setup (Sndc). On firmware 02.03 this is the working copy:
 // read it before leaving setup mode, which stores the working copy.
 procedure "read-setup" kind="read" transport="usb" status="measured" evidence="unit, firmware 02.03: Sndc 2026-10-28" {
-    gate "confirm" text="Still in setup mode, on SE{setup + 1}: confirm here, then hold encoder 4's push button until the bars run (Sndc; the display may show nothing). Do not leave setup mode yet."
+    say "Stay in setup mode, on SE{setup + 1:02}."
+    hold "push4" until="running bars" hint="Sndc; the display may show nothing. Do not leave setup mode yet."
     await "dump" kind=2 timeout=300000
 }
 
@@ -374,11 +415,14 @@ procedure "read-setup" kind="read" transport="usb" status="measured" evidence="u
 procedure "write-setup" kind="write" transport="usb" status="measured" evidence="unit, firmware 02.03 and 02.05, 2026-10-28: ctrl-cli run on SE16 (dAtA) and back on each; backups kept, read-backs byte-identical" {
     call "read-all"
     restore-point "names" "fader9" "controls"
-    gate "confirm" text="This overwrites setup SE{setup + 1} on the UC4 (names, fader 9, all controls). In setup mode, turn encoder 1 to SE{setup + 1}, then hold encoder 7's push button until the display shows rEc, then rc00. Do not press Shift. Confirm when it shows rc00."
+    gate "confirm" text="This overwrites setup SE{setup + 1:02} on the UC4 (names, fader 9, all controls)."
+    do "select-setup" s="{setup}" hint="Still in setup mode."
+    hold "push7" until="rEc, then rc00" hint="Do not press Shift. Confirm when it shows rc00."
     send "dump-out" kind=2 fw-major="{fw-major}" fw-minor="{fw-minor}" records-from="names[setup] fader9[setup] controls[setup]"
     verify "read-all" compare="names[setup] fader9[setup] controls[setup]"
     verify "read-setup" compare="names[setup] fader9[setup] controls[setup]"
-    gate "confirm" text="Verified: SE{setup + 1} on the UC4 holds the document. Press Edit (without Shift) to leave setup mode, then confirm."
+    say "Verified: SE{setup + 1:02} on the UC4 holds the document."
+    do "leave" hint="Leaves setup mode."
 }
 
 // Restore all setups from the document (a backup dump): 430 chunks, paced.
@@ -386,10 +430,114 @@ procedure "write-setup" kind="write" transport="usb" status="measured" evidence=
 procedure "restore-all" kind="write" transport="usb" status="measured" evidence="unit, firmware 02.03 and 02.05, 2026-10-28: run through ctrl-cli run with the backup loaded (--load dump=<file>) on each; backup kept, 430 paced chunks sent, read-back byte-identical to the backup" {
     call "read-all"
     restore-point "dump-area"
-    gate "confirm" text="This overwrites ALL 18 setups on the UC4 (names, fader 9, all controls, the copy memory) with the backup. In setup mode, hold encoder 7's push button until the display shows rEc, then rc00. Do not press Shift. Confirm when it shows rc00; the display then counts rc00..rc99 for about 10 seconds."
+    gate "confirm" text="This overwrites ALL 18 setups on the UC4 (names, fader 9, all controls, the copy memory) with the backup."
+    hold "push7" until="rEc, then rc00" hint="In setup mode; do not press Shift. Confirm when it shows rc00; the display then counts rc00..rc99 for about 10 seconds."
     send "dump-out-all" kind=3 fw-major="{fw-major}" fw-minor="{fw-minor}" records-from="dump-area"
     verify "read-all" compare="dump-area"
-    gate "confirm" text="Verified: all setups on the UC4 hold the backup. Press Edit (without Shift) to leave setup mode, then confirm."
+    say "Verified: all setups on the UC4 hold the backup."
+    do "leave" hint="Leaves setup mode."
+}
+
+// ---- Edit mode (CDL §17.4) ---------------------------------------------
+// One setup changed on the device: choose the group (Shift and an encoder
+// push button for encoders, Shift and a green button for faders and green
+// buttons), select the control with encoder 1, set its properties with
+// encoders 2..8. Leaving edit mode stores the setup. Variables: setup
+// 0..=17, g = group 0..=7, n = control 0..=7.
+
+edit "controls" index="setup" read="read-setup" status="inferred" evidence="manual 'Edit mode'" {
+    open { do "edit-setup" s="{setup}"; }
+    item "group.encoder" index="g n" {
+        select {
+            press "push{g + 1}" with="shift" hint="Encoder group {g + 1}."
+            turn "encoder1" to="Enc{n + 1}"
+        }
+        field "display" { turn "encoder2" to="{v}" as="display"; }
+        field "type" { turn "encoder3" to="{v}" as="encoder-type"; }
+        field "mode" { turn "encoder4" to="{v}" as="encoder-mode"; }
+        field "channel" { turn "encoder5" to="Ch{v + 1:02}"; }
+        field "number" { turn "encoder6" to="n{v:03}"; }
+        field "lower" { turn "encoder7" to="L{v:03}"; }
+        field "upper" { turn "encoder8" to="U{v:03}"; }
+    }
+    // The manual shows no display setting for push buttons.
+    item "group.push" index="g n" {
+        select {
+            press "push{g + 1}" with="shift" hint="Encoder group {g + 1}."
+            turn "encoder1" to="Pbt{n + 1}"
+        }
+        field "type" { turn "encoder3" to="{v}" as="button-type"; }
+        field "mode" { turn "encoder4" to="{v}" as="button-mode"; }
+        field "channel" { turn "encoder5" to="Ch{v + 1:02}"; }
+        field "number" { turn "encoder6" to="n{v:03}"; }
+        field "lower" { turn "encoder7" to="L{v:03}"; }
+        field "upper" { turn "encoder8" to="U{v:03}"; }
+    }
+    item "group.button" index="g n" {
+        select {
+            press "green{g + 1}" with="shift" hint="Fader/button group {g + 1}."
+            turn "encoder1" to="btn{n + 1}"
+        }
+        field "led" { turn "encoder2" to="{v}" as="led"; }
+        field "type" { turn "encoder3" to="{v}" as="button-type"; }
+        field "mode" { turn "encoder4" to="{v}" as="button-mode"; }
+        field "channel" { turn "encoder5" to="Ch{v + 1:02}"; }
+        field "number" { turn "encoder6" to="n{v:03}"; }
+        field "lower" { turn "encoder7" to="L{v:03}"; }
+        field "upper" { turn "encoder8" to="U{v:03}"; }
+    }
+    item "group.fader" index="g n" {
+        select {
+            press "green{g + 1}" with="shift" hint="Fader/button group {g + 1}."
+            turn "encoder1" to="FAd{n + 1}"
+        }
+        field "display" { turn "encoder2" to="{v}" as="display"; }
+        field "type" { turn "encoder3" to="{v}" as="fader-type"; }
+        field "mode" { turn "encoder4" to="{v}" as="fader-mode"; }
+        field "channel" { turn "encoder5" to="Ch{v + 1:02}"; }
+        field "number" { turn "encoder6" to="n{v:03}"; }
+        field "lower" { turn "encoder7" to="L{v:03}"; }
+        field "upper" { turn "encoder8" to="U{v:03}"; }
+    }
+    close { do "leave-edit"; }
+}
+
+edit "fader9" index="setup" read="read-setup" status="inferred" evidence="manual 'Edit mode': FAd9" {
+    open { do "edit-setup" s="{setup}"; }
+    item "group" index="g" {
+        select {
+            press "green{g + 1}" with="shift" hint="Fader/button group {g + 1}."
+            turn "encoder1" to="FAd9"
+        }
+        field "display" { turn "encoder2" to="{v}" as="display"; }
+        field "type" { turn "encoder3" to="{v}" as="fader-type"; }
+        field "mode" { turn "encoder4" to="{v}" as="fader-mode"; }
+        field "channel" { turn "encoder5" to="Ch{v + 1:02}"; }
+        field "number" { turn "encoder6" to="n{v:03}"; }
+        field "lower" { turn "encoder7" to="L{v:03}"; }
+        field "upper" { turn "encoder8" to="U{v:03}"; }
+    }
+    close { do "leave-edit"; }
+}
+
+// "Group names can be modified in edit mode by holding shift and turning
+// encoder 1 to 4."
+edit "names" index="setup" read="read-setup" status="inferred" evidence="manual 'Edit mode'; the character order measured (type name-char)" {
+    open { do "edit-setup" s="{setup}"; }
+    item "group" index="g" {
+        select { press "push{g + 1}" with="shift" hint="Encoder group {g + 1}."; }
+        field "char" index="k" {
+            turn "encoder{k + 1}" with="shift" to="{v}" as="name-char" hint="Character {k + 1} of the group name."
+        }
+    }
+    close { do "leave-edit"; }
+}
+
+edit "global" status="inferred" evidence="manual 'Setup mode'" {
+    open { do "setup-mode"; }
+    field "setup" applies="v <= 17" { do "select-setup" s="{v}"; }
+    field "routing" { turn "encoder2" to="{v}" as="routing"; }
+    close { do "leave" hint="Leaving setup mode stores the routing."; }
 }
 
 // ---- Performance -------------------------------------------------------

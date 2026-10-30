@@ -16,6 +16,9 @@ CDL covers four areas:
 | 3. USB parameter patching (HID or bulk frames, report descriptor, polling) | §9 | TEC breath controller |
 | 4. Firmware update procedure | §12 | template only; no device decoded yet |
 
+When a device cannot be read or written over MIDI, or a dump needs key
+presses on the device, §17 describes what the user does by hand.
+
 ## 1. Syntax: KDL v2
 
 CDL is a schema on top of [KDL 2.0](https://kdl.dev). Reasons:
@@ -53,6 +56,9 @@ midi-map { … }                            // classic MIDI patching (§7)
 sysex-frame "korg-native" { … }           // vendor SysEx framing (§8.1)
 message "set-drawbar" { … }               // SysEx or HID message templates (§6)
 procedure "read-all" { … }                // ordered exchanges (§11)
+hands { … }                               // keys the user presses (§17)
+recipe "recall" { … }                     // named key presses (§17)
+edit "preset" { … }                       // changing a stored field by hand (§17)
 firmware { … }                            // update procedure (§12)
 lbmt "organ-remap" { … }                  // live rules (§10)
 driver "tec-curve"                        // Rust escape hatch (§14)
@@ -870,6 +876,7 @@ A procedure is an ordered list of steps:
 | `await "msg" timeout=…` | wait for a message the device sends by itself (a dump the user starts on the device); properties are values it must carry, `kind=3` |
 | `call "procedure"` | sub-procedure |
 | `driver "name" step="…"` | Rust step (§14) |
+| `press`, `hold`, `turn`, `say`, `ask`, `do`, … | something the user does on the device (§17.2) |
 
 ```kdl
 procedure "write-all" kind="write" transport="aux" {
@@ -885,7 +892,7 @@ procedure "write-all" kind="write" transport="aux" {
 Step properties are message arguments, numbers or `{expressions}` over the
 run's variables (`setup=15` on the command line) and the values earlier
 replies captured (`fw-major="{fw-major}"`). Gate texts may hold
-`{expressions}` too: `SE{setup + 1}`.
+`{expressions}` too, with an optional zero-padded width: `SE{setup + 1:02}`.
 
 `ctrl-engine` runs procedures with two documents: the **editor document**
 (what the user wants on the device: loaded from a dump file, edited by
@@ -1057,6 +1064,8 @@ it is stale.
   the reply variants with their `ok-when`. Values: `12`, `0x0F`, `-1`,
   `hex:AA55`, `text:Name`, `@file`. A missing value names what the
   message takes.
+- `ctrl-cli guide <file> <path>=<value>…`: the key presses that set these
+  fields by hand (§17.4).
 - `ctrl-cli trace <file> [--matched] <capture>…`: matches each frame
   against every `send` and reply (`Codec::identify`). A capture is text,
   one frame per line with an optional `>` (to the device) or `<` (from
@@ -1079,3 +1088,183 @@ it is stale.
 - Tree-sitter queries for CDL on top of tree-sitter-kdl, with LBMT
   injected as language `lbmt`: `editors/tree-sitter/` (README there),
   checked by `cargo test -p cdl-queries`.
+
+## 17. By hand: guides
+
+Some devices cannot be read or written over MIDI (the UC-33 has no dump),
+and some need key presses on the device to send or take a dump (the UC4).
+CDL describes what the user does there, so every front end guides the
+user the same way: through the steps of a procedure, through the key
+presses that change a stored field, and through the stored presets one by
+one.
+
+### 17.1 `hands`
+
+```kdl
+hands {
+    key "recall" label="RECALL"                   // as printed on the device
+    key "encoder{n}" range="1..=8" label="encoder {n}"
+    entry "keypad" text="Type each digit within 3 seconds."
+}
+```
+
+`key` names what a guide presses, holds, turns or moves; the label is what
+the user reads on the device (the id when absent). With `range`, one node
+stands for one key per value of `n`. `entry` is a way of typing numbers;
+its text is shown once per guide, before the first number typed with it.
+
+### 17.2 Guide steps
+
+Guide steps go in procedures (§11), in recipes and in `edit` rules. Their
+texts may hold `{expressions}` with an optional width, `P{p + 1:02}`; key
+names may too, `push{g + 1}`.
+
+| Step | Shown as |
+|---|---|
+| `press "edit" times=2` | Press Edit twice |
+| `hold "push8" until="running bars"` / `ms=2000` | Hold encoder 8's push button until the display shows running bars |
+| `chord "plus" "minus"` | Press + and - together |
+| `type "{p + 1}" digits=2 entry="keypad"` | Type 0 3 |
+| `turn "encoder3" to="{v}" as="encoder-type"` | Turn encoder 3 to “CCAb …” (`as`: the type's label for the value) |
+| `move "F{c + 1}"` | Move F1 |
+| `say "text"` | the text |
+| `ask "preset[p].control[c].assign" text="…"` | the user reads a value on the device and enters it |
+| `one-of { option { … } option { … } }` | the cheapest option, Move F1; the others as alternatives |
+| `when "expr" { … }` | the steps inside, when the expression holds |
+| `do "recall" n="{p + 1}"` | the recipe's steps |
+
+Each line has a cost: key presses (`times` counts), digits typed, one
+per hold, chord, turn, move or ask, none for `say`. A `one-of` shows its
+cheapest option (the first of equal ones; an option whose `when`s leave
+nothing is out) and keeps the others as alternatives a front end may
+offer.
+
+`with="shift"` holds keys during the act (Hold Shift and press Edit),
+`shows=` is what the device shows afterwards and `hint=` says why or what
+to watch for; on `do` they apply to the recipe's last line.
+
+In a procedure, consecutive guide steps form one card. The card is shown
+before the next other step: before an `await` the run waits for the
+device's message at once, without a confirm; before anything else, and at
+the end, the user confirms when done. A `repeat` shows one card per round.
+A gate keeps its own prompt: the write policy's confirm comes first, then
+the card that arms the device. An `ask` is answered at once; the answer
+goes into the device document when the block has a byte layout, and into
+the run's answers always.
+
+```kdl
+procedure "read-all" kind="read" transport="usb" {
+    do "setup-mode"
+    hold "push8" until="running bars" hint="SndA: the display counts Sn00..Sn99."
+    await "dump" kind=3 timeout=300000
+}
+```
+
+### 17.3 `recipe`
+
+```kdl
+recipe "recall" args="n" {
+    press "recall"
+    type "{n}" digits=2 entry="keypad" shows="P{n:02}"
+}
+```
+
+Named guide steps with parameters; `do "recall" n="{p + 1}"` runs them
+with every parameter given. A recipe may run other recipes, not itself.
+
+### 17.4 `edit`: changing stored fields by hand
+
+```kdl
+edit "preset" index="p" {
+    open { do "recall" n="{p + 1}"; }              // make element p current
+    item "control" index="c" {                     // an array element
+        select { do "select" c="{c}"; }
+        field "assign" { press "assign"; type "{v}" digits=3 entry="keypad"; }
+        field "data-msb" applies="c >= 33 && assign <= 127" { … }
+    }
+    field "name" { … }                             // a field outside arrays
+    close { press "store"; type "{p + 1}" digits=2 entry="keypad"; }
+    check { do "snap-shot"; }                      // lets the editor read it back
+}
+```
+
+`ctrl_engine::edit_guide_at` takes the changed fields of one block element
+(`preset[2].control[0].assign` from 7 to 12) and where the device is, and
+writes the shortest guide: `open` unless the element is open already, then
+each changed item's `select` (once per item, not at all when it is
+selected) and its fields in the order of the rule, then `close` and
+`check`. A field whose `have` (what the device holds, as far as the
+editor knows) equals the wanted value is left out; nothing left gives an
+empty guide. A field without a rule is refused ("cannot be set by hand"),
+so the editor can say so instead of guessing. It returns where the device
+is afterwards: with `stays-open=#true` the element is still current after
+`close` (the UC-33's STORE keeps the memory), so the next guide starts
+without `open`.
+
+The better the editor knows the device, the shorter the guide. `read=`
+names the read procedure that shows what the element holds now: a dump
+(the UC4's `read-setup`) or a guided snapshot (the UC-33's SNAP SHOT); it
+runs with the edit's index variable set. For blocks with a byte layout,
+`ctrl_engine::changes_between` compares the editor document with the
+device document of that read and gives the changes with their `have`.
+
+- `item "group.encoder" index="g n"` names nested arrays from the block
+  down, one index variable each.
+- A field's steps see the element's and items' index variables, `v` (the
+  wanted value), `was` (the value the editor last saw, when known) and the
+  item's other fields by name, as wanted.
+- `applies` leaves a field out when it does not apply (a data slot the
+  assign does not use). When it reads a value nobody gave, the field stays
+  in: the user can skip a step, not invent a missing one.
+- For an array of values (`array "char" count=4 type="name-char"`) the
+  field takes `index="k"`.
+
+`ctrl-cli guide <file> <path>=<value>…` prints the guide.
+
+### 17.5 Tours: through the stored presets
+
+A device that cannot send its presets can still be walked through them: a
+read procedure repeats over the presets with guide steps, one card each,
+while the editor learns from what the device sends.
+
+```kdl
+procedure "tour" kind="read" transport="controls" {
+    repeat "p" "0..=32" {
+        do "recall" n="{p + 1}"
+        do "snap-shot"
+        say "Press each button once (B34..B47), then confirm."
+    }
+}
+```
+
+A device that shows its stored values but sends nothing uses `ask` in the
+tour instead: the user reads each value off the display.
+
+### 17.6 `kinds`: what a control can send
+
+The editor offers a type choice per control, and the choice decides which
+fields matter and what they are called:
+
+```kdl
+kinds "preset.control" by="assign" index="p c" {
+    kind "cc" label="Control change" values="0..=119" {
+        param "assign" label="CC number"
+        param "channel" label="Channel (00 = global)"
+        param "data-msb" label="Toggle value 1" default=127 when="c >= 33"
+    }
+    kind "note" label="Note" values="147..=148" when="c >= 33" {
+        param "assign" label="Momentary or toggle"
+        param "program" label="Note" default=60
+    }
+    kind "off" label="Off" values="255"
+}
+```
+
+A kind is the range of `by` values it covers; `when` (over the index
+variables, block first) limits where it is offered, on a kind or a param.
+`ctrl_engine::kinds`: `offered` lists the kinds of one element, `kind_of`
+finds the kind of a stored value, `fields` gives its fields with their
+labels, and `switch_to` gives the values to set when the user picks a
+kind: the `by` value (kept when it is already of that kind) and the
+defaults. The edit guide then types exactly those fields, and `applies`
+leaves out the slots the kind does not use.

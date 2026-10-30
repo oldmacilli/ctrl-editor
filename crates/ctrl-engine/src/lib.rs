@@ -16,6 +16,8 @@
 //! asks the operator, and a write stops when no restore point was kept.
 
 mod document;
+pub mod guide;
+pub mod kinds;
 
 use std::fmt;
 
@@ -23,6 +25,16 @@ use ctrl_cdl::{Descriptor, Expr, Gate, Index, MessageStep, Path, RepeatOver, Ste
 use ctrl_codec::{Bindings, Codec, CodecError, Planned, Val};
 
 pub use document::Document;
+pub use guide::{changes_between, edit_guide, edit_guide_at, Change, Here, Line};
+
+/// What follows a card of guide lines.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Wait {
+    /// The user confirms when done.
+    Confirm,
+    /// The run waits for this message from the device; no confirm.
+    Message(String),
+}
 
 /// The device side: sends planned writes, returns whole messages.
 pub trait Port {
@@ -40,6 +52,23 @@ pub trait Operator {
     /// Keeps a restore point: the raw messages the device sent for it.
     /// An error stops the run before anything is written.
     fn restore_point(&mut self, procedure: &str, messages: &[Vec<u8>]) -> Result<(), String>;
+    /// Shows what to do on the device (CDL §17); with `Wait::Confirm`,
+    /// true to go on. The default shows the lines as a gate's text.
+    fn guide(&mut self, lines: &[Line], wait: &Wait) -> bool {
+        let text = guide::to_text(lines);
+        match wait {
+            Wait::Confirm => self.gate(Gate::Confirm, &text),
+            Wait::Message(_) => {
+                self.note(&text);
+                true
+            }
+        }
+    }
+    /// A value the user reads on the device (`ask`); None stops the run.
+    fn ask(&mut self, line: &Line) -> Option<i64> {
+        let _ = line;
+        None
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -89,6 +118,10 @@ pub enum Event {
         applied: bool,
     },
     Verified(String),
+    /// Guide lines shown to the user.
+    Guided(Vec<Line>),
+    /// A value the user read on the device: path, value.
+    Answered(String, i64),
 }
 
 pub struct Run<'d> {
@@ -106,6 +139,12 @@ pub struct Run<'d> {
     /// Raw messages the device sent in this run, oldest first.
     received: Vec<Vec<u8>>,
     restore_kept: bool,
+    /// Guide lines not shown yet; shown before the next other step.
+    card: Vec<Line>,
+    /// Entries explained on the current card.
+    explained: Vec<String>,
+    /// Values the user entered (`ask`), by path.
+    pub answers: Vec<(String, i64)>,
 }
 
 /// Fallback for `await` and `exchange` without a `timeout`.
@@ -123,6 +162,9 @@ impl<'d> Run<'d> {
             events: Vec::new(),
             received: Vec::new(),
             restore_kept: false,
+            card: Vec::new(),
+            explained: Vec::new(),
+            answers: Vec::new(),
         }
     }
 
@@ -164,7 +206,63 @@ impl<'d> Run<'d> {
         if write {
             self.check_sources(&p.steps)?;
         }
-        self.steps(procedure, write, &p.steps, port, op)
+        self.steps(procedure, write, &p.steps, port, op)?;
+        self.show_card(&Wait::Confirm, op)
+    }
+
+    /// Shows the guide lines gathered so far.
+    fn show_card(&mut self, wait: &Wait, op: &mut dyn Operator) -> Result<(), EngineError> {
+        if self.card.is_empty() {
+            return Ok(());
+        }
+        let lines = std::mem::take(&mut self.card);
+        self.explained.clear();
+        self.events.push(Event::Guided(lines.clone()));
+        if !op.guide(&lines, wait) {
+            let first = lines.first().map_or(String::new(), |l| l.text.clone());
+            return Err(EngineError::Declined(first));
+        }
+        Ok(())
+    }
+
+    /// Gathers a guide step's lines; an `ask` is shown and answered at once.
+    fn guide_step(
+        &mut self,
+        g: &ctrl_cdl::GuideStep,
+        op: &mut dyn Operator,
+    ) -> Result<(), EngineError> {
+        let vars: guide::Vars = self
+            .vars
+            .iter()
+            .filter_map(|(k, v)| match v {
+                Val::Int(i) => Some((k.clone(), *i)),
+                _ => None,
+            })
+            .collect();
+        let mut gd = guide::Guide::new(self.d);
+        gd.explained = std::mem::take(&mut self.explained);
+        gd.steps(std::slice::from_ref(g), &vars)?;
+        self.explained = std::mem::take(&mut gd.explained);
+        for line in gd.lines {
+            let Some(path) = line.ask.clone() else {
+                self.card.push(line);
+                continue;
+            };
+            self.show_card(&Wait::Confirm, op)?;
+            let v = op
+                .ask(&line)
+                .ok_or_else(|| EngineError::Declined(line.text.clone()))?;
+            if let Ok(p) = Path::parse(&path) {
+                // A block with a byte layout keeps it in the device
+                // document; any block keeps it in `answers`.
+                let mut device = std::mem::take(&mut self.device);
+                let _ = device.set(&self.codec, self.d, &p, v, &|_| None);
+                self.device = device;
+            }
+            self.events.push(Event::Answered(path.clone(), v));
+            self.answers.push((path, v));
+        }
+        Ok(())
     }
 
     /// Refuses a write whose `records-from` blocks are not in the editor
@@ -207,6 +305,12 @@ impl<'d> Run<'d> {
     ) -> Result<(), EngineError> {
         for step in steps {
             match step {
+                Step::Guide(_) | Step::Repeat { .. } | Step::Call { .. } => {}
+                Step::Await(s) => self.show_card(&Wait::Message(s.message.clone()), op)?,
+                _ => self.show_card(&Wait::Confirm, op)?,
+            }
+            match step {
+                Step::Guide(g) => self.guide_step(g, op)?,
                 Step::Gate { gate, text, .. } => {
                     let text = self.text(text.as_deref().unwrap_or("Go on?"));
                     self.events.push(Event::Gate(text.clone()));
@@ -291,6 +395,8 @@ impl<'d> Run<'d> {
                     for i in r.lo..=r.hi {
                         self.vars.insert(var.clone(), Val::Int(i));
                         self.steps(procedure, write, steps, port, op)?;
+                        // one card per round
+                        self.show_card(&Wait::Confirm, op)?;
                     }
                 }
                 other => {
@@ -468,22 +574,9 @@ impl<'d> Run<'d> {
 
     /// Gate texts may hold `{expression}`s over the run's variables.
     fn text(&self, t: &str) -> String {
-        let mut out = String::new();
-        let mut rest = t;
-        while let Some(open) = rest.find('{') {
-            let Some(close) = rest[open..].find('}') else {
-                break;
-            };
-            out.push_str(&rest[..open]);
-            let e = &rest[open + 1..open + close];
-            match self.eval(e) {
-                Ok(v) => out.push_str(&v.to_string()),
-                Err(_) => out.push_str(&rest[open..=open + close]),
-            }
-            rest = &rest[open + close + 1..];
-        }
-        out.push_str(rest);
-        out
+        ctrl_cdl::text::interpolate(t, &|e| {
+            Expr::parse(e).and_then(|x| x.eval(&|n| lookup(&self.vars, n)))
+        })
     }
 }
 

@@ -87,6 +87,10 @@ pub(crate) fn convert(
             consts: b.consts,
             labels: b.labels,
             patterns: cx.patterns.clone(),
+            hands: b.hands,
+            recipes: b.recipes,
+            edits: b.edits,
+            kinds: b.kinds,
         }),
         _ => Err(Errors(cx.errors)),
     }
@@ -456,6 +460,10 @@ struct Builder {
     test_vectors: Vec<TestVector>,
     consts: Vec<Const>,
     labels: Vec<Labels>,
+    hands: Option<Hands>,
+    recipes: Vec<Recipe>,
+    edits: Vec<Edit>,
+    kinds: Vec<Kinds>,
 }
 
 const TOP: &[&str] = &[
@@ -479,6 +487,10 @@ const TOP: &[&str] = &[
     "const",
     "labels",
     "pattern",
+    "hands",
+    "recipe",
+    "edit",
+    "kinds",
 ];
 
 impl Builder {
@@ -524,6 +536,13 @@ impl Builder {
             "driver" => self.drivers.push(driver(cx, n)),
             "test-vector" => self.test_vectors.push(test_vector(cx, n)),
             "labels" => self.labels.push(labels(cx, n)),
+            "hands" => {
+                let hands = hands(cx, n);
+                once(cx, n, &mut self.hands, hands);
+            }
+            "recipe" => self.recipes.push(recipe(cx, n)),
+            "edit" => self.edits.push(edit(cx, n)),
+            "kinds" => self.kinds.push(kinds(cx, n)),
             // Read before the other nodes, in `convert`.
             "pattern" => {}
             "const" => {
@@ -640,6 +659,21 @@ impl Builder {
             cx,
             "pattern",
             patterns.iter().map(|p| (p.name.as_str(), p.meta.pos)),
+        );
+        dups(
+            cx,
+            "recipe",
+            self.recipes.iter().map(|r| (r.name.as_str(), r.meta.pos)),
+        );
+        dups(
+            cx,
+            "edit",
+            self.edits.iter().map(|e| (e.block.as_str(), e.meta.pos)),
+        );
+        dups(
+            cx,
+            "kinds",
+            self.kinds.iter().map(|k| (k.array.as_str(), k.meta.pos)),
         );
         dups(
             cx,
@@ -1390,6 +1424,7 @@ const STEPS: &[&str] = &[
     "driver",
     "expect-identity",
     "ok-when",
+    "await",
 ];
 
 fn steps(cx: &mut Cx, parent: &str, nodes: &[RawNode]) -> Vec<Step> {
@@ -1525,12 +1560,367 @@ fn step(cx: &mut Cx, parent: &str, n: &RawNode) -> Option<Step> {
                 meta,
             }
         }
+        _ if GUIDE_STEPS.contains(&n.name.as_str()) => Step::Guide(guide_step(cx, n)?),
         _ => {
-            cx.unknown_child(parent, n, STEPS);
+            let known: Vec<_> = STEPS.iter().chain(GUIDE_STEPS).copied().collect();
+            cx.unknown_child(parent, n, &known);
             return None;
         }
     };
     Some(step)
+}
+
+// ---- by hand (§17) ---------------------------------------------------------
+
+const GUIDE_STEPS: &[&str] = &[
+    "press", "hold", "chord", "type", "turn", "move", "say", "ask", "one-of", "when", "do",
+];
+
+fn hands(cx: &mut Cx, n: &RawNode) -> Hands {
+    cx.node(n, "hands");
+    let mut keys = Vec::new();
+    let mut entries = Vec::new();
+    for c in &n.children {
+        match c.name.as_str() {
+            "key" => {
+                cx.node(c, "hands/key");
+                let meta = cx.meta(c);
+                let id = cx.name(c);
+                let label = cx.prop_str(c, "label");
+                match cx.prop_with(c, "range", parse_range) {
+                    Some(r) => {
+                        for v in r.lo..=r.hi {
+                            let id = expand_n(&id, v);
+                            keys.push(Key {
+                                meta: meta.clone(),
+                                label: label
+                                    .as_deref()
+                                    .map_or_else(|| id.clone(), |l| expand_n(l, v)),
+                                id,
+                            });
+                        }
+                    }
+                    None => keys.push(Key {
+                        meta,
+                        label: label.unwrap_or_else(|| id.clone()),
+                        id,
+                    }),
+                }
+            }
+            "entry" => {
+                cx.node(c, "hands/entry");
+                entries.push(Entry {
+                    meta: cx.meta(c),
+                    name: cx.name(c),
+                    text: cx.prop_str(c, "text"),
+                });
+            }
+            _ => cx.unknown_child("hands", c, &["key", "entry"]),
+        }
+    }
+    let mut seen = std::collections::HashSet::new();
+    for k in &keys {
+        if !seen.insert(k.id.as_str()) {
+            cx.err(k.meta.pos, format!("key `{}` appears twice", k.id));
+        }
+    }
+    Hands {
+        meta: cx.meta(n),
+        keys,
+        entries,
+    }
+}
+
+/// `encoder{n}` with n = 3: `encoder3`.
+fn expand_n(s: &str, v: i64) -> String {
+    s.replace("{n}", &v.to_string())
+}
+
+fn split_words(s: &str) -> Vec<String> {
+    s.split_whitespace().map(String::from).collect()
+}
+
+fn guide_steps(cx: &mut Cx, parent: &str, nodes: &[RawNode]) -> Vec<GuideStep> {
+    nodes
+        .iter()
+        .filter_map(|n| {
+            if GUIDE_STEPS.contains(&n.name.as_str()) {
+                guide_step(cx, n)
+            } else {
+                cx.unknown_child(parent, n, GUIDE_STEPS);
+                None
+            }
+        })
+        .collect()
+}
+
+fn guide_step(cx: &mut Cx, n: &RawNode) -> Option<GuideStep> {
+    match n.name.as_str() {
+        "press" => cx.node(n, "guide press"),
+        "hold" => cx.node(n, "guide hold"),
+        "chord" => cx.node(n, "guide chord"),
+        "type" => cx.node(n, "guide type"),
+        "turn" => cx.node(n, "guide turn"),
+        "move" => cx.node(n, "guide move"),
+        "say" => cx.node(n, "guide say"),
+        "ask" => cx.node(n, "guide ask"),
+        "one-of" => cx.node(n, "guide one-of"),
+        "when" => cx.node(n, "guide when"),
+        "do" => cx.node(n, "guide do"),
+        _ => return None,
+    }
+    let meta = cx.meta(n);
+    let act = match n.name.as_str() {
+        "press" => Act::Press {
+            key: cx.arg_str(n, 0)?,
+            times: cx.prop_u32(n, "times").unwrap_or(1).max(1),
+        },
+        "hold" => Act::Hold {
+            key: cx.arg_str(n, 0)?,
+            ms: cx.prop_u32(n, "ms"),
+            until: cx.prop_str(n, "until"),
+        },
+        "chord" => Act::Chord {
+            keys: (0..n.args.len()).filter_map(|i| cx.arg_str(n, i)).collect(),
+        },
+        "type" => {
+            let value = match n.args.first().map(|v| &v.value) {
+                Some(Value::Int(i)) => i.to_string(),
+                _ => cx.arg_str(n, 0)?,
+            };
+            Act::Type {
+                value,
+                digits: cx.prop_u32(n, "digits"),
+                entry: cx.prop_str(n, "entry"),
+            }
+        }
+        "turn" => {
+            let to = cx.prop_str(n, "to");
+            Act::Turn {
+                key: cx.arg_str(n, 0)?,
+                to: cx.required(n, "to", to)?,
+                as_type: cx.prop_str(n, "as"),
+            }
+        }
+        "move" => Act::Move {
+            key: cx.arg_str(n, 0)?,
+        },
+        "say" => Act::Say {
+            text: cx.arg_str(n, 0)?,
+        },
+        "ask" => Act::Ask {
+            path: cx.arg_with(n, 0, Path::parse)?,
+            text: cx.prop_str(n, "text"),
+        },
+        "one-of" => {
+            let mut options = Vec::new();
+            for c in &n.children {
+                if c.name == "option" {
+                    cx.node(c, "guide one-of/option");
+                    options.push(guide_steps(cx, "option", &c.children));
+                } else {
+                    cx.unknown_child("one-of", c, &["option"]);
+                }
+            }
+            if options.len() < 2 {
+                cx.err(n.pos, "`one-of` needs two or more `option`s");
+            }
+            Act::OneOf { options }
+        }
+        "when" => Act::When {
+            expr: cx.arg_with(n, 0, |s| Expr::parse(s).map(|_| s.to_string()))?,
+            steps: guide_steps(cx, "when", &n.children),
+        },
+        "do" => {
+            const RESERVED: &[&str] = &["with", "shows", "hint"];
+            Act::Do {
+                recipe: cx.arg_str(n, 0)?,
+                args: cx.args(n, RESERVED),
+            }
+        }
+        _ => return None,
+    };
+    let (with, shows, hint) = match n.name.as_str() {
+        "ask" | "when" => (Vec::new(), None, None),
+        "one-of" => (Vec::new(), cx.prop_str(n, "shows"), cx.prop_str(n, "hint")),
+        _ => (
+            cx.prop_str(n, "with")
+                .as_deref()
+                .map(split_words)
+                .unwrap_or_default(),
+            cx.prop_str(n, "shows"),
+            cx.prop_str(n, "hint"),
+        ),
+    };
+    Some(GuideStep {
+        meta,
+        act,
+        with,
+        shows,
+        hint,
+    })
+}
+
+fn recipe(cx: &mut Cx, n: &RawNode) -> Recipe {
+    cx.node(n, "recipe");
+    Recipe {
+        meta: cx.meta(n),
+        name: cx.name(n),
+        params: cx
+            .prop_str(n, "args")
+            .as_deref()
+            .map(split_words)
+            .unwrap_or_default(),
+        steps: guide_steps(cx, "recipe", &n.children),
+    }
+}
+
+fn edit_field(cx: &mut Cx, n: &RawNode) -> EditField {
+    cx.node(n, "edit/field");
+    EditField {
+        meta: cx.meta(n),
+        name: cx.name(n),
+        index: cx.prop_str(n, "index"),
+        applies: cx.prop_with(n, "applies", |s| Expr::parse(s).map(|_| s.to_string())),
+        steps: guide_steps(cx, "field", &n.children),
+    }
+}
+
+fn when_expr(cx: &mut Cx, n: &RawNode) -> Option<String> {
+    cx.prop_with(n, "when", |s| Expr::parse(s).map(|_| s.to_string()))
+}
+
+fn kinds(cx: &mut Cx, n: &RawNode) -> Kinds {
+    cx.node(n, "kinds");
+    let by = cx.prop_str(n, "by");
+    let mut out = Kinds {
+        meta: cx.meta(n),
+        array: cx.name(n),
+        by: cx.required(n, "by", by).unwrap_or_default(),
+        index: cx
+            .prop_str(n, "index")
+            .as_deref()
+            .map(split_words)
+            .unwrap_or_default(),
+        kinds: Vec::new(),
+    };
+    for c in &n.children {
+        if c.name != "kind" {
+            cx.unknown_child("kinds", c, &["kind"]);
+            continue;
+        }
+        cx.node(c, "kinds/kind");
+        let label = cx.prop_str(c, "label");
+        let values = cx.prop_with(c, "values", |s| {
+            if s.contains("..=") {
+                parse_range(s)
+            } else {
+                s.trim()
+                    .parse::<i64>()
+                    .map(|v| IntRange { lo: v, hi: v })
+                    .map_err(|_| format!("`{s}`: a number or `lo..=hi`"))
+            }
+        });
+        let mut params = Vec::new();
+        for p in &c.children {
+            if p.name != "param" {
+                cx.unknown_child("kind", p, &["param"]);
+                continue;
+            }
+            cx.node(p, "kinds/kind/param");
+            let label = cx.prop_str(p, "label");
+            let field = cx.name(p);
+            params.push(KindParam {
+                meta: cx.meta(p),
+                label: label.unwrap_or_else(|| field.clone()),
+                field,
+                default: cx.prop_i64(p, "default"),
+                when: when_expr(cx, p),
+            });
+        }
+        let name = cx.name(c);
+        let Some(values) = cx.required(c, "values", values) else {
+            continue;
+        };
+        out.kinds.push(KindDef {
+            meta: cx.meta(c),
+            label: label.unwrap_or_else(|| name.clone()),
+            name,
+            values,
+            when: when_expr(cx, c),
+            params,
+        });
+    }
+    out
+}
+
+fn edit(cx: &mut Cx, n: &RawNode) -> Edit {
+    cx.node(n, "edit");
+    let mut e = Edit {
+        meta: cx.meta(n),
+        block: cx.name(n),
+        index: cx.prop_str(n, "index").unwrap_or_else(|| "i".into()),
+        read: cx.prop_str(n, "read"),
+        stays_open: cx.prop_bool(n, "stays-open"),
+        open: Vec::new(),
+        items: Vec::new(),
+        fields: Vec::new(),
+        close: Vec::new(),
+        check: Vec::new(),
+    };
+    for c in &n.children {
+        match c.name.as_str() {
+            "open" | "close" | "check" => {
+                cx.node(c, "edit/open|edit/close|edit/check");
+                let steps = guide_steps(cx, &c.name, &c.children);
+                match c.name.as_str() {
+                    "open" => e.open = steps,
+                    "close" => e.close = steps,
+                    _ => e.check = steps,
+                }
+            }
+            "field" => e.fields.push(edit_field(cx, c)),
+            "item" => {
+                cx.node(c, "edit/item");
+                let arrays: Vec<String> = cx.name(c).split('.').map(str::to_string).collect();
+                let index = cx
+                    .prop_str(c, "index")
+                    .as_deref()
+                    .map(split_words)
+                    .unwrap_or_default();
+                if index.len() != arrays.len() {
+                    cx.err(
+                        c.pos,
+                        format!(
+                            "`item`: {} array(s) need as many `index` names, found {}",
+                            arrays.len(),
+                            index.len()
+                        ),
+                    );
+                }
+                let mut item = EditItem {
+                    meta: cx.meta(c),
+                    arrays,
+                    index,
+                    select: Vec::new(),
+                    fields: Vec::new(),
+                };
+                for g in &c.children {
+                    match g.name.as_str() {
+                        "select" => {
+                            cx.node(g, "edit/item/select");
+                            item.select = guide_steps(cx, "select", &g.children);
+                        }
+                        "field" => item.fields.push(edit_field(cx, g)),
+                        _ => cx.unknown_child("item", g, &["select", "field"]),
+                    }
+                }
+                e.items.push(item);
+            }
+            _ => cx.unknown_child("edit", c, &["open", "item", "field", "close", "check"]),
+        }
+    }
+    e
 }
 
 fn firmware(cx: &mut Cx, n: &RawNode) -> Firmware {
