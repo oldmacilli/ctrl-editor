@@ -25,6 +25,10 @@ pub struct Line {
     /// Set when the user reads a value off the device and enters it: the
     /// path it goes to.
     pub ask: Option<String>,
+    /// Key presses, digits and turns it takes; a sentence costs nothing.
+    pub cost: u32,
+    /// For a `one-of`: the longer ways to the same result.
+    pub alternatives: Vec<String>,
 }
 
 impl Line {
@@ -34,8 +38,15 @@ impl Line {
             shows: None,
             hint: None,
             ask: None,
+            cost: 0,
+            alternatives: Vec::new(),
         }
     }
+}
+
+/// What a guide costs the user: key presses, digits, turns.
+pub fn cost(lines: &[Line]) -> u32 {
+    lines.iter().map(|l| l.cost).sum()
 }
 
 /// Lines as numbered plain text, for a terminal or a file.
@@ -52,6 +63,9 @@ pub fn to_text(lines: &[Line]) -> String {
         s.push('\n');
         if let Some(h) = &l.hint {
             s.push_str(&format!("    {h}\n"));
+        }
+        for a in &l.alternatives {
+            s.push_str(&format!("    Or: {a}.\n"));
         }
     }
     s
@@ -144,14 +158,20 @@ impl<'d> Guide<'d> {
             }
             _ => {}
         }
+        let (text_, cost, alternatives) = match &g.act {
+            Act::OneOf { options } => self.one_of(options, vars)?,
+            _ => (self.sentence(g, vars)?, self.cost(g, vars), Vec::new()),
+        };
         let line = Line {
-            text: self.sentence(g, vars)?,
+            text: text_,
             shows: g.shows.as_deref().map(|s| text(s, vars)),
             hint: g.hint.as_deref().map(|s| text(s, vars)),
             ask: match &g.act {
                 Act::Ask { path, .. } => Some(resolve_path(path, vars)?),
                 _ => None,
             },
+            cost,
+            alternatives,
         };
         self.lines.push(line);
         Ok(())
@@ -235,24 +255,7 @@ impl<'d> Guide<'d> {
                     ),
                 })
             }
-            Act::OneOf { options } => {
-                let mut clauses = Vec::new();
-                for o in options {
-                    // each option in a guide of its own, without entry texts
-                    let mut sub = Guide::new(self.d);
-                    sub.explained = self
-                        .d
-                        .hands
-                        .iter()
-                        .flat_map(|h| h.entries.iter().map(|e| e.name.clone()))
-                        .collect();
-                    sub.steps(o, vars)?;
-                    let parts: Vec<String> =
-                        sub.lines.iter().map(|l| lower_first(&l.text)).collect();
-                    clauses.push(parts.join(", then "));
-                }
-                return Ok(upper_first(&clauses.join(", or ")));
-            }
+            Act::OneOf { options } => return Ok(self.one_of(options, vars)?.0),
             Act::When { .. } | Act::Do { .. } => unreachable!("expanded in `step`"),
         };
         Ok(if held.is_empty() {
@@ -260,6 +263,49 @@ impl<'d> Guide<'d> {
         } else {
             format!("Hold {} and {verb} {rest}", join_and(&held))
         })
+    }
+
+    /// The cheapest option as one sentence, its cost, and the others.
+    fn one_of(
+        &self,
+        options: &[Vec<GuideStep>],
+        vars: &Vars,
+    ) -> Result<(String, u32, Vec<String>), EngineError> {
+        let mut clauses = Vec::new();
+        for o in options {
+            // each option in a guide of its own, without entry texts
+            let mut sub = Guide::new(self.d);
+            sub.explained = self
+                .d
+                .hands
+                .iter()
+                .flat_map(|h| h.entries.iter().map(|e| e.name.clone()))
+                .collect();
+            sub.steps(o, vars)?;
+            if sub.lines.is_empty() {
+                continue; // its `when`s left nothing
+            }
+            let parts: Vec<String> = sub.lines.iter().map(|l| lower_first(&l.text)).collect();
+            clauses.push((upper_first(&parts.join(", then ")), cost(&sub.lines)));
+        }
+        // the first of the cheapest wins; the order breaks ties
+        let best = (0..clauses.len())
+            .min_by_key(|&i| (clauses[i].1, i))
+            .ok_or_else(|| EngineError::Check("`one-of`: no option applies".into()))?;
+        let (text, c) = clauses.remove(best);
+        Ok((text, c, clauses.into_iter().map(|(t, _)| t).collect()))
+    }
+
+    fn cost(&self, g: &GuideStep, vars: &Vars) -> u32 {
+        match &g.act {
+            Act::Press { times, .. } => *times,
+            Act::Type { value, digits, .. } => {
+                let n = text(value, vars);
+                (n.len() as u32).max(digits.unwrap_or(0))
+            }
+            Act::Say { .. } => 0,
+            _ => 1,
+        }
     }
 
     /// An enum value's label, an int type's display, else the number.
@@ -453,18 +499,46 @@ fn place<'d>(edit: &Edit, c: &'d Change) -> Result<Placed<'d>, EngineError> {
     })
 }
 
-/// The steps that put `changes` into one stored element of one block by
-/// hand: open the element, select each item, set each field, close, check.
-/// `want` gives the wanted value of any field by path, for `applies` and
-/// `when` conditions that read the other fields of an item. Empty when
-/// nothing changes or nothing applies.
+/// Where the device is, as far as the editor knows: which element is
+/// open (current, in the mode an edit needs) and which item is selected.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Here {
+    pub element: Option<i64>,
+    /// The item's arrays (`["group", "encoder"]`) and indexes.
+    pub item: Option<(Vec<String>, Vec<i64>)>,
+}
+
+/// [`edit_guide_at`] from nowhere in particular.
 pub fn edit_guide(
     d: &Descriptor,
     changes: &[Change],
     want: &dyn Fn(&str) -> Option<i64>,
 ) -> Result<Vec<Line>, EngineError> {
+    edit_guide_at(d, changes, want, &Here::default()).map(|(lines, _)| lines)
+}
+
+/// The shortest steps that put `changes` into one stored element of one
+/// block by hand: open the element unless `here` says it is open, select
+/// each item unless it is selected, set each field whose value differs
+/// from what the device holds (the cheapest way where the descriptor
+/// offers several), close, check. `want` gives the wanted value of any
+/// field by path, for `applies` and `when` conditions that read the other
+/// fields of an item. Returns the lines (empty when nothing is to do) and
+/// where the device is afterwards.
+pub fn edit_guide_at(
+    d: &Descriptor,
+    changes: &[Change],
+    want: &dyn Fn(&str) -> Option<i64>,
+    here: &Here,
+) -> Result<(Vec<Line>, Here), EngineError> {
+    let changes: Vec<Change> = changes
+        .iter()
+        .filter(|c| c.have != Some(c.want))
+        .cloned()
+        .collect();
+    let changes = &changes[..];
     let Some(first) = changes.first() else {
-        return Ok(Vec::new());
+        return Ok((Vec::new(), here.clone()));
     };
     let block = Path::parse(&first.path)
         .map_err(EngineError::Check)?
@@ -496,9 +570,19 @@ pub fn edit_guide(
 
     let mut vars = Vars::from([(edit.index.clone(), element)]);
     let mut body = Guide::new(d);
-    body.steps(&edit.open, &vars)?;
+    let open = here.element != Some(element);
+    if open {
+        body.steps(&edit.open, &vars)?;
+    }
     let opened = body.lines.len();
-    let mut current: Option<(usize, Vec<i64>)> = None;
+    let mut current: Option<(usize, Vec<i64>)> = match (&here.item, open) {
+        (Some((arrays, idx)), false) => edit
+            .items
+            .iter()
+            .position(|it| &it.arrays == arrays)
+            .map(|k| (k, idx.clone())),
+        _ => None,
+    };
     for p in &placed {
         let (fields, prefix): (&[EditField], String) = match &p.item {
             None => (&edit.fields, format!("{block}[{element}]")),
@@ -545,9 +629,75 @@ pub fn edit_guide(
         body.steps(&f.steps, &fv)?;
     }
     if body.lines.len() == opened {
-        return Ok(Vec::new());
+        return Ok((Vec::new(), here.clone()));
     }
     body.steps(&edit.close, &vars)?;
     body.steps(&edit.check, &vars)?;
-    Ok(body.lines)
+    // `close` ends the selection; whether the element stays current is
+    // the descriptor's to say.
+    let after = Here {
+        element: edit.stays_open.then_some(element),
+        item: None,
+    };
+    Ok((body.lines, after))
+}
+
+/// Every field of `block[index]` where `doc` (what the editor wants) and
+/// `device` (what a read found) differ, as changes with `have` from the
+/// device. For blocks with a byte layout (§4.3).
+pub fn changes_between(
+    d: &Descriptor,
+    codec: &ctrl_codec::Codec,
+    doc: &crate::Document,
+    device: &crate::Document,
+    block: &str,
+    index: u32,
+) -> Result<Vec<Change>, EngineError> {
+    let b = d
+        .block(block)
+        .ok_or_else(|| EngineError::Check(format!("unknown block `{block}`")))?;
+    let root = if b.count.is_some() {
+        format!("{block}[{index}]")
+    } else {
+        block.to_string()
+    };
+    let mut paths = Vec::new();
+    leaves(&b.items, &root, &mut paths);
+    let mut out = Vec::new();
+    for p in paths {
+        let path = Path::parse(&p).map_err(EngineError::Check)?;
+        let want = doc.get(codec, d, &path, &|_| None).ok();
+        let have = device.get(codec, d, &path, &|_| None).ok();
+        if let Some(want) = want {
+            if have != Some(want) {
+                out.push(Change {
+                    path: p,
+                    want,
+                    have,
+                });
+            }
+        }
+    }
+    Ok(out)
+}
+
+/// The paths of every field and value-array element below `items`.
+fn leaves(items: &[ctrl_cdl::Item], prefix: &str, out: &mut Vec<String>) {
+    use ctrl_cdl::Item;
+    for item in items {
+        match item {
+            Item::Field(f) => out.push(format!("{prefix}.{}", f.name)),
+            Item::Group(g) => leaves(&g.items, &format!("{prefix}.{}", g.name), out),
+            Item::Array(a) if a.items.is_empty() && a.ty.is_some() => {
+                for i in 0..a.count {
+                    out.push(format!("{prefix}.{}[{i}]", a.name));
+                }
+            }
+            Item::Array(a) => {
+                for i in 0..a.count {
+                    leaves(&a.items, &format!("{prefix}.{}[{i}]", a.name), out);
+                }
+            }
+        }
+    }
 }

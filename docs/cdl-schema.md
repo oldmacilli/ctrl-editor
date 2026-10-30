@@ -707,6 +707,8 @@ How a block element's stored fields change by hand. (§17.4)
 | Property | Meaning |
 |---|---|
 | `index` | the element's index variable, `i` when absent |
+| `read` | the read procedure that shows what the element holds now |
+| `stays-open` | #true: after `close` the element is still current |
 
 ## `edit/open`, `edit/close`, `edit/check`
 
@@ -746,6 +748,44 @@ The steps that set one field to `v`. (§17.4)
 |---|---|
 | `applies` | expression: the field is set by hand only when it holds |
 | `index` | for an array of values: the element's index variable |
+
+## `kinds`
+
+What an array element can be set to send, for the editor's type choice. (§17.6)
+
+- Arguments: 1: array path below the block, `preset.control`
+- Children: yes
+
+| Property | Meaning |
+|---|---|
+| `by` | the field whose value picks the kind |
+| `index` | index variables, block first, space-separated |
+
+## `kinds/kind`
+
+One kind of message. (§17.6)
+
+- Arguments: 1: name
+- Children: yes
+
+| Property | Meaning |
+|---|---|
+| `label` | what the editor shows |
+| `values` | the `by` values of this kind: a number or `lo..=hi` |
+| `when` | expression over the index variables: where the kind is offered |
+
+## `kinds/kind/param`
+
+A field the kind uses. (§17.6)
+
+- Arguments: 1: field
+- Children: none
+
+| Property | Meaning |
+|---|---|
+| `label` | the field's name for this kind |
+| `default` | the value it takes when the kind is chosen |
+| `when` | expression over the index variables: where the field is used |
 
 ## `guide press`
 

@@ -90,6 +90,7 @@ pub(crate) fn convert(
             hands: b.hands,
             recipes: b.recipes,
             edits: b.edits,
+            kinds: b.kinds,
         }),
         _ => Err(Errors(cx.errors)),
     }
@@ -462,6 +463,7 @@ struct Builder {
     hands: Option<Hands>,
     recipes: Vec<Recipe>,
     edits: Vec<Edit>,
+    kinds: Vec<Kinds>,
 }
 
 const TOP: &[&str] = &[
@@ -488,6 +490,7 @@ const TOP: &[&str] = &[
     "hands",
     "recipe",
     "edit",
+    "kinds",
 ];
 
 impl Builder {
@@ -539,6 +542,7 @@ impl Builder {
             }
             "recipe" => self.recipes.push(recipe(cx, n)),
             "edit" => self.edits.push(edit(cx, n)),
+            "kinds" => self.kinds.push(kinds(cx, n)),
             // Read before the other nodes, in `convert`.
             "pattern" => {}
             "const" => {
@@ -665,6 +669,11 @@ impl Builder {
             cx,
             "edit",
             self.edits.iter().map(|e| (e.block.as_str(), e.meta.pos)),
+        );
+        dups(
+            cx,
+            "kinds",
+            self.kinds.iter().map(|k| (k.array.as_str(), k.meta.pos)),
         );
         dups(
             cx,
@@ -1777,12 +1786,82 @@ fn edit_field(cx: &mut Cx, n: &RawNode) -> EditField {
     }
 }
 
+fn when_expr(cx: &mut Cx, n: &RawNode) -> Option<String> {
+    cx.prop_with(n, "when", |s| Expr::parse(s).map(|_| s.to_string()))
+}
+
+fn kinds(cx: &mut Cx, n: &RawNode) -> Kinds {
+    cx.node(n, "kinds");
+    let by = cx.prop_str(n, "by");
+    let mut out = Kinds {
+        meta: cx.meta(n),
+        array: cx.name(n),
+        by: cx.required(n, "by", by).unwrap_or_default(),
+        index: cx
+            .prop_str(n, "index")
+            .as_deref()
+            .map(split_words)
+            .unwrap_or_default(),
+        kinds: Vec::new(),
+    };
+    for c in &n.children {
+        if c.name != "kind" {
+            cx.unknown_child("kinds", c, &["kind"]);
+            continue;
+        }
+        cx.node(c, "kinds/kind");
+        let label = cx.prop_str(c, "label");
+        let values = cx.prop_with(c, "values", |s| {
+            if s.contains("..=") {
+                parse_range(s)
+            } else {
+                s.trim()
+                    .parse::<i64>()
+                    .map(|v| IntRange { lo: v, hi: v })
+                    .map_err(|_| format!("`{s}`: a number or `lo..=hi`"))
+            }
+        });
+        let mut params = Vec::new();
+        for p in &c.children {
+            if p.name != "param" {
+                cx.unknown_child("kind", p, &["param"]);
+                continue;
+            }
+            cx.node(p, "kinds/kind/param");
+            let label = cx.prop_str(p, "label");
+            let field = cx.name(p);
+            params.push(KindParam {
+                meta: cx.meta(p),
+                label: label.unwrap_or_else(|| field.clone()),
+                field,
+                default: cx.prop_i64(p, "default"),
+                when: when_expr(cx, p),
+            });
+        }
+        let name = cx.name(c);
+        let Some(values) = cx.required(c, "values", values) else {
+            continue;
+        };
+        out.kinds.push(KindDef {
+            meta: cx.meta(c),
+            label: label.unwrap_or_else(|| name.clone()),
+            name,
+            values,
+            when: when_expr(cx, c),
+            params,
+        });
+    }
+    out
+}
+
 fn edit(cx: &mut Cx, n: &RawNode) -> Edit {
     cx.node(n, "edit");
     let mut e = Edit {
         meta: cx.meta(n),
         block: cx.name(n),
         index: cx.prop_str(n, "index").unwrap_or_else(|| "i".into()),
+        read: cx.prop_str(n, "read"),
+        stays_open: cx.prop_bool(n, "stays-open"),
         open: Vec::new(),
         items: Vec::new(),
         fields: Vec::new(),

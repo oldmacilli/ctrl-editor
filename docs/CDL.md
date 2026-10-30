@@ -1129,9 +1129,15 @@ names may too, `push{g + 1}`.
 | `move "F{c + 1}"` | Move F1 |
 | `say "text"` | the text |
 | `ask "preset[p].control[c].assign" text="…"` | the user reads a value on the device and enters it |
-| `one-of { option { … } option { … } }` | Move F1, or press CONTROL SELECT, then type 0 1 |
+| `one-of { option { … } option { … } }` | the cheapest option, Move F1; the others as alternatives |
 | `when "expr" { … }` | the steps inside, when the expression holds |
 | `do "recall" n="{p + 1}"` | the recipe's steps |
+
+Each line has a cost: key presses (`times` counts), digits typed, one
+per hold, chord, turn, move or ask, none for `say`. A `one-of` shows its
+cheapest option (the first of equal ones; an option whose `when`s leave
+nothing is out) and keeps the others as alternatives a front end may
+offer.
 
 `with="shift"` holds keys during the act (Hold Shift and press Edit),
 `shows=` is what the device shows afterwards and `hint=` says why or what
@@ -1182,12 +1188,25 @@ edit "preset" index="p" {
 }
 ```
 
-`ctrl_engine::edit_guide` takes the changed fields of one block element
-(`preset[2].control[0].assign` from 7 to 12) and writes the guide: `open`,
-then each changed item's `select` (once per item) and its changed fields
-in the order of the rule, then `close` and `check`. Nothing changed gives
-an empty guide. A field without a rule is refused ("cannot be set by
-hand"), so the editor can say so instead of guessing.
+`ctrl_engine::edit_guide_at` takes the changed fields of one block element
+(`preset[2].control[0].assign` from 7 to 12) and where the device is, and
+writes the shortest guide: `open` unless the element is open already, then
+each changed item's `select` (once per item, not at all when it is
+selected) and its fields in the order of the rule, then `close` and
+`check`. A field whose `have` (what the device holds, as far as the
+editor knows) equals the wanted value is left out; nothing left gives an
+empty guide. A field without a rule is refused ("cannot be set by hand"),
+so the editor can say so instead of guessing. It returns where the device
+is afterwards: with `stays-open=#true` the element is still current after
+`close` (the UC-33's STORE keeps the memory), so the next guide starts
+without `open`.
+
+The better the editor knows the device, the shorter the guide. `read=`
+names the read procedure that shows what the element holds now: a dump
+(the UC4's `read-setup`) or a guided snapshot (the UC-33's SNAP SHOT); it
+runs with the edit's index variable set. For blocks with a byte layout,
+`ctrl_engine::changes_between` compares the editor document with the
+device document of that read and gives the changes with their `have`.
 
 - `item "group.encoder" index="g n"` names nested arrays from the block
   down, one index variable each.
@@ -1220,3 +1239,32 @@ procedure "tour" kind="read" transport="controls" {
 
 A device that shows its stored values but sends nothing uses `ask` in the
 tour instead: the user reads each value off the display.
+
+### 17.6 `kinds`: what a control can send
+
+The editor offers a type choice per control, and the choice decides which
+fields matter and what they are called:
+
+```kdl
+kinds "preset.control" by="assign" index="p c" {
+    kind "cc" label="Control change" values="0..=119" {
+        param "assign" label="CC number"
+        param "channel" label="Channel (00 = global)"
+        param "data-msb" label="Toggle value 1" default=127 when="c >= 33"
+    }
+    kind "note" label="Note" values="147..=148" when="c >= 33" {
+        param "assign" label="Momentary or toggle"
+        param "program" label="Note" default=60
+    }
+    kind "off" label="Off" values="255"
+}
+```
+
+A kind is the range of `by` values it covers; `when` (over the index
+variables, block first) limits where it is offered, on a kind or a param.
+`ctrl_engine::kinds`: `offered` lists the kinds of one element, `kind_of`
+finds the kind of a stored value, `fields` gives its fields with their
+labels, and `switch_to` gives the values to set when the user picks a
+kind: the `by` value (kept when it is already of that kind) and the
+defaults. The edit guide then types exactly those fields, and `applies`
+leaves out the slots the kind does not use.

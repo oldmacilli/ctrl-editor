@@ -91,6 +91,8 @@ const NAMED: &[&str] = &[
     "recipe",
     "edit",
     "item",
+    "kinds",
+    "kind",
 ];
 
 /// Kinds whose children are an ordered step list; a local list replaces the

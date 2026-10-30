@@ -8,7 +8,7 @@
   (#any-of? @keyword
     "cdl" "include" "device" "identify" "transport" "types" "block" "param"
     "panel" "midi-map" "sysex-frame" "message" "procedure" "firmware" "lbmt"
-    "driver" "test-vector" "const" "labels" "pattern" "hands" "recipe" "edit"))
+    "driver" "test-vector" "const" "labels" "pattern" "hands" "recipe" "edit" "kinds"))
 
 ; Procedure steps
 ((node name: (identifier) @keyword.function)
@@ -30,7 +30,7 @@
     "enum" "errors" "int" "value" "field" "group" "array" "control" "list"
     "item" "source" "sink" "prefix" "suffix" "arg" "reply" "owns"
     "version-from" "stage" "recovery" "args" "bytes" "data"
-    "entry" "open" "close" "check" "select" "option"))
+    "entry" "open" "close" "check" "select" "option" "kind"))
 
 ; Evidence status: how far a fact can be trusted (CDL §4.1)
 ((prop

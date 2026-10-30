@@ -17,6 +17,7 @@
 
 mod document;
 pub mod guide;
+pub mod kinds;
 
 use std::fmt;
 
@@ -24,7 +25,7 @@ use ctrl_cdl::{Descriptor, Expr, Gate, Index, MessageStep, Path, RepeatOver, Ste
 use ctrl_codec::{Bindings, Codec, CodecError, Planned, Val};
 
 pub use document::Document;
-pub use guide::{edit_guide, Change, Line};
+pub use guide::{changes_between, edit_guide, edit_guide_at, Change, Here, Line};
 
 /// What follows a card of guide lines.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -442,11 +442,11 @@ procedure "restore-all" kind="write" transport="usb" status="measured" evidence=
 // One setup changed on the device: choose the group (Shift and an encoder
 // push button for encoders, Shift and a green button for faders and green
 // buttons), select the control with encoder 1, set its properties with
-// encoders 2..8. Leaving edit mode stores the setup. Variables: s = setup
+// encoders 2..8. Leaving edit mode stores the setup. Variables: setup
 // 0..=17, g = group 0..=7, n = control 0..=7.
 
-edit "controls" index="s" status="inferred" evidence="manual 'Edit mode'" {
-    open { do "edit-setup" s="{s}"; }
+edit "controls" index="setup" read="read-setup" status="inferred" evidence="manual 'Edit mode'" {
+    open { do "edit-setup" s="{setup}"; }
     item "group.encoder" index="g n" {
         select {
             press "push{g + 1}" with="shift" hint="Encoder group {g + 1}."
@@ -502,8 +502,8 @@ edit "controls" index="s" status="inferred" evidence="manual 'Edit mode'" {
     close { do "leave-edit"; }
 }
 
-edit "fader9" index="s" status="inferred" evidence="manual 'Edit mode': FAd9" {
-    open { do "edit-setup" s="{s}"; }
+edit "fader9" index="setup" read="read-setup" status="inferred" evidence="manual 'Edit mode': FAd9" {
+    open { do "edit-setup" s="{setup}"; }
     item "group" index="g" {
         select {
             press "green{g + 1}" with="shift" hint="Fader/button group {g + 1}."
@@ -522,8 +522,8 @@ edit "fader9" index="s" status="inferred" evidence="manual 'Edit mode': FAd9" {
 
 // "Group names can be modified in edit mode by holding shift and turning
 // encoder 1 to 4."
-edit "names" index="s" status="inferred" evidence="manual 'Edit mode'; the character order measured (type name-char)" {
-    open { do "edit-setup" s="{s}"; }
+edit "names" index="setup" read="read-setup" status="inferred" evidence="manual 'Edit mode'; the character order measured (type name-char)" {
+    open { do "edit-setup" s="{setup}"; }
     item "group" index="g" {
         select { press "push{g + 1}" with="shift" hint="Encoder group {g + 1}."; }
         field "char" index="k" {

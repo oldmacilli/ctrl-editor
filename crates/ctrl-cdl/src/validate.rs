@@ -1142,6 +1142,58 @@ impl<'d> V<'d> {
         for e in &self.d.edits {
             self.edit(e);
         }
+        for k in &self.d.kinds {
+            self.kinds(k);
+        }
+    }
+
+    fn kinds(&mut self, k: &'d Kinds) {
+        let pos = k.meta.pos;
+        let path = k.array.clone();
+        match Path::parse(&path)
+            .map_err(|e| e.to_string())
+            .and_then(|p| self.resolve(&p))
+        {
+            Ok(Target::Array(_)) => {}
+            Ok(_) => return self.error(pos, format!("`kinds`: `{path}` is not an array")),
+            Err(e) => return self.error(pos, e),
+        }
+        if k.index.len() != path.split('.').count() {
+            self.error(
+                pos,
+                format!("`kinds \"{path}\"`: `index` needs one name per array, block first"),
+            );
+        }
+        let field = |v: &mut Self, at: Pos, name: &str| {
+            let p = format!("{path}.{name}");
+            match Path::parse(&p)
+                .map_err(|e| e.to_string())
+                .and_then(|x| v.resolve(&x))
+            {
+                Ok(Target::Field(_)) => {}
+                Ok(_) => v.error(at, format!("`{p}` is not a field")),
+                Err(e) => v.error(at, e),
+            }
+        };
+        field(self, pos, &k.by);
+        for (i, kind) in k.kinds.iter().enumerate() {
+            let at = kind.meta.pos;
+            if let Some(w) = &kind.when {
+                self.expr(at, "when", w);
+            }
+            if kind.values.lo > kind.values.hi {
+                self.error(at, format!("kind `{}`: empty `values`", kind.name));
+            }
+            if k.kinds[..i].iter().any(|o| o.name == kind.name) {
+                self.error(at, format!("kind `{}` appears twice", kind.name));
+            }
+            for p in &kind.params {
+                field(self, p.meta.pos, &p.field);
+                if let Some(w) = &p.when {
+                    self.expr(p.meta.pos, "when", w);
+                }
+            }
+        }
     }
 
     /// `recipes`: the recipes being checked, so that one cannot run itself.
@@ -1243,6 +1295,15 @@ impl<'d> V<'d> {
         };
         for g in e.open.iter().chain(&e.close).chain(&e.check) {
             self.guide(g, &[]);
+        }
+        if let Some(r) = &e.read {
+            match self.d.procedure(r) {
+                None => self.error(pos, format!("`read`: unknown procedure `{r}`")),
+                Some(p) if p.kind.is_some_and(|k| k != Access::Read) => {
+                    self.error(pos, format!("`read`: `{r}` is not a read"))
+                }
+                Some(_) => {}
+            }
         }
         let field = |v: &mut Self, f: &'d EditField, under: &[String]| {
             let mut s = vec![block.name.clone()];

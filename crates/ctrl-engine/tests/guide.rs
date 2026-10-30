@@ -5,8 +5,13 @@ use std::collections::HashMap;
 
 use ctrl_cdl::Gate;
 use ctrl_codec::Planned;
+use ctrl_engine::guide::cost;
 use ctrl_engine::guide::to_text;
-use ctrl_engine::{edit_guide, Change, EngineError, Event, Line, Operator, Port, Run, Wait};
+use ctrl_engine::kinds;
+use ctrl_engine::{
+    changes_between, edit_guide, edit_guide_at, Change, Document, EngineError, Event, Here, Line,
+    Operator, Port, Run, Wait,
+};
 
 fn uc33() -> ctrl_cdl::Descriptor {
     ctrl_descriptors::load("evolution/uc33.ctrl.kdl").unwrap()
@@ -36,7 +41,7 @@ fn a_cc_change_on_a_fader_is_typed_in() {
             "Press RECALL",
             "Type each digit within 3 seconds; the LCD symbol flashes while the UC-33 takes digits.",
             "Type 0 3",
-            "Move F1, or press CONTROL SELECT, then type 0 1",
+            "Move F1",
             "Press ASSIGN",
             "Type 0 1 2",
             "Press STORE",
@@ -51,6 +56,11 @@ fn a_cc_change_on_a_fader_is_typed_in() {
         Some("Makes memory 3 the current setup. Skip it if the LCD already shows P03.")
     );
     assert_eq!(lines[3].shows.as_deref(), Some("01"));
+    // the longer way is kept for a front end that offers it
+    assert_eq!(
+        lines[3].alternatives,
+        ["Press CONTROL SELECT, then type 0 1"]
+    );
 }
 
 #[test]
@@ -263,4 +273,126 @@ fn label(d: &ctrl_cdl::Descriptor, ty: &str, v: i64) -> String {
             .clone(),
         _ => panic!("{ty}"),
     }
+}
+
+#[test]
+fn the_guide_takes_the_shortest_way_from_what_the_device_holds() {
+    let d = uc33();
+    let none = |_: &str| None;
+    // B35, a transport button: pressing it selects it
+    let note = |have: Option<i64>| Change {
+        path: "preset[4].control[34].program".into(),
+        want: 62,
+        have,
+    };
+    let fresh = edit_guide_at(&d, &[note(None)], &none, &Here::default()).unwrap();
+    assert!(
+        texts(&fresh.0).contains(&"Press B35"),
+        "{}",
+        to_text(&fresh.0)
+    );
+    assert_eq!(
+        fresh.1.element,
+        Some(4),
+        "the memory stays current after STORE"
+    );
+
+    // memory 5 is current already: no RECALL
+    let here = edit_guide_at(&d, &[note(None)], &none, &fresh.1).unwrap();
+    assert!(!texts(&here.0).contains(&"Press RECALL"));
+    assert!(cost(&here.0) < cost(&fresh.0));
+
+    // the snapshot showed the value is there already: nothing to do
+    let same = edit_guide_at(&d, &[note(Some(62))], &none, &Here::default()).unwrap();
+    assert!(same.0.is_empty());
+}
+
+#[test]
+fn kinds_offer_what_a_control_can_send() {
+    let d = uc33();
+    let names = |c: i64| -> Vec<String> {
+        kinds::offered(&d, "preset.control", &[0, c])
+            .unwrap()
+            .iter()
+            .map(|k| k.name.clone())
+            .collect()
+    };
+    // a fader cannot send a note; a button can
+    assert!(!names(0).contains(&"note".to_string()));
+    assert!(names(40).contains(&"note".to_string()));
+
+    let note = kinds::kind_of(&d, "preset.control", &[0, 40], 147)
+        .unwrap()
+        .unwrap();
+    assert_eq!(note.label, "Note");
+    let labels: Vec<String> = kinds::fields(&d, "preset.control", &[0, 40], note)
+        .unwrap()
+        .into_iter()
+        .map(|f| f.label)
+        .collect();
+    assert_eq!(
+        labels,
+        [
+            "Momentary or toggle",
+            "Channel (00 = global)",
+            "Note",
+            "Velocity on",
+            "Velocity off"
+        ]
+    );
+
+    // switching a CC button to a note sets the assign and the defaults
+    let cc = |name: &str| match name {
+        "assign" => Some(7),
+        _ => None,
+    };
+    let set = kinds::switch_to(&d, "preset.control", &[0, 40], note, &cc).unwrap();
+    assert_eq!(set[0], ("assign".into(), 147));
+    assert!(set.contains(&("program".into(), 60)));
+
+    // then the guide types exactly what the kind needs
+    let want: HashMap<String, i64> = set
+        .iter()
+        .map(|(f, v)| (format!("preset[0].control[40].{f}"), *v))
+        .collect();
+    let changes: Vec<Change> = want
+        .iter()
+        .map(|(p, v)| Change {
+            path: p.clone(),
+            want: *v,
+            have: None,
+        })
+        .collect();
+    let lines = edit_guide(&d, &changes, &|p| want.get(p).copied()).unwrap();
+    let t = to_text(&lines);
+    assert!(
+        t.contains("Type 1 4 7") && t.contains("Press PROGRAM twice"),
+        "{t}"
+    );
+}
+
+#[test]
+fn a_read_back_gives_the_changes_to_make() {
+    let d = ctrl_descriptors::load("faderfox/uc4.ctrl.kdl").unwrap();
+    let codec = ctrl_codec::Codec::new(&d);
+    let mut device = Document::default();
+    for a in 0x1C00u32..0x1C00 + 1280 {
+        device.memory.set(a, &[0x20]); // channel 0, type 2 (CCAb)
+    }
+    let mut doc = device.clone();
+    let path = ctrl_cdl::Path::parse("controls[0].group[0].encoder[3].channel").unwrap();
+    doc.set(&codec, &d, &path, 4, &|_| None).unwrap();
+    let changes = changes_between(&d, &codec, &doc, &device, "controls", 0).unwrap();
+    assert_eq!(
+        changes,
+        [Change {
+            path: "controls[0].group[0].encoder[3].channel".into(),
+            want: 4,
+            have: Some(0)
+        }]
+    );
+    assert_eq!(
+        d.edit("controls").unwrap().read.as_deref(),
+        Some("read-setup")
+    );
 }

@@ -81,6 +81,7 @@ pub struct Descriptor {
     pub hands: Option<Hands>,
     pub recipes: Vec<Recipe>,
     pub edits: Vec<Edit>,
+    pub kinds: Vec<Kinds>,
 }
 
 impl Descriptor {
@@ -128,6 +129,11 @@ impl Descriptor {
 
     pub fn edit(&self, block: &str) -> Option<&Edit> {
         self.edits.iter().find(|e| e.block == block)
+    }
+
+    /// The kinds of an array, by its path without indexes: `preset.control`.
+    pub fn kinds_of(&self, array: &str) -> Option<&Kinds> {
+        self.kinds.iter().find(|k| k.array == array)
     }
 }
 
@@ -1057,6 +1063,11 @@ pub struct Edit {
     pub block: String,
     /// The element's index variable; `i` when absent.
     pub index: String,
+    /// The read procedure that shows what the element holds now.
+    pub read: Option<String>,
+    /// After `close` the element is still the current one (a store that
+    /// keeps the memory selected), so the next guide skips `open`.
+    pub stays_open: bool,
     /// Makes the element current.
     pub open: Vec<GuideStep>,
     pub items: Vec<EditItem>,
@@ -1093,4 +1104,42 @@ pub struct EditField {
     /// The field is set by hand only when this holds.
     pub applies: Option<String>,
     pub steps: Vec<GuideStep>,
+}
+
+/// `kinds "preset.control" by="assign" index="c" { kind … }`: what an array
+/// element can be set to send (§17.6). Each kind is a range of the `by`
+/// field's values and names the fields that matter for it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Kinds {
+    pub meta: Meta,
+    /// Array names from the block down, dot-separated, without indexes.
+    pub array: String,
+    /// The field whose value picks the kind.
+    pub by: String,
+    /// Index variables, one per array in the path (block first).
+    pub index: Vec<String>,
+    pub kinds: Vec<KindDef>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct KindDef {
+    pub meta: Meta,
+    pub name: String,
+    pub label: String,
+    /// The `by` values that are this kind.
+    pub values: IntRange,
+    /// Offered only where this holds (over the index variables).
+    pub when: Option<String>,
+    pub params: Vec<KindParam>,
+}
+
+/// `param "program" label="Note" default=60 when="c >= 33"`: a field the
+/// kind uses, under the name it has for this kind.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct KindParam {
+    pub meta: Meta,
+    pub field: String,
+    pub label: String,
+    pub default: Option<i64>,
+    pub when: Option<String>,
 }

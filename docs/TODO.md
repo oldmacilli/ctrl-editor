@@ -137,6 +137,10 @@ Last updated: 2026-10-28 (CDL gaps closed, long SysEx, UC-33, Faderfox UC4).
   `recipe`, `edit` rules and tours; `ctrl_engine::edit_guide`,
   `Operator::guide`/`ask` (defaults keep old operators working),
   `ctrl-cli guide`. UC-33 and UC4 descriptors carry them
+- [x] platform: shortest guides (`edit_guide_at`: skips what the device
+  holds, an open element, a selected item; cheapest `one-of`), `kinds`
+  for the editor's type choice, `edit read=` and `changes_between` for
+  the status quo (CDL §17.4, §17.6)
 - [ ] platform: GUI and TUI cards for `Operator::guide` (key labels as
   chips, `shows` and `hint` beside them, a "done" button; an `await` card
   closes itself when the dump arrives)
