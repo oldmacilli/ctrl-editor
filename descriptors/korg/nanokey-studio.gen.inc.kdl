@@ -8,11 +8,11 @@ device "korg.nanokey-studio" {
     model "nanoKEY Studio"
     class "X14800"
     file-key "1480"
-    image "assets/nanokey-studio/thumbnail.png" role="thumbnail"
-    image "assets/nanokey-studio/list-icon.png" role="list-icon"
+    image "X14800.png" role="external-thumbnail"
+    image "X14800-panel.png" role="external-panel"
 }
 
-const "model" 0x136 status="decoded" evidence="KORG analysis/sysex/descriptors.json: X14800SysExGenerator descriptor, length style short_or_long"
+const "model" 0x136 status="decoded" evidence="KORG analysis/sysex/descriptors.json: model and length style short_or_long"
 
 block "scene" size=240 count=8 status="decoded" evidence="KORG analysis/products/catalog.json (factory data)"
 block "global" size=128 status="decoded" evidence="KORG analysis/products/catalog.json (factory data)"
@@ -69,4 +69,4 @@ labels "en" source="KORG KONTROL EDITOR UI strings" {
     }
 }
 
-panel picture="500x294" image="assets/nanokey-studio/panel.png" source="KORG KONTROL EDITOR panel picture" status="decoded" evidence="KORG KONTROL EDITOR panel picture"
+panel picture="500x294" source="KORG KONTROL EDITOR panel picture" status="decoded" evidence="KORG KONTROL EDITOR panel picture"

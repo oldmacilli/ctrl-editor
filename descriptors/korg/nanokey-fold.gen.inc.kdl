@@ -8,16 +8,16 @@ device "korg.nanokey-fold" {
     model "nanoKEY Fold"
     class "X20880"
     file-key "2088"
-    image "assets/nanokey-fold/thumbnail.png" role="thumbnail"
-    image "assets/nanokey-fold/list-icon.png" role="list-icon"
+    image "X20880.png" role="external-thumbnail"
+    image "X20880-panel.png" role="external-panel"
 }
 
-const "model" 0x16a status="decoded" evidence="KORG analysis/sysex/descriptors.json: X20880SysExGenerator descriptor, length style short_or_long"
+const "model" 0x16a status="decoded" evidence="KORG analysis/sysex/descriptors.json: model and length style short_or_long"
 
 // The port name is not recorded; the user picks it, or a scan finds the
 // device by its identity reply (CDL 5.1). Long SysEx goes to the host in
 // 256-byte pieces, 5 ms apart (CDL 8.2; KORG korg-midi-midir SYSEX_CHUNK).
-transport "midi" kind="midi" role="config" scan="identity" sysex-limit=256 segment-delay=5 status="decoded" evidence="X20880SysExGenerator in the vendor application" {
+transport "midi" kind="midi" role="config" scan="identity" sysex-limit=256 segment-delay=5 status="decoded" evidence="KORG protocol analysis and MIDI adapter" {
     capture "device-id" from="identity"
 }
 
@@ -69,4 +69,4 @@ labels "en" source="KORG KONTROL EDITOR UI strings" {
     }
 }
 
-panel picture="700x183" image="assets/nanokey-fold/panel.png" source="KORG KONTROL EDITOR panel picture" status="decoded" evidence="KORG KONTROL EDITOR panel picture"
+panel picture="700x183" source="KORG KONTROL EDITOR panel picture" status="decoded" evidence="KORG KONTROL EDITOR panel picture"

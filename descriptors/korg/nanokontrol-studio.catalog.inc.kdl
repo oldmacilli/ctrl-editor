@@ -1,0 +1,9 @@
+// Generated catalog metadata; do not edit.
+cdl "0.1"
+catalog order=6 name="nanoKONTROL Studio" localized-name="nanoKONTROL Studio" scenes=5 scene-size=560 global-size=128 status="decoded" evidence="KORG product catalog" {
+    extension "nktrl_st_data" os-type="482D"
+    extension "nktrl_st_glob" os-type="482G"
+    extension "nktrl_st_set" os-type="482S"
+    factory-file "nanoKONTROL Studio/nanoKONTROL Studio Global Data.nktrl_st_glob"
+    factory-file "nanoKONTROL Studio/nanoKONTROL Studio Scene Set.nktrl_st_set"
+}

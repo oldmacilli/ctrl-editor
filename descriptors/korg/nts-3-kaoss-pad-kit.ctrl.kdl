@@ -5,3 +5,11 @@ include "nts-3-kaoss-pad-kit.gen.inc.kdl"
 
 // No KORG native SysEx descriptor was decoded for this device; its
 // protocol is not described yet.
+
+include "nts-3-kaoss-pad-kit.panel.inc.kdl"
+
+include "nts-3-kaoss-pad-kit.catalog.inc.kdl"
+
+include "nts-3-kaoss-pad-kit.sysex.inc.kdl"
+
+include "nts-3-kaoss-pad-kit.parameters.inc.kdl"

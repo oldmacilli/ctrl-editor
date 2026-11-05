@@ -1,0 +1,954 @@
+cdl "0.1"
+editor-pages default="Scene" status="decoded" evidence="KORG editor behavior" {
+    select "Scene" group="Scene"
+    select "Jog Wheel" group="Jog Wheel"
+    select "Knob 1" group="Knob" label="Knob 1"
+    select "Knob 2" group="Knob" label="Knob 2"
+    select "Knob 3" group="Knob" label="Knob 3"
+    select "Knob 4" group="Knob" label="Knob 4"
+    select "Knob 5" group="Knob" label="Knob 5"
+    select "Knob 6" group="Knob" label="Knob 6"
+    select "Knob 7" group="Knob" label="Knob 7"
+    select "Knob 8" group="Knob" label="Knob 8"
+    select "Slider 1" group="Slider" label="Slider 1"
+    select "Slider 2" group="Slider" label="Slider 2"
+    select "Slider 3" group="Slider" label="Slider 3"
+    select "Slider 4" group="Slider" label="Slider 4"
+    select "Slider 5" group="Slider" label="Slider 5"
+    select "Slider 6" group="Slider" label="Slider 6"
+    select "Slider 7" group="Slider" label="Slider 7"
+    select "Slider 8" group="Slider" label="Slider 8"
+    select "Track Solo 1" group="Track Solo" label="Solo 1"
+    select "Track Solo 2" group="Track Solo" label="Solo 2"
+    select "Track Solo 3" group="Track Solo" label="Solo 3"
+    select "Track Solo 4" group="Track Solo" label="Solo 4"
+    select "Track Solo 5" group="Track Solo" label="Solo 5"
+    select "Track Solo 6" group="Track Solo" label="Solo 6"
+    select "Track Solo 7" group="Track Solo" label="Solo 7"
+    select "Track Solo 8" group="Track Solo" label="Solo 8"
+    select "Track Mute 1" group="Track Mute" label="Mute 1"
+    select "Track Mute 2" group="Track Mute" label="Mute 2"
+    select "Track Mute 3" group="Track Mute" label="Mute 3"
+    select "Track Mute 4" group="Track Mute" label="Mute 4"
+    select "Track Mute 5" group="Track Mute" label="Mute 5"
+    select "Track Mute 6" group="Track Mute" label="Mute 6"
+    select "Track Mute 7" group="Track Mute" label="Mute 7"
+    select "Track Mute 8" group="Track Mute" label="Mute 8"
+    select "Track Rec 1" group="Track Rec" label="Rec 1"
+    select "Track Rec 2" group="Track Rec" label="Rec 2"
+    select "Track Rec 3" group="Track Rec" label="Rec 3"
+    select "Track Rec 4" group="Track Rec" label="Rec 4"
+    select "Track Rec 5" group="Track Rec" label="Rec 5"
+    select "Track Rec 6" group="Track Rec" label="Rec 6"
+    select "Track Rec 7" group="Track Rec" label="Rec 7"
+    select "Track Rec 8" group="Track Rec" label="Rec 8"
+    select "Track Select 1" group="Track Select" label="Select 1"
+    select "Track Select 2" group="Track Select" label="Select 2"
+    select "Track Select 3" group="Track Select" label="Select 3"
+    select "Track Select 4" group="Track Select" label="Select 4"
+    select "Track Select 5" group="Track Select" label="Select 5"
+    select "Track Select 6" group="Track Select" label="Select 6"
+    select "Track Select 7" group="Track Select" label="Select 7"
+    select "Track Select 8" group="Track Select" label="Select 8"
+    select "Transport Play" group="Transport" label="Play"
+    select "Transport Stop" group="Transport" label="Stop"
+    select "Transport Rec" group="Transport" label="Rec"
+    select "Transport Rewind" group="Transport" label="Rewind"
+    select "Transport Fast Fwd" group="Transport" label="Fast Fwd"
+    select "Transport Cycle" group="Transport" label="Cycle"
+    select "Transport Return" group="Transport" label="Return"
+    select "Transport Set" group="Transport" label="Set"
+    select "Transport Marker ◀" group="Transport" label="Marker ◀"
+    select "Transport Marker ▶" group="Transport" label="Marker ▶"
+    select "Transport Track ◀" group="Transport" label="Track ◀"
+    select "Transport Track ▶" group="Transport" label="Track ▶"
+    page "Scene" {
+        field "Scene Name" offset=0 kind="text" width=12
+        field "LED Mode" offset=12 kind="choice" status="inferred" evidence="Editor choice order" {
+            choice "Internal"
+            choice "External"
+        }
+    }
+    page "Jog Wheel" {
+        field "Type" offset=513 kind="choice" status="inferred" evidence="Editor choice order and device observations" {
+            choice "Inc/Dec 1"
+            choice "Inc/Dec 2"
+            choice "Continuous"
+            choice "Sign Magnitude"
+            choice "No Assign"
+            choice "Encoder 01/7F"
+            choice "Encoder 3F/41"
+        }
+        field "Acceleration" offset=514 kind="choice" hidden-if-offset=513 {
+            choice "1"
+            choice "2"
+            choice "Const"
+            hide-if-value 4
+        }
+        field "MIDI Channel" offset=512 kind="channel"
+        field "CC Number" offset=515 kind="number" min=0 max=127 hidden-if-offset=513 {
+            hide-if-value 0
+            hide-if-value 1
+            hide-if-value 2
+            hide-if-value 4
+        }
+        field "CW CC Number" offset=516 kind="number" min=0 max=127 hidden-if-offset=513 {
+            hide-if-value 2
+            hide-if-value 3
+            hide-if-value 4
+            hide-if-value 5
+            hide-if-value 6
+        }
+        field "CCW CC Number" offset=517 kind="number" min=0 max=127 hidden-if-offset=513 {
+            hide-if-value 2
+            hide-if-value 3
+            hide-if-value 4
+            hide-if-value 5
+            hide-if-value 6
+        }
+        field "CC Number" offset=518 kind="number" min=0 max=127 hidden-if-offset=513 {
+            hide-if-value 0
+            hide-if-value 1
+            hide-if-value 3
+            hide-if-value 4
+            hide-if-value 5
+            hide-if-value 6
+        }
+        field "Min Value" offset=519 kind="number" min=0 max=127 hidden-if-offset=513 max-from-offset=520 {
+            hide-if-value 0
+            hide-if-value 1
+            hide-if-value 3
+            hide-if-value 4
+            hide-if-value 5
+            hide-if-value 6
+        }
+        field "Max Value" offset=520 kind="number" min=0 max=127 hidden-if-offset=513 min-from-offset=519 {
+            hide-if-value 0
+            hide-if-value 1
+            hide-if-value 3
+            hide-if-value 4
+            hide-if-value 5
+            hide-if-value 6
+        }
+    }
+    page "Knob 1" {
+        field "MIDI Channel" offset=16 kind="channel"
+        field "Knob/Slider Enable" offset=17 kind="choice" {
+            choice "Enable"
+            choice "Disable"
+        }
+        field "CC Number" offset=18 kind="number" min=0 max=127
+        field "Left/Lower Value" offset=19 kind="number" min=0 max=127
+        field "Right/Upper Value" offset=20 kind="number" min=0 max=127
+    }
+    page "Knob 2" {
+        field "MIDI Channel" offset=24 kind="channel"
+        field "Knob/Slider Enable" offset=25 kind="choice" {
+            choice "Enable"
+            choice "Disable"
+        }
+        field "CC Number" offset=26 kind="number" min=0 max=127
+        field "Left/Lower Value" offset=27 kind="number" min=0 max=127
+        field "Right/Upper Value" offset=28 kind="number" min=0 max=127
+    }
+    page "Knob 3" {
+        field "MIDI Channel" offset=32 kind="channel"
+        field "Knob/Slider Enable" offset=33 kind="choice" {
+            choice "Enable"
+            choice "Disable"
+        }
+        field "CC Number" offset=34 kind="number" min=0 max=127
+        field "Left/Lower Value" offset=35 kind="number" min=0 max=127
+        field "Right/Upper Value" offset=36 kind="number" min=0 max=127
+    }
+    page "Knob 4" {
+        field "MIDI Channel" offset=40 kind="channel"
+        field "Knob/Slider Enable" offset=41 kind="choice" {
+            choice "Enable"
+            choice "Disable"
+        }
+        field "CC Number" offset=42 kind="number" min=0 max=127
+        field "Left/Lower Value" offset=43 kind="number" min=0 max=127
+        field "Right/Upper Value" offset=44 kind="number" min=0 max=127
+    }
+    page "Knob 5" {
+        field "MIDI Channel" offset=48 kind="channel"
+        field "Knob/Slider Enable" offset=49 kind="choice" {
+            choice "Enable"
+            choice "Disable"
+        }
+        field "CC Number" offset=50 kind="number" min=0 max=127
+        field "Left/Lower Value" offset=51 kind="number" min=0 max=127
+        field "Right/Upper Value" offset=52 kind="number" min=0 max=127
+    }
+    page "Knob 6" {
+        field "MIDI Channel" offset=56 kind="channel"
+        field "Knob/Slider Enable" offset=57 kind="choice" {
+            choice "Enable"
+            choice "Disable"
+        }
+        field "CC Number" offset=58 kind="number" min=0 max=127
+        field "Left/Lower Value" offset=59 kind="number" min=0 max=127
+        field "Right/Upper Value" offset=60 kind="number" min=0 max=127
+    }
+    page "Knob 7" {
+        field "MIDI Channel" offset=64 kind="channel"
+        field "Knob/Slider Enable" offset=65 kind="choice" {
+            choice "Enable"
+            choice "Disable"
+        }
+        field "CC Number" offset=66 kind="number" min=0 max=127
+        field "Left/Lower Value" offset=67 kind="number" min=0 max=127
+        field "Right/Upper Value" offset=68 kind="number" min=0 max=127
+    }
+    page "Knob 8" {
+        field "MIDI Channel" offset=72 kind="channel"
+        field "Knob/Slider Enable" offset=73 kind="choice" {
+            choice "Enable"
+            choice "Disable"
+        }
+        field "CC Number" offset=74 kind="number" min=0 max=127
+        field "Left/Lower Value" offset=75 kind="number" min=0 max=127
+        field "Right/Upper Value" offset=76 kind="number" min=0 max=127
+    }
+    page "Slider 1" {
+        field "MIDI Channel" offset=80 kind="channel"
+        field "Knob/Slider Enable" offset=81 kind="choice" {
+            choice "Enable"
+            choice "Disable"
+        }
+        field "CC Number" offset=82 kind="number" min=0 max=127
+        field "Left/Lower Value" offset=83 kind="number" min=0 max=127
+        field "Right/Upper Value" offset=84 kind="number" min=0 max=127
+    }
+    page "Slider 2" {
+        field "MIDI Channel" offset=88 kind="channel"
+        field "Knob/Slider Enable" offset=89 kind="choice" {
+            choice "Enable"
+            choice "Disable"
+        }
+        field "CC Number" offset=90 kind="number" min=0 max=127
+        field "Left/Lower Value" offset=91 kind="number" min=0 max=127
+        field "Right/Upper Value" offset=92 kind="number" min=0 max=127
+    }
+    page "Slider 3" {
+        field "MIDI Channel" offset=96 kind="channel"
+        field "Knob/Slider Enable" offset=97 kind="choice" {
+            choice "Enable"
+            choice "Disable"
+        }
+        field "CC Number" offset=98 kind="number" min=0 max=127
+        field "Left/Lower Value" offset=99 kind="number" min=0 max=127
+        field "Right/Upper Value" offset=100 kind="number" min=0 max=127
+    }
+    page "Slider 4" {
+        field "MIDI Channel" offset=104 kind="channel"
+        field "Knob/Slider Enable" offset=105 kind="choice" {
+            choice "Enable"
+            choice "Disable"
+        }
+        field "CC Number" offset=106 kind="number" min=0 max=127
+        field "Left/Lower Value" offset=107 kind="number" min=0 max=127
+        field "Right/Upper Value" offset=108 kind="number" min=0 max=127
+    }
+    page "Slider 5" {
+        field "MIDI Channel" offset=112 kind="channel"
+        field "Knob/Slider Enable" offset=113 kind="choice" {
+            choice "Enable"
+            choice "Disable"
+        }
+        field "CC Number" offset=114 kind="number" min=0 max=127
+        field "Left/Lower Value" offset=115 kind="number" min=0 max=127
+        field "Right/Upper Value" offset=116 kind="number" min=0 max=127
+    }
+    page "Slider 6" {
+        field "MIDI Channel" offset=120 kind="channel"
+        field "Knob/Slider Enable" offset=121 kind="choice" {
+            choice "Enable"
+            choice "Disable"
+        }
+        field "CC Number" offset=122 kind="number" min=0 max=127
+        field "Left/Lower Value" offset=123 kind="number" min=0 max=127
+        field "Right/Upper Value" offset=124 kind="number" min=0 max=127
+    }
+    page "Slider 7" {
+        field "MIDI Channel" offset=128 kind="channel"
+        field "Knob/Slider Enable" offset=129 kind="choice" {
+            choice "Enable"
+            choice "Disable"
+        }
+        field "CC Number" offset=130 kind="number" min=0 max=127
+        field "Left/Lower Value" offset=131 kind="number" min=0 max=127
+        field "Right/Upper Value" offset=132 kind="number" min=0 max=127
+    }
+    page "Slider 8" {
+        field "MIDI Channel" offset=136 kind="channel"
+        field "Knob/Slider Enable" offset=137 kind="choice" {
+            choice "Enable"
+            choice "Disable"
+        }
+        field "CC Number" offset=138 kind="number" min=0 max=127
+        field "Left/Lower Value" offset=139 kind="number" min=0 max=127
+        field "Right/Upper Value" offset=140 kind="number" min=0 max=127
+    }
+    page "Track Solo 1" {
+        field "MIDI Channel" offset=144 kind="channel"
+        field "Assign Type" offset=145 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=146 kind="number" min=0 max=127 note-if-offset=145 note-if-value=1
+        field "Off Value" offset=147 kind="number" min=0 max=127
+        field "On Value" offset=148 kind="number" min=0 max=127
+        field "Button Behavior" offset=149 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Solo 2" {
+        field "MIDI Channel" offset=152 kind="channel"
+        field "Assign Type" offset=153 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=154 kind="number" min=0 max=127 note-if-offset=153 note-if-value=1
+        field "Off Value" offset=155 kind="number" min=0 max=127
+        field "On Value" offset=156 kind="number" min=0 max=127
+        field "Button Behavior" offset=157 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Solo 3" {
+        field "MIDI Channel" offset=160 kind="channel"
+        field "Assign Type" offset=161 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=162 kind="number" min=0 max=127 note-if-offset=161 note-if-value=1
+        field "Off Value" offset=163 kind="number" min=0 max=127
+        field "On Value" offset=164 kind="number" min=0 max=127
+        field "Button Behavior" offset=165 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Solo 4" {
+        field "MIDI Channel" offset=168 kind="channel"
+        field "Assign Type" offset=169 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=170 kind="number" min=0 max=127 note-if-offset=169 note-if-value=1
+        field "Off Value" offset=171 kind="number" min=0 max=127
+        field "On Value" offset=172 kind="number" min=0 max=127
+        field "Button Behavior" offset=173 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Solo 5" {
+        field "MIDI Channel" offset=176 kind="channel"
+        field "Assign Type" offset=177 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=178 kind="number" min=0 max=127 note-if-offset=177 note-if-value=1
+        field "Off Value" offset=179 kind="number" min=0 max=127
+        field "On Value" offset=180 kind="number" min=0 max=127
+        field "Button Behavior" offset=181 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Solo 6" {
+        field "MIDI Channel" offset=184 kind="channel"
+        field "Assign Type" offset=185 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=186 kind="number" min=0 max=127 note-if-offset=185 note-if-value=1
+        field "Off Value" offset=187 kind="number" min=0 max=127
+        field "On Value" offset=188 kind="number" min=0 max=127
+        field "Button Behavior" offset=189 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Solo 7" {
+        field "MIDI Channel" offset=192 kind="channel"
+        field "Assign Type" offset=193 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=194 kind="number" min=0 max=127 note-if-offset=193 note-if-value=1
+        field "Off Value" offset=195 kind="number" min=0 max=127
+        field "On Value" offset=196 kind="number" min=0 max=127
+        field "Button Behavior" offset=197 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Solo 8" {
+        field "MIDI Channel" offset=200 kind="channel"
+        field "Assign Type" offset=201 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=202 kind="number" min=0 max=127 note-if-offset=201 note-if-value=1
+        field "Off Value" offset=203 kind="number" min=0 max=127
+        field "On Value" offset=204 kind="number" min=0 max=127
+        field "Button Behavior" offset=205 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Mute 1" {
+        field "MIDI Channel" offset=208 kind="channel"
+        field "Assign Type" offset=209 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=210 kind="number" min=0 max=127 note-if-offset=209 note-if-value=1
+        field "Off Value" offset=211 kind="number" min=0 max=127
+        field "On Value" offset=212 kind="number" min=0 max=127
+        field "Button Behavior" offset=213 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Mute 2" {
+        field "MIDI Channel" offset=216 kind="channel"
+        field "Assign Type" offset=217 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=218 kind="number" min=0 max=127 note-if-offset=217 note-if-value=1
+        field "Off Value" offset=219 kind="number" min=0 max=127
+        field "On Value" offset=220 kind="number" min=0 max=127
+        field "Button Behavior" offset=221 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Mute 3" {
+        field "MIDI Channel" offset=224 kind="channel"
+        field "Assign Type" offset=225 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=226 kind="number" min=0 max=127 note-if-offset=225 note-if-value=1
+        field "Off Value" offset=227 kind="number" min=0 max=127
+        field "On Value" offset=228 kind="number" min=0 max=127
+        field "Button Behavior" offset=229 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Mute 4" {
+        field "MIDI Channel" offset=232 kind="channel"
+        field "Assign Type" offset=233 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=234 kind="number" min=0 max=127 note-if-offset=233 note-if-value=1
+        field "Off Value" offset=235 kind="number" min=0 max=127
+        field "On Value" offset=236 kind="number" min=0 max=127
+        field "Button Behavior" offset=237 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Mute 5" {
+        field "MIDI Channel" offset=240 kind="channel"
+        field "Assign Type" offset=241 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=242 kind="number" min=0 max=127 note-if-offset=241 note-if-value=1
+        field "Off Value" offset=243 kind="number" min=0 max=127
+        field "On Value" offset=244 kind="number" min=0 max=127
+        field "Button Behavior" offset=245 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Mute 6" {
+        field "MIDI Channel" offset=248 kind="channel"
+        field "Assign Type" offset=249 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=250 kind="number" min=0 max=127 note-if-offset=249 note-if-value=1
+        field "Off Value" offset=251 kind="number" min=0 max=127
+        field "On Value" offset=252 kind="number" min=0 max=127
+        field "Button Behavior" offset=253 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Mute 7" {
+        field "MIDI Channel" offset=256 kind="channel"
+        field "Assign Type" offset=257 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=258 kind="number" min=0 max=127 note-if-offset=257 note-if-value=1
+        field "Off Value" offset=259 kind="number" min=0 max=127
+        field "On Value" offset=260 kind="number" min=0 max=127
+        field "Button Behavior" offset=261 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Mute 8" {
+        field "MIDI Channel" offset=264 kind="channel"
+        field "Assign Type" offset=265 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=266 kind="number" min=0 max=127 note-if-offset=265 note-if-value=1
+        field "Off Value" offset=267 kind="number" min=0 max=127
+        field "On Value" offset=268 kind="number" min=0 max=127
+        field "Button Behavior" offset=269 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Rec 1" {
+        field "MIDI Channel" offset=272 kind="channel"
+        field "Assign Type" offset=273 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=274 kind="number" min=0 max=127 note-if-offset=273 note-if-value=1
+        field "Off Value" offset=275 kind="number" min=0 max=127
+        field "On Value" offset=276 kind="number" min=0 max=127
+        field "Button Behavior" offset=277 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Rec 2" {
+        field "MIDI Channel" offset=280 kind="channel"
+        field "Assign Type" offset=281 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=282 kind="number" min=0 max=127 note-if-offset=281 note-if-value=1
+        field "Off Value" offset=283 kind="number" min=0 max=127
+        field "On Value" offset=284 kind="number" min=0 max=127
+        field "Button Behavior" offset=285 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Rec 3" {
+        field "MIDI Channel" offset=288 kind="channel"
+        field "Assign Type" offset=289 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=290 kind="number" min=0 max=127 note-if-offset=289 note-if-value=1
+        field "Off Value" offset=291 kind="number" min=0 max=127
+        field "On Value" offset=292 kind="number" min=0 max=127
+        field "Button Behavior" offset=293 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Rec 4" {
+        field "MIDI Channel" offset=296 kind="channel"
+        field "Assign Type" offset=297 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=298 kind="number" min=0 max=127 note-if-offset=297 note-if-value=1
+        field "Off Value" offset=299 kind="number" min=0 max=127
+        field "On Value" offset=300 kind="number" min=0 max=127
+        field "Button Behavior" offset=301 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Rec 5" {
+        field "MIDI Channel" offset=304 kind="channel"
+        field "Assign Type" offset=305 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=306 kind="number" min=0 max=127 note-if-offset=305 note-if-value=1
+        field "Off Value" offset=307 kind="number" min=0 max=127
+        field "On Value" offset=308 kind="number" min=0 max=127
+        field "Button Behavior" offset=309 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Rec 6" {
+        field "MIDI Channel" offset=312 kind="channel"
+        field "Assign Type" offset=313 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=314 kind="number" min=0 max=127 note-if-offset=313 note-if-value=1
+        field "Off Value" offset=315 kind="number" min=0 max=127
+        field "On Value" offset=316 kind="number" min=0 max=127
+        field "Button Behavior" offset=317 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Rec 7" {
+        field "MIDI Channel" offset=320 kind="channel"
+        field "Assign Type" offset=321 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=322 kind="number" min=0 max=127 note-if-offset=321 note-if-value=1
+        field "Off Value" offset=323 kind="number" min=0 max=127
+        field "On Value" offset=324 kind="number" min=0 max=127
+        field "Button Behavior" offset=325 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Rec 8" {
+        field "MIDI Channel" offset=328 kind="channel"
+        field "Assign Type" offset=329 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=330 kind="number" min=0 max=127 note-if-offset=329 note-if-value=1
+        field "Off Value" offset=331 kind="number" min=0 max=127
+        field "On Value" offset=332 kind="number" min=0 max=127
+        field "Button Behavior" offset=333 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Select 1" {
+        field "MIDI Channel" offset=336 kind="channel"
+        field "Assign Type" offset=337 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=338 kind="number" min=0 max=127 note-if-offset=337 note-if-value=1
+        field "Off Value" offset=339 kind="number" min=0 max=127
+        field "On Value" offset=340 kind="number" min=0 max=127
+        field "Button Behavior" offset=341 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Select 2" {
+        field "MIDI Channel" offset=344 kind="channel"
+        field "Assign Type" offset=345 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=346 kind="number" min=0 max=127 note-if-offset=345 note-if-value=1
+        field "Off Value" offset=347 kind="number" min=0 max=127
+        field "On Value" offset=348 kind="number" min=0 max=127
+        field "Button Behavior" offset=349 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Select 3" {
+        field "MIDI Channel" offset=352 kind="channel"
+        field "Assign Type" offset=353 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=354 kind="number" min=0 max=127 note-if-offset=353 note-if-value=1
+        field "Off Value" offset=355 kind="number" min=0 max=127
+        field "On Value" offset=356 kind="number" min=0 max=127
+        field "Button Behavior" offset=357 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Select 4" {
+        field "MIDI Channel" offset=360 kind="channel"
+        field "Assign Type" offset=361 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=362 kind="number" min=0 max=127 note-if-offset=361 note-if-value=1
+        field "Off Value" offset=363 kind="number" min=0 max=127
+        field "On Value" offset=364 kind="number" min=0 max=127
+        field "Button Behavior" offset=365 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Select 5" {
+        field "MIDI Channel" offset=368 kind="channel"
+        field "Assign Type" offset=369 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=370 kind="number" min=0 max=127 note-if-offset=369 note-if-value=1
+        field "Off Value" offset=371 kind="number" min=0 max=127
+        field "On Value" offset=372 kind="number" min=0 max=127
+        field "Button Behavior" offset=373 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Select 6" {
+        field "MIDI Channel" offset=376 kind="channel"
+        field "Assign Type" offset=377 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=378 kind="number" min=0 max=127 note-if-offset=377 note-if-value=1
+        field "Off Value" offset=379 kind="number" min=0 max=127
+        field "On Value" offset=380 kind="number" min=0 max=127
+        field "Button Behavior" offset=381 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Select 7" {
+        field "MIDI Channel" offset=384 kind="channel"
+        field "Assign Type" offset=385 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=386 kind="number" min=0 max=127 note-if-offset=385 note-if-value=1
+        field "Off Value" offset=387 kind="number" min=0 max=127
+        field "On Value" offset=388 kind="number" min=0 max=127
+        field "Button Behavior" offset=389 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Track Select 8" {
+        field "MIDI Channel" offset=392 kind="channel"
+        field "Assign Type" offset=393 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=394 kind="number" min=0 max=127 note-if-offset=393 note-if-value=1
+        field "Off Value" offset=395 kind="number" min=0 max=127
+        field "On Value" offset=396 kind="number" min=0 max=127
+        field "Button Behavior" offset=397 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Transport Play" {
+        field "MIDI Channel" offset=400 kind="channel"
+        field "Assign Type" offset=401 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=402 kind="number" min=0 max=127 note-if-offset=401 note-if-value=1
+        field "Off Value" offset=403 kind="number" min=0 max=127
+        field "On Value" offset=404 kind="number" min=0 max=127
+        field "Button Behavior" offset=405 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Transport Stop" {
+        field "MIDI Channel" offset=408 kind="channel"
+        field "Assign Type" offset=409 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=410 kind="number" min=0 max=127 note-if-offset=409 note-if-value=1
+        field "Off Value" offset=411 kind="number" min=0 max=127
+        field "On Value" offset=412 kind="number" min=0 max=127
+        field "Button Behavior" offset=413 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Transport Rec" {
+        field "MIDI Channel" offset=416 kind="channel"
+        field "Assign Type" offset=417 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=418 kind="number" min=0 max=127 note-if-offset=417 note-if-value=1
+        field "Off Value" offset=419 kind="number" min=0 max=127
+        field "On Value" offset=420 kind="number" min=0 max=127
+        field "Button Behavior" offset=421 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Transport Rewind" {
+        field "MIDI Channel" offset=424 kind="channel"
+        field "Assign Type" offset=425 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=426 kind="number" min=0 max=127 note-if-offset=425 note-if-value=1
+        field "Off Value" offset=427 kind="number" min=0 max=127
+        field "On Value" offset=428 kind="number" min=0 max=127
+        field "Button Behavior" offset=429 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Transport Fast Fwd" {
+        field "MIDI Channel" offset=432 kind="channel"
+        field "Assign Type" offset=433 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=434 kind="number" min=0 max=127 note-if-offset=433 note-if-value=1
+        field "Off Value" offset=435 kind="number" min=0 max=127
+        field "On Value" offset=436 kind="number" min=0 max=127
+        field "Button Behavior" offset=437 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Transport Cycle" {
+        field "MIDI Channel" offset=440 kind="channel"
+        field "Assign Type" offset=441 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=442 kind="number" min=0 max=127 note-if-offset=441 note-if-value=1
+        field "Off Value" offset=443 kind="number" min=0 max=127
+        field "On Value" offset=444 kind="number" min=0 max=127
+        field "Button Behavior" offset=445 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Transport Return" {
+        field "MIDI Channel" offset=448 kind="channel"
+        field "Assign Type" offset=449 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=450 kind="number" min=0 max=127 note-if-offset=449 note-if-value=1
+        field "Off Value" offset=451 kind="number" min=0 max=127
+        field "On Value" offset=452 kind="number" min=0 max=127
+        field "Button Behavior" offset=453 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Transport Set" {
+        field "MIDI Channel" offset=456 kind="channel"
+        field "Assign Type" offset=457 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=458 kind="number" min=0 max=127 note-if-offset=457 note-if-value=1
+        field "Off Value" offset=459 kind="number" min=0 max=127
+        field "On Value" offset=460 kind="number" min=0 max=127
+        field "Button Behavior" offset=461 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Transport Marker ◀" {
+        field "MIDI Channel" offset=464 kind="channel"
+        field "Assign Type" offset=465 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=466 kind="number" min=0 max=127 note-if-offset=465 note-if-value=1
+        field "Off Value" offset=467 kind="number" min=0 max=127
+        field "On Value" offset=468 kind="number" min=0 max=127
+        field "Button Behavior" offset=469 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Transport Marker ▶" {
+        field "MIDI Channel" offset=472 kind="channel"
+        field "Assign Type" offset=473 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=474 kind="number" min=0 max=127 note-if-offset=473 note-if-value=1
+        field "Off Value" offset=475 kind="number" min=0 max=127
+        field "On Value" offset=476 kind="number" min=0 max=127
+        field "Button Behavior" offset=477 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Transport Track ◀" {
+        field "MIDI Channel" offset=480 kind="channel"
+        field "Assign Type" offset=481 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=482 kind="number" min=0 max=127 note-if-offset=481 note-if-value=1
+        field "Off Value" offset=483 kind="number" min=0 max=127
+        field "On Value" offset=484 kind="number" min=0 max=127
+        field "Button Behavior" offset=485 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Transport Track ▶" {
+        field "MIDI Channel" offset=488 kind="channel"
+        field "Assign Type" offset=489 kind="choice" {
+            choice "Control Change"
+            choice "Note"
+            choice "No Assign"
+        }
+        field "Note/CC Number" offset=490 kind="number" min=0 max=127 note-if-offset=489 note-if-value=1
+        field "Off Value" offset=491 kind="number" min=0 max=127
+        field "On Value" offset=492 kind="number" min=0 max=127
+        field "Button Behavior" offset=493 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+}

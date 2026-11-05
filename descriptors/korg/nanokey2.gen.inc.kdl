@@ -8,16 +8,16 @@ device "korg.nanokey2" {
     model "nanoKEY2"
     class "X10820"
     file-key "0820"
-    image "assets/nanokey2/thumbnail.png" role="thumbnail"
-    image "assets/nanokey2/list-icon.png" role="list-icon"
+    image "X10820.png" role="external-thumbnail"
+    image "X10820-panel.png" role="external-panel"
 }
 
-const "model" 0x111 status="decoded" evidence="KORG analysis/sysex/descriptors.json: X10820SysExGenerator descriptor, length style short_or_long"
+const "model" 0x111 status="decoded" evidence="KORG analysis/sysex/descriptors.json: model and length style short_or_long"
 
 // The port name is not recorded; the user picks it, or a scan finds the
 // device by its identity reply (CDL 5.1). Long SysEx goes to the host in
 // 256-byte pieces, 5 ms apart (CDL 8.2; KORG korg-midi-midir SYSEX_CHUNK).
-transport "midi" kind="midi" role="config" scan="identity" sysex-limit=256 segment-delay=5 status="decoded" evidence="X10820SysExGenerator in the vendor application" {
+transport "midi" kind="midi" role="config" scan="identity" sysex-limit=256 segment-delay=5 status="decoded" evidence="KORG protocol analysis and MIDI adapter" {
     capture "device-id" from="identity"
 }
 
@@ -82,4 +82,4 @@ labels "en" source="KORG KONTROL EDITOR UI strings" {
     }
 }
 
-panel picture="705x185" image="assets/nanokey2/panel.png" source="KORG KONTROL EDITOR panel picture" status="decoded" evidence="KORG KONTROL EDITOR panel picture"
+panel picture="705x185" source="KORG KONTROL EDITOR panel picture" status="decoded" evidence="KORG KONTROL EDITOR panel picture"

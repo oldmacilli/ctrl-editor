@@ -8,7 +8,8 @@
   (#any-of? @keyword
     "cdl" "include" "device" "identify" "transport" "types" "block" "param"
     "panel" "midi-map" "sysex-frame" "message" "procedure" "firmware" "lbmt"
-    "driver" "test-vector" "const" "labels" "pattern" "hands" "recipe" "edit" "kinds"))
+    "driver" "test-vector" "const" "labels" "pattern" "hands" "recipe" "edit" "kinds"
+    "catalog" "control-assignments" "editor-pages" "global-fields" "parameter-layouts" "sysex-commands"))
 
 ; Procedure steps
 ((node name: (identifier) @keyword.function)
@@ -29,8 +30,10 @@
     "usb" "midi-port" "sysex-identity" "hid" "key" "listen" "capture" "report-descriptor" "poll" "segment" "derive" "records"
     "enum" "errors" "int" "value" "field" "group" "array" "control" "list"
     "item" "source" "sink" "prefix" "suffix" "arg" "reply" "owns"
-    "version-from" "stage" "recovery" "args" "bytes" "data"
-    "entry" "open" "close" "check" "select" "option" "kind"))
+    "version-from" "stage" "recovery" "args" "bytes" "data" "assign"
+    "choice" "command" "detail" "display-choice" "extension" "factory-file"
+    "binding" "hide-if-value" "label" "layout" "live-number" "map" "page" "parameter" "select"
+    "entry" "open" "close" "check" "option" "kind"))
 
 ; Evidence status: how far a fact can be trusted (CDL §4.1)
 ((prop

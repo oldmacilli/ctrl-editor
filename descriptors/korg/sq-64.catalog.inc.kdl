@@ -1,0 +1,8 @@
+// Generated catalog metadata; do not edit.
+cdl "0.1"
+catalog order=13 name="SQ-64" localized-name="SQ-64" status="decoded" evidence="KORG product catalog" {
+    extension "sq64" os-type="192A"
+    extension "sq64ctrl" os-type="192C"
+    extension "sq64proj" os-type="192P"
+    extension "sq64scale" os-type="192D"
+}

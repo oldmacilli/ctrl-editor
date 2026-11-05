@@ -8,8 +8,8 @@ device "korg.microkey2-air" {
     model "microKEY2/Air"
     class "X14810"
     file-key "14810"
-    image "assets/microkey2-air/thumbnail.png" role="thumbnail"
-    image "assets/microkey2-air/list-icon.png" role="list-icon"
+    image "X14810.png" role="external-thumbnail"
+    image "X14810-panel.png" role="external-panel"
 }
 
 block "scene" size=256 count=1 status="decoded" evidence="KORG analysis/products/catalog.json (factory data)"
@@ -85,4 +85,4 @@ labels "en" source="KORG KONTROL EDITOR UI strings" {
     }
 }
 
-panel picture="705x183" image="assets/microkey2-air/panel.png" source="KORG KONTROL EDITOR panel picture" status="decoded" evidence="KORG KONTROL EDITOR panel picture"
+panel picture="705x183" source="KORG KONTROL EDITOR panel picture" status="decoded" evidence="KORG KONTROL EDITOR panel picture"

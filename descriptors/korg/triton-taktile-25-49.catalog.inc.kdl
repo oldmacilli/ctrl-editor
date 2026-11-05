@@ -1,0 +1,11 @@
+// Generated catalog metadata; do not edit.
+cdl "0.1"
+catalog order=9 name="TRITON taktile-25/49" localized-name="TRITON taktile-25/49" scenes=16 scene-size=640 global-size=104 status="decoded" evidence="KORG product catalog" {
+    extension "tr_taktile_data" os-type="288D"
+    extension "tr_taktile_glob" os-type="288G"
+    extension "tr_taktile_set" os-type="288S"
+    factory-file "TRITON taktile/TRITON taktile-25 Global Data.tr_taktile_glob"
+    factory-file "TRITON taktile/TRITON taktile-25 Scene SET.tr_taktile_set"
+    factory-file "TRITON taktile/TRITON taktile-49 Global Data.tr_taktile_glob"
+    factory-file "TRITON taktile/TRITON taktile-49 Scene Set.tr_taktile_set"
+}

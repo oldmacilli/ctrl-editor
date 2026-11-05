@@ -8,16 +8,16 @@ device "korg.taktile-25-49" {
     model "taktile-25/49"
     class "X11850"
     file-key "1850"
-    image "assets/taktile-25-49/thumbnail.png" role="thumbnail"
-    image "assets/taktile-25-49/list-icon.png" role="list-icon"
+    image "X11850.png" role="external-thumbnail"
+    image "X11850-panel.png" role="external-panel"
 }
 
-const "model" 0x11c status="decoded" evidence="KORG analysis/sysex/descriptors.json: X11850SysExGenerator descriptor, length style short_or_long"
+const "model" 0x11c status="decoded" evidence="KORG analysis/sysex/descriptors.json: model and length style short_or_long"
 
 // The port name is not recorded; the user picks it, or a scan finds the
 // device by its identity reply (CDL 5.1). Long SysEx goes to the host in
 // 256-byte pieces, 5 ms apart (CDL 8.2; KORG korg-midi-midir SYSEX_CHUNK).
-transport "midi" kind="midi" role="config" scan="identity" sysex-limit=256 segment-delay=5 status="decoded" evidence="X11850SysExGenerator in the vendor application" {
+transport "midi" kind="midi" role="config" scan="identity" sysex-limit=256 segment-delay=5 status="decoded" evidence="KORG protocol analysis and MIDI adapter" {
     capture "device-id" from="identity"
 }
 
@@ -1197,4 +1197,4 @@ labels "en" source="KORG KONTROL EDITOR UI strings" {
     }
 }
 
-panel picture="892x197" image="assets/taktile-25-49/panel.png" source="KORG KONTROL EDITOR panel picture" status="decoded" evidence="KORG KONTROL EDITOR panel picture"
+panel picture="892x197" source="KORG KONTROL EDITOR panel picture" status="decoded" evidence="KORG KONTROL EDITOR panel picture"

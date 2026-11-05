@@ -102,6 +102,37 @@ measured on; on any other version the engine reads but does not write.
 
 ## 4. Evidence, blocks and fields
 
+An optional `catalog` node supplies editor-facing device metadata separately
+from protocol identity. It records the display order and name, optional
+localized name and payload sizes, filename extensions with optional legacy
+OS types, and paths to separately installed factory files:
+
+```kdl
+catalog order=0 name="Example" scenes=1 scene-size=64 status="decoded" {
+    extension "example_data" os-type="EXDT"
+    factory-file "Example/Default.example_data"
+}
+```
+
+Factory files are not embedded by the descriptor. Consumers should reject
+duplicate extensions or catalog orders, and treat missing catalog metadata as
+an error when constructing a complete editor catalog.
+
+`global-fields` may describe each global UI binding's byte offset and ordered
+display choices. Each `choice` names the stored byte explicitly, so labels
+and their order can change without changing the value written. The consumer
+must ignore choices whose status is unknown or missing and reject ambiguous
+labels or duplicate byte values. Inferred choices retain their status.
+
+```kdl
+global-fields status="decoded" evidence="global data analysis" {
+    binding "battery" offset=2 status="decoded" evidence="global data analysis" {
+        choice "Alkaline" value=0 status="inferred" evidence="existing UI order"
+        choice "Ni-MH" value=1 status="inferred" evidence="existing UI order"
+    }
+}
+```
+
 ### 4.1 Status
 
 Every node may carry `status` and `evidence`:
@@ -200,6 +231,64 @@ of its elements. `compare=` takes paths separated by spaces; without
 `compare`, `verify` compares everything the procedure wrote.
 
 ### 4.5 Parameters
+
+For ordered editor layouts, `parameter-layouts` records each payload's size,
+element count and stride. Each `parameter` records its ID, packed byte
+location, mask, range, bias, value kind, optional default and ordered labels.
+Keys and IDs may repeat: their order is part of the layout. A device without
+an extracted layout uses an empty `parameter-layouts status="unknown"`.
+An optional `display-label` overrides the editor's field name. Ordered
+`display-choice` children supply fallback display names only when the
+parameter has no `label` children; they do not change its numeric range,
+encoding or write safety. `display-choices-inferred=#true` records that the
+fallback list includes inferred values.
+
+`editor-pages` describes ordered control pages using a `default` page,
+control selectors (`group` and/or `label`), and named `page` nodes. A `field`
+specifies its byte offset and kind; numeric fields include their bounds and a
+biased field includes its storage bias. `choice` children are in stored-value
+order. A field may require a byte value using both `enabled-if-offset` and
+`enabled-if-value`, or exclude one with `enabled-if-not-value`; otherwise it
+remains visible but cannot be edited. `note-if-offset` with `note-if-value`
+enables note-name display and input for a numeric field. `heading` fields
+are non-editable section headings; `channel` includes a Global choice, and
+`optional-number` displays stored values outside MIDI's 0–127 range as empty.
+`text` fields give a byte `width`. A `hidden-if-offset` and `hide-if-value`
+children omit a field for the listed byte values; `min-from-offset` and
+`max-from-offset` constrain numeric writes to another scene byte. Missing
+condition bytes do not enable or reveal a field. Selectors for different
+pages must be disjoint; when labels and groups both identify a control, the
+descriptor can specify both. Changing either requires updating the selector.
+Only decoded or measured page sets are used for editing. The loader rejects
+unresolved page selectors, invalid kinds, invalid bounds and incomplete
+conditions.
+
+`control-assignments` maps a control's group and label to a decoded MIDI
+message. An assignment uses either a fixed `kind` or a `kind-offset` and
+ordered `map` nodes. Unmapped bytes use an explicit `fallback`: `undecoded`
+preserves the raw byte, while `no-assign` denotes a disabled control. Number
+and channel can come from scene offsets; `number-required` and
+`channel-required` reject truncated records. Catalog scene sizes bound all
+assignment offsets. Only decoded or measured assignment sets are used.
+`codec="jog-config"` selects the validated nine-byte jog record codec at
+`codec-offset`; this binding replaces the ordinary kind, number and channel
+properties. Assignment sets carry one status; individual `assign` and `map`
+nodes must not specify a separate status. Nonzero knob and slider enable bytes
+whose meaning is not measured remain undecoded.
+An optional `description` replaces the default control summary; `detail`
+children select a suffix using `detail-offset`. Detail status and evidence
+remain available in the IR; a detail marked `unknown` is not displayed.
+
+```kdl
+parameter-layouts status="decoded" {
+    layout "scene" order=0 size=97 elements=16 stride=6 version=1 {
+        parameter "AssignType" id=0 offset=0 width=1 shift=5 mask=7 min=0 max=3 bias=0 kind="enum" default=2 default-source="factory" {
+            label "No Assign"
+            label "Control Change"
+        }
+    }
+}
+```
 
 Parameters are what the UI shows. Most map 1:1 to a field and need no extra
 node. Add `param` when the label, group or UI differs:
@@ -493,6 +582,20 @@ bend by setting). The editor uses `midi-map` to:
 - run `lbmt` translators between the device and the computer (§10.3).
 
 ## 8. SysEx patching
+
+`sysex-commands` records a recovered model id, length style and named
+command bytes when an editor still consumes a command table. Each command
+with a byte has `measured` or `decoded` status; an unknown command has
+`status="unknown"` and omits the byte. A device with no recovered table has
+an empty node with unknown status. This table does not by itself establish a
+safe write procedure; the message and procedure rules below still apply.
+
+```kdl
+sysex-commands model-id=274 length-style="short_or_long" status="decoded" {
+    command "scene_data" byte=0 status="decoded"
+    command "mode_check" status="unknown"
+}
+```
 
 SysEx is a set of `message` nodes (§6) plus the `procedure`s that use them
 (§11). The vendor's framing is written once, as a `sysex-frame`, and each
@@ -955,6 +1058,14 @@ Rules:
 
 The panel is `korg_app::panel` written as data:
 
+For KORG panels, `binding-inferred=#true` on `panel` records that the
+parameter binding order is inferred. A `control` may specify
+`element-index=N` to select the Nth parameter-schema element, or
+`jog-binding=#true` for the device's jog block. `key-black=#true` marks a
+raised black key. These metadata describe UI interaction; they do not
+authorize writes or turn inferred protocol data into measured data. Missing
+boolean properties default to false, and a missing element index is unbound.
+
 ```kdl
 panel picture="550x329" image="assets/nanokontrol-studio/panel.png" source="editor panel picture, measured by eye" {
     control "jog" kind="jog" label="Jog Wheel" group="Jog Wheel" box="36,199,92,92" bind="scene.jog"
@@ -971,6 +1082,11 @@ yet". `kind`: `knob`, `fader`, `button`, `pad`, `key`, `touchpad`, `jog`,
 Image paths (`image` on `device` and `panel`) are relative to the file that
 names them, below its directory (no `..`). `ctrl-cli check` reports a
 missing file.
+
+`device/image` roles `external-thumbnail` and `external-panel` instead name
+optional files relative to the editor's configured external device-asset root.
+They need not be present alongside the descriptors; paths still must be
+relative and stay below that root. Other image roles remain descriptor-relative.
 
 ### 13.1 Labels
 

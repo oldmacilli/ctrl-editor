@@ -1,0 +1,3 @@
+# Keep Cargo outputs outside every checkout; CI may override CARGO_TARGET_DIR.
+[build]
+target-dir = "../ctrl-editor-build/target"

@@ -70,6 +70,12 @@ pub(crate) fn convert(
             version: b.version.unwrap_or_default(),
             files: files.clone(),
             device,
+            catalog: b.catalog,
+            sysex_commands: b.sysex_commands,
+            parameter_layouts: b.parameter_layouts,
+            editor_pages: b.editor_pages,
+            control_assignments: b.control_assignments,
+            global_fields: b.global_fields,
             identify: b.identify,
             transports: b.transports,
             types: b.types,
@@ -444,6 +450,12 @@ fn words(s: &str) -> Result<Vec<String>, String> {
 struct Builder {
     version: Option<String>,
     device: Option<Device>,
+    catalog: Option<Catalog>,
+    sysex_commands: Option<SysexCommands>,
+    parameter_layouts: Option<ParameterLayouts>,
+    editor_pages: Option<EditorPages>,
+    global_fields: Option<GlobalFields>,
+    control_assignments: Option<ControlAssignments>,
     identify: Vec<Matcher>,
     transports: Vec<Transport>,
     types: Vec<TypeDef>,
@@ -470,6 +482,12 @@ const TOP: &[&str] = &[
     "cdl",
     "include",
     "device",
+    "catalog",
+    "sysex-commands",
+    "parameter-layouts",
+    "editor-pages",
+    "control-assignments",
+    "global-fields",
     "identify",
     "transport",
     "types",
@@ -500,6 +518,87 @@ impl Builder {
             "device" => {
                 let device = device(cx, n);
                 once(cx, n, &mut self.device, device);
+            }
+            "catalog" => {
+                let catalog = catalog(cx, n);
+                once(cx, n, &mut self.catalog, catalog);
+            }
+            "sysex-commands" => {
+                let commands = sysex_commands(cx, n);
+                once(cx, n, &mut self.sysex_commands, commands);
+            }
+            "parameter-layouts" => {
+                let layouts = parameter_layouts(cx, n);
+                once(cx, n, &mut self.parameter_layouts, layouts);
+            }
+            "editor-pages" => {
+                let pages = editor_pages(cx, n);
+                once(cx, n, &mut self.editor_pages, pages);
+            }
+            "control-assignments" => {
+                let assignments = control_assignments(cx, n);
+                once(cx, n, &mut self.control_assignments, assignments);
+            }
+            "global-fields" => {
+                cx.node(n, "global-fields");
+                let mut bindings: Vec<GlobalBinding> = Vec::new();
+                for child in &n.children {
+                    if child.name != "binding" {
+                        cx.unknown_child("global-fields", child, &["binding"]);
+                        continue;
+                    }
+                    cx.node(child, "global-fields/binding");
+                    let name = cx.arg_str(child, 0).unwrap_or_default();
+                    let offset = required_u32(cx, child, "offset");
+                    if bindings.iter().any(|b| b.name == name) {
+                        cx.err(child.pos, "duplicate global field binding");
+                    }
+                    let mut choices: Vec<GlobalChoice> = Vec::new();
+                    for choice in &child.children {
+                        if choice.name != "choice" {
+                            cx.unknown_child("global-fields/binding", choice, &["choice"]);
+                            continue;
+                        }
+                        cx.node(choice, "global-fields/binding/choice");
+                        let label = cx.arg_str(choice, 0).unwrap_or_default();
+                        let raw = required_u32(cx, choice, "value");
+                        if raw > 255
+                            || label.is_empty()
+                            || choices
+                                .iter()
+                                .any(|c| c.value as u32 == raw || c.label == label)
+                        {
+                            cx.err(choice.pos, "invalid or duplicate global choice");
+                        }
+                        choices.push(GlobalChoice {
+                            meta: cx.meta(choice),
+                            label,
+                            value: raw.min(255) as u8,
+                        });
+                    }
+                    bindings.push(GlobalBinding {
+                        meta: cx.meta(child),
+                        name,
+                        offset,
+                        choices,
+                    });
+                }
+                let name_offset = cx.prop_u32(n, "name-offset");
+                let name_width = cx.prop_u32(n, "name-width");
+                if name_offset.is_some() != name_width.is_some() || name_width == Some(0) {
+                    cx.err(
+                        n.pos,
+                        "global name offset and positive width must be specified together",
+                    );
+                }
+                let fields = GlobalFields {
+                    meta: cx.meta(n),
+                    name_offset,
+                    name_width,
+                    bpm_offset: cx.prop_u32(n, "bpm-offset"),
+                    bindings,
+                };
+                once(cx, n, &mut self.global_fields, fields);
             }
             "identify" => {
                 cx.node(n, "identify");
@@ -691,6 +790,550 @@ fn once<T>(cx: &mut Cx, n: &RawNode, slot: &mut Option<T>, value: T) {
     } else {
         *slot = Some(value);
     }
+}
+
+fn required_u32(cx: &mut Cx, n: &RawNode, key: &str) -> u32 {
+    let value = cx.prop_u32(n, key);
+    cx.required(n, key, value).unwrap_or_default()
+}
+
+fn required_i64(cx: &mut Cx, n: &RawNode, key: &str) -> i64 {
+    let value = cx.prop_i64(n, key);
+    cx.required(n, key, value).unwrap_or_default()
+}
+
+fn required_string(cx: &mut Cx, n: &RawNode, key: &str) -> String {
+    let value = cx.prop_str(n, key);
+    cx.required(n, key, value).unwrap_or_default()
+}
+
+fn control_assignments(cx: &mut Cx, n: &RawNode) -> ControlAssignments {
+    cx.node(n, "control-assignments");
+    let mut result = ControlAssignments {
+        meta: cx.meta(n),
+        global_channel_offset: cx.prop_u32(n, "global-channel-offset"),
+        assignments: Vec::new(),
+    };
+    for node in &n.children {
+        if node.name != "assign" {
+            cx.unknown_child("control-assignments", node, &["assign"]);
+            continue;
+        }
+        cx.node(node, "control-assignments/assign");
+        let number = cx.prop_u32(node, "number");
+        let mut item = ControlAssignment {
+            meta: cx.meta(node),
+            group: required_string(cx, node, "group"),
+            label: required_string(cx, node, "label"),
+            codec: cx.prop_str(node, "codec"),
+            codec_offset: cx.prop_u32(node, "codec-offset"),
+            kind: cx.prop_str(node, "kind"),
+            kind_offset: cx.prop_u32(node, "kind-offset"),
+            fallback: cx.prop_str(node, "fallback"),
+            values: Vec::new(),
+            number: number.and_then(|v| u8::try_from(v).ok()),
+            number_offset: cx.prop_u32(node, "number-offset"),
+            number_required: cx.prop_bool(node, "number-required"),
+            channel_offset: cx.prop_u32(node, "channel-offset"),
+            channel_required: cx.prop_bool(node, "channel-required"),
+            description: cx.prop_str(node, "description"),
+            detail_offset: cx.prop_u32(node, "detail-offset"),
+            details: Vec::new(),
+            live_numbers: Vec::new(),
+        };
+        if item.meta.status.is_some() {
+            cx.err(
+                node.pos,
+                "assignment status must be specified on control-assignments",
+            );
+        }
+        for mapping in &node.children {
+            if mapping.name == "live-number" {
+                cx.node(mapping, "control-assignments/assign/live-number");
+                if cx.meta(mapping).status.is_some() {
+                    cx.err(
+                        mapping.pos,
+                        "live-number inherits assignment status; individual status is unsupported",
+                    );
+                }
+                let offset = required_u32(cx, mapping, "offset");
+                let count = cx.prop_u32(mapping, "count").unwrap_or(1);
+                let max = cx.prop_u32(mapping, "max").unwrap_or(127);
+                let if_offset = cx.prop_u32(mapping, "if-offset");
+                let if_not_value = cx.prop_u32(mapping, "if-not-value");
+                if count == 0
+                    || max > 127
+                    || if_offset.is_some() != if_not_value.is_some()
+                    || if_not_value.is_some_and(|v| v > 255)
+                {
+                    cx.err(mapping.pos, "invalid live number routing");
+                }
+                item.live_numbers.push(LiveNumber {
+                    offset,
+                    count,
+                    max: max.min(127) as u8,
+                    if_offset,
+                    if_not_value: if_not_value.map(|v| v.min(255) as u8),
+                });
+                continue;
+            }
+            if mapping.name == "detail" {
+                cx.node(mapping, "control-assignments/assign/detail");
+                let raw = cx.arg_int(mapping, 0).and_then(|v| u8::try_from(v).ok());
+                let text = required_string(cx, mapping, "text");
+                if let Some(value) = raw {
+                    if item.details.iter().any(|previous| previous.value == value) {
+                        cx.err(mapping.pos, "duplicate assignment detail");
+                    }
+                    item.details.push(ControlAssignmentDetail {
+                        meta: cx.meta(mapping),
+                        value,
+                        text,
+                    });
+                } else {
+                    cx.err(mapping.pos, "detail value must be a byte");
+                }
+                continue;
+            }
+            if mapping.name != "map" {
+                cx.unknown_child(
+                    "control-assignments/assign",
+                    mapping,
+                    &["map", "detail", "live-number"],
+                );
+                continue;
+            }
+            cx.node(mapping, "control-assignments/assign/map");
+            let raw = cx.arg_int(mapping, 0).and_then(|v| u8::try_from(v).ok());
+            let kind = required_string(cx, mapping, "kind");
+            if let Some(raw) = raw {
+                if item.values.iter().any(|previous| previous.value == raw) {
+                    cx.err(mapping.pos, "duplicate assignment mapping");
+                }
+                let meta = cx.meta(mapping);
+                if meta.status.is_some() {
+                    cx.err(
+                        mapping.pos,
+                        "mapping status must be specified on control-assignments",
+                    );
+                }
+                item.values.push(ControlAssignmentMap {
+                    meta,
+                    value: raw,
+                    kind,
+                });
+            } else {
+                cx.err(mapping.pos, "assignment mapping must be a byte");
+            }
+        }
+        let valid_kind = |kind: &str| {
+            matches!(
+                kind,
+                "note" | "control-change" | "program-change" | "no-assign"
+            )
+        };
+        let codec_valid = item.codec.as_deref() == Some("jog-config")
+            && item.codec_offset.is_some()
+            && item.kind.is_none()
+            && item.kind_offset.is_none()
+            && item.fallback.is_none()
+            && item.values.is_empty()
+            && item.number.is_none()
+            && item.number_offset.is_none()
+            && !item.number_required
+            && item.channel_offset.is_none()
+            && !item.channel_required;
+        let simple_valid = item.codec.is_none()
+            && item.codec_offset.is_none()
+            && matches!(
+                (&item.kind, item.kind_offset),
+                (Some(_), None) | (None, Some(_))
+            );
+        if !(codec_valid || simple_valid)
+            || item.kind.as_deref().is_some_and(|kind| !valid_kind(kind))
+            || item.values.iter().any(|mapping| !valid_kind(&mapping.kind))
+            || (item.kind_offset.is_some()
+                && (item.values.is_empty()
+                    || !matches!(item.fallback.as_deref(), Some("undecoded" | "no-assign"))))
+            || (item.kind.is_some() && (!item.values.is_empty() || item.fallback.is_some()))
+            || (number.is_some() && item.number.is_none())
+            || (item.number.is_some() && item.number_offset.is_some())
+            || (item.number_required && item.number_offset.is_none())
+            || (item.channel_required && item.channel_offset.is_none())
+            || (item.detail_offset.is_some() == item.details.is_empty())
+            || (!item.details.is_empty() && item.description.is_none())
+        {
+            cx.err(node.pos, "invalid control assignment");
+        }
+        if result
+            .assignments
+            .iter()
+            .any(|old| old.group == item.group && old.label == item.label)
+        {
+            cx.err(node.pos, "duplicate control assignment");
+        }
+        result.assignments.push(item);
+    }
+    result
+}
+
+fn editor_pages(cx: &mut Cx, n: &RawNode) -> EditorPages {
+    cx.node(n, "editor-pages");
+    let mut result = EditorPages {
+        meta: cx.meta(n),
+        default_page: required_string(cx, n, "default"),
+        selectors: Vec::new(),
+        pages: Vec::new(),
+    };
+    for child in &n.children {
+        match child.name.as_str() {
+            "select" => {
+                cx.node(child, "editor-pages/select");
+                let selector = PageSelector {
+                    group: cx.prop_str(child, "group"),
+                    label: cx.prop_str(child, "label"),
+                    page: cx.name(child),
+                };
+                if selector.group.is_none() && selector.label.is_none() {
+                    cx.err(child.pos, "page selector needs a group or label");
+                }
+                if result.selectors.iter().any(|other| {
+                    let distinct_group = other
+                        .group
+                        .as_ref()
+                        .zip(selector.group.as_ref())
+                        .is_some_and(|(a, b)| a != b);
+                    let distinct_label = other
+                        .label
+                        .as_ref()
+                        .zip(selector.label.as_ref())
+                        .is_some_and(|(a, b)| a != b);
+                    !distinct_group && !distinct_label && other.page != selector.page
+                }) {
+                    cx.err(
+                        child.pos,
+                        "overlapping page selectors cannot select different pages",
+                    );
+                }
+                result.selectors.push(selector);
+            }
+            "page" => {
+                cx.node(child, "editor-pages/page");
+                let mut page = EditorPage {
+                    name: cx.name(child),
+                    fields: Vec::new(),
+                };
+                for field in &child.children {
+                    if field.name != "field" {
+                        cx.unknown_child("editor-pages/page", field, &["field"]);
+                        continue;
+                    }
+                    cx.node(field, "editor-pages/page/field");
+                    let mut item = EditorPageField {
+                        meta: cx.meta(field),
+                        label: cx.name(field),
+                        offset: required_u32(cx, field, "offset"),
+                        kind: required_string(cx, field, "kind"),
+                        min: cx.prop_i64(field, "min"),
+                        max: cx.prop_i64(field, "max"),
+                        bias: cx.prop_i64(field, "bias"),
+                        enabled_if_offset: cx.prop_u32(field, "enabled-if-offset"),
+                        enabled_if_value: cx.prop_u32(field, "enabled-if-value"),
+                        enabled_if_not_value: cx.prop_u32(field, "enabled-if-not-value"),
+                        note_if_offset: cx.prop_u32(field, "note-if-offset"),
+                        note_if_value: cx.prop_u32(field, "note-if-value"),
+                        hidden_if_offset: cx.prop_u32(field, "hidden-if-offset"),
+                        hidden_if_values: Vec::new(),
+                        width: cx.prop_u32(field, "width"),
+                        min_from_offset: cx.prop_u32(field, "min-from-offset"),
+                        max_from_offset: cx.prop_u32(field, "max-from-offset"),
+                        choices: Vec::new(),
+                    };
+                    for choice in &field.children {
+                        match choice.name.as_str() {
+                            "choice" => {
+                                cx.node(choice, "editor-pages/page/field/choice");
+                                item.choices.push(cx.name(choice));
+                            }
+                            "hide-if-value" => {
+                                cx.node(choice, "editor-pages/page/field/hide-if-value");
+                                match cx
+                                    .arg_int(choice, 0)
+                                    .and_then(|v| u32::try_from(v).ok())
+                                    .filter(|v| *v <= 255)
+                                {
+                                    Some(v) => item.hidden_if_values.push(v),
+                                    None => cx.err(choice.pos, "hidden value must be a byte"),
+                                }
+                            }
+                            _ => cx.unknown_child(
+                                "editor-pages/page/field",
+                                choice,
+                                &["choice", "hide-if-value"],
+                            ),
+                        }
+                    }
+                    if !matches!(
+                        (
+                            item.enabled_if_offset,
+                            item.enabled_if_value,
+                            item.enabled_if_not_value
+                        ),
+                        (None, None, None) | (Some(_), Some(_), None) | (Some(_), None, Some(_))
+                    ) || item.note_if_offset.is_some() != item.note_if_value.is_some()
+                        || item.hidden_if_offset.is_some() == item.hidden_if_values.is_empty()
+                    {
+                        cx.err(field.pos, "field condition requires offset and value");
+                    }
+                    if !matches!(
+                        item.kind.as_str(),
+                        "heading"
+                            | "channel"
+                            | "channel-only"
+                            | "choice"
+                            | "number"
+                            | "optional-number"
+                            | "text"
+                            | "biased"
+                    ) || (item.kind == "choice" && item.choices.is_empty())
+                        || item.choices.len() > 256
+                        || (item.kind != "choice" && !item.choices.is_empty())
+                        || (matches!(item.kind.as_str(), "number" | "optional-number" | "biased")
+                            && (item.min.is_none() || item.max.is_none()))
+                        || (item.kind == "biased" && item.bias.is_none())
+                        || item.min.zip(item.max).is_some_and(|(min, max)| min > max)
+                        || item.enabled_if_value.is_some_and(|value| value > 255)
+                        || item.enabled_if_not_value.is_some_and(|value| value > 255)
+                        || item.note_if_value.is_some_and(|value| value > 255)
+                        || (matches!(item.kind.as_str(), "number" | "optional-number")
+                            && item
+                                .min
+                                .zip(item.max)
+                                .is_some_and(|(min, max)| min < 0 || max > 255))
+                        || (item.kind == "optional-number" && item.max.is_some_and(|max| max > 127))
+                        || (item.kind == "text"
+                            && item.width.is_none_or(|width| width == 0 || width > 255))
+                        || (item.kind != "text" && item.width.is_some())
+                        || ((item.min_from_offset.is_some() || item.max_from_offset.is_some())
+                            && item.kind != "number")
+                        || (item.kind == "biased"
+                            && item.min.zip(item.max).zip(item.bias).is_some_and(
+                                |((min, max), bias)| {
+                                    min < -128
+                                        || max > 127
+                                        || !(0..=255).contains(&bias)
+                                        || min + bias < 0
+                                        || max + bias > 255
+                                },
+                            ))
+                    {
+                        cx.err(field.pos, "invalid page field kind or range");
+                    }
+                    page.fields.push(item);
+                }
+                if result.pages.iter().any(|p| p.name == page.name) {
+                    cx.err(child.pos, "duplicate editor page name");
+                }
+                result.pages.push(page);
+            }
+            _ => cx.unknown_child("editor-pages", child, &["select", "page"]),
+        }
+    }
+    if !result
+        .pages
+        .iter()
+        .any(|page| page.name == result.default_page)
+        || result
+            .selectors
+            .iter()
+            .any(|s| !result.pages.iter().any(|p| p.name == s.page))
+    {
+        cx.err(n.pos, "page selector or default references an unknown page");
+    }
+    result
+}
+
+fn parameter_layouts(cx: &mut Cx, n: &RawNode) -> ParameterLayouts {
+    cx.node(n, "parameter-layouts");
+    let mut layouts = Vec::new();
+    let mut names = std::collections::BTreeSet::new();
+    for node in &n.children {
+        if node.name != "layout" {
+            cx.unknown_child("parameter-layouts", node, &["layout"]);
+            continue;
+        }
+        cx.node(node, "parameter-layouts/layout");
+        let payload = cx.name(node);
+        if !names.insert(payload.clone()) {
+            cx.err(node.pos, format!("duplicate parameter layout `{payload}`"));
+        }
+        let mut layout = ParameterLayout {
+            meta: cx.meta(node),
+            payload,
+            order: required_u32(cx, node, "order"),
+            size: required_u32(cx, node, "size"),
+            elements: required_u32(cx, node, "elements"),
+            stride: required_u32(cx, node, "stride"),
+            version: required_u32(cx, node, "version"),
+            parameters: Vec::new(),
+        };
+        if layout.size == 0 || layout.elements == 0 || layout.stride == 0 {
+            cx.err(
+                node.pos,
+                "layout size, elements and stride must be positive",
+            );
+        }
+        for field in &node.children {
+            if field.name != "parameter" {
+                cx.unknown_child("parameter-layouts/layout", field, &["parameter"]);
+                continue;
+            }
+            cx.node(field, "parameter-layouts/layout/parameter");
+            let mut p = ParameterEntry {
+                meta: cx.meta(field),
+                key: cx.name(field),
+                id: required_u32(cx, field, "id"),
+                offset: required_u32(cx, field, "offset"),
+                width: required_u32(cx, field, "width"),
+                shift: required_u32(cx, field, "shift"),
+                mask: required_u32(cx, field, "mask"),
+                min: required_i64(cx, field, "min"),
+                max: required_i64(cx, field, "max"),
+                bias: required_i64(cx, field, "bias"),
+                kind: required_string(cx, field, "kind"),
+                default: cx.prop_i64(field, "default"),
+                default_source: required_string(cx, field, "default-source"),
+                labels: Vec::new(),
+                display_label: cx.prop_str(field, "display-label"),
+                display_choices: Vec::new(),
+                display_choices_inferred: cx.prop_bool(field, "display-choices-inferred"),
+            };
+            if !matches!(p.kind.as_str(), "number" | "enum")
+                || !matches!(p.default_source.as_str(), "factory" | "unknown")
+            {
+                cx.err(field.pos, "invalid parameter kind or default-source");
+            }
+            if p.min > p.max
+                || p.default
+                    .is_some_and(|value| value < p.min || value > p.max)
+            {
+                cx.err(field.pos, "invalid parameter range or default");
+            }
+            for label in &field.children {
+                if label.name == "label" {
+                    cx.node(label, "parameter-layouts/layout/parameter/label");
+                    if let Some(value) = cx.arg_str(label, 0) {
+                        p.labels.push(value);
+                    }
+                } else if label.name == "display-choice" {
+                    cx.node(label, "parameter-layouts/layout/parameter/display-choice");
+                    if let Some(value) = cx.arg_str(label, 0) {
+                        p.display_choices.push(value);
+                    }
+                } else {
+                    cx.unknown_child(
+                        "parameter-layouts/layout/parameter",
+                        label,
+                        &["label", "display-choice"],
+                    );
+                }
+            }
+            layout.parameters.push(p);
+        }
+        layouts.push(layout);
+    }
+    ParameterLayouts {
+        meta: cx.meta(n),
+        layouts,
+    }
+}
+
+fn sysex_commands(cx: &mut Cx, n: &RawNode) -> SysexCommands {
+    cx.node(n, "sysex-commands");
+    let mut commands = Vec::new();
+    let mut names = std::collections::BTreeSet::new();
+    let model_id = cx.prop_u32(n, "model-id");
+    if model_id.is_some_and(|id| id > 0x3fff) {
+        cx.err(n.pos, "model-id must fit the KORG 14-bit model field");
+    }
+    let length_style = cx.prop_str(n, "length-style");
+    if length_style
+        .as_deref()
+        .is_some_and(|style| !matches!(style, "short_or_long" | "fixed3"))
+    {
+        cx.err(n.pos, "unsupported SysEx length-style");
+    }
+    for child in &n.children {
+        if child.name != "command" {
+            cx.unknown_child("sysex-commands", child, &["command"]);
+            continue;
+        }
+        cx.node(child, "sysex-commands/command");
+        let name = cx.name(child);
+        if !names.insert(name.clone()) {
+            cx.err(child.pos, format!("duplicate SysEx command `{name}`"));
+        }
+        let meta = cx.meta(child);
+        let value = cx.prop_u32(child, "byte");
+        if value.is_some_and(|v| v > 0x7f) {
+            cx.err(child.pos, "SysEx command byte must be 7-bit");
+        }
+        match (value, meta.status) {
+            (None, Some(Status::Unknown)) | (Some(_), Some(Status::Measured | Status::Decoded)) => {}
+            _ => cx.err(child.pos, "known command bytes need measured or decoded status; an unknown command must omit its byte"),
+        }
+        commands.push(SysexCommand {
+            meta,
+            name,
+            byte: value.and_then(|v| u8::try_from(v).ok()),
+        });
+    }
+    SysexCommands {
+        meta: cx.meta(n),
+        model_id,
+        length_style,
+        commands,
+    }
+}
+
+fn catalog(cx: &mut Cx, n: &RawNode) -> Catalog {
+    cx.node(n, "catalog");
+    let order = cx.prop_u32(n, "order");
+    let order = cx.required(n, "order", order).unwrap_or_default();
+    let name = cx.prop_str(n, "name");
+    let name = cx.required(n, "name", name).unwrap_or_default();
+    let mut catalog = Catalog {
+        meta: cx.meta(n),
+        order,
+        name,
+        localized_name: cx.prop_str(n, "localized-name"),
+        scenes: cx.prop_u32(n, "scenes"),
+        scene_size: cx.prop_u32(n, "scene-size"),
+        global_size: cx.prop_u32(n, "global-size"),
+        extensions: Vec::new(),
+        factory_files: Vec::new(),
+    };
+    for child in &n.children {
+        match child.name.as_str() {
+            "extension" => {
+                cx.node(child, "catalog/extension");
+                if let Some(extension) = cx.arg_str(child, 0) {
+                    catalog.extensions.push(CatalogExtension {
+                        extension,
+                        os_type: cx.prop_str(child, "os-type"),
+                    });
+                }
+            }
+            "factory-file" => {
+                cx.node(child, "catalog/factory-file");
+                if let Some(path) = cx.arg_with(child, 0, asset_path) {
+                    catalog.factory_files.push(path);
+                }
+            }
+            _ => cx.unknown_child("catalog", child, &["extension", "factory-file"]),
+        }
+    }
+    catalog
 }
 
 fn device(cx: &mut Cx, n: &RawNode) -> Device {
@@ -1042,6 +1685,7 @@ fn panel(cx: &mut Cx, n: &RawNode) -> Panel {
         picture: cx.prop_with(n, "picture", parse_size),
         image: cx.prop_with(n, "image", asset_path),
         source: cx.prop_str(n, "source"),
+        binding_inferred: cx.prop_bool(n, "binding-inferred"),
         items: panel_items(cx, &n.children),
     }
 }
@@ -1116,6 +1760,9 @@ fn panel_items(cx: &mut Cx, nodes: &[RawNode]) -> Vec<PanelItem> {
                     bbox: cx.prop_with(n, "box", parse_box),
                     bind: cx.prop_with(n, "bind", Path::parse),
                     live: cx.prop_str(n, "live"),
+                    key_black: cx.prop_bool(n, "key-black"),
+                    element_index: cx.prop_u32(n, "element-index"),
+                    jog_binding: cx.prop_bool(n, "jog-binding"),
                 }));
             }
             "repeat" => {

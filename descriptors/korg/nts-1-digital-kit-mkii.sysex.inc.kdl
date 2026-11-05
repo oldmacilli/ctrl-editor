@@ -1,0 +1,4 @@
+// Generated SysEx table; do not edit.
+cdl "0.1"
+sysex-commands  status="unknown" evidence="KORG protocol analysis" {
+}

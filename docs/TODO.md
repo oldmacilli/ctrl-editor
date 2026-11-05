@@ -165,6 +165,13 @@ first, DB-1 on them, KORG behind adapters. No rename of working crates.
   `db1-protocol` test vector reproduced byte for byte
 - [ ] platform+korg: adapters so the engine and front ends can drive
   `korg-core` unchanged (`EditorController`, `MeasuredSession`, `run_job`)
+- [ ] platform+korg: publish the shared `korg-model`, `korg-format`,
+  `korg-midi`, `korg-storage`, `korg-sysex`, `korg-devices`, `korg-core`,
+  `korg-midi-midir`, `korg-app`, `korg-cli`, `korg-tui` and `korg-slint`
+  bridges, pin them from the KORG workspace,
+  and remove the duplicates after cross-repository compatibility tests pass.
+  Local source-parity, adapter and frontend tests pass; KORG still uses its
+  own copies, and packaging still needs a reproducible shared revision.
 - [ ] korg: first KORG device on CDL (nanoKONTROL Studio): its CDL vectors
   reproduce `korg-sysex` and `MeasuredSession` output byte for byte; hardware
   checklist on USB and BLE

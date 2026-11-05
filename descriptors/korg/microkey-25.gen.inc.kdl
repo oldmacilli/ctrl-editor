@@ -8,8 +8,8 @@ device "korg.microkey-25" {
     model "microKEY-25"
     class "X11810"
     file-key "1181"
-    image "assets/microkey-25/thumbnail.png" role="thumbnail"
-    image "assets/microkey-25/list-icon.png" role="list-icon"
+    image "X11810.png" role="external-thumbnail"
+    image "X11810-panel.png" role="external-panel"
 }
 
 block "scene" size=256 count=1 status="decoded" evidence="KORG analysis/products/catalog.json (factory data)"
@@ -116,4 +116,4 @@ labels "en" source="KORG KONTROL EDITOR UI strings" {
     }
 }
 
-panel picture="598x211" image="assets/microkey-25/panel.png" source="KORG KONTROL EDITOR panel picture" status="decoded" evidence="KORG KONTROL EDITOR panel picture"
+panel picture="598x211" source="KORG KONTROL EDITOR panel picture" status="decoded" evidence="KORG KONTROL EDITOR panel picture"

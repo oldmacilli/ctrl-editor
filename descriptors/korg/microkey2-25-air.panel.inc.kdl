@@ -1,0 +1,10 @@
+// Generated from the KORG panel baseline; do not edit by hand.
+cdl "0.1"
+panel picture="598x211" binding-inferred=#false source="KORG editor panel geometry; positions estimated by eye" status="inferred" evidence="Panel geometry estimated by eye" {
+    control "control-0" kind="jog" label="Joystick" group="Joystick" box="42,76,44,44" status="inferred" evidence="Control geometry estimated by eye"
+    control "control-1" kind="button" label="Arpeggiator" group="Arpeggiator" box="35,132,11,12" status="inferred" evidence="Control geometry estimated by eye"
+    control "control-2" kind="button" label="Sustain" group="Sustain Button" box="71,132,11,12" status="inferred" evidence="Control geometry estimated by eye"
+    control "control-3" kind="button" label="Octave Down" group="Octave" box="35,158,11,12" status="inferred" evidence="Control geometry estimated by eye"
+    control "control-4" kind="button" label="Octave Up" group="Octave" box="72,158,11,12" status="inferred" evidence="Control geometry estimated by eye"
+    control "control-5" kind="key" label="Keyboard" group="Keyboard" box="105,67,445,115" status="inferred" evidence="Control geometry estimated by eye"
+}

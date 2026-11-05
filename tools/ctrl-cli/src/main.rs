@@ -183,6 +183,12 @@ fn check_images(d: &Descriptor) -> bool {
         .device
         .images
         .iter()
+        .filter(|i| {
+            !matches!(
+                i.role.as_deref(),
+                Some("external-thumbnail" | "external-panel")
+            )
+        })
         .map(|i| (i.meta.pos, i.path.as_str()))
         .chain(
             d.panel

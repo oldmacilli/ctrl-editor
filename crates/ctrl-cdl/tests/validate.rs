@@ -11,6 +11,26 @@ fn errors(body: &str) -> Vec<String> {
     findings(body, Severity::Error)
 }
 
+#[test]
+fn global_fields_must_fit_the_known_global_block() {
+    for field in ["name-offset=7 name-width=2", "bpm-offset=7"] {
+        let body = format!(
+            "catalog order=0 name=\"test\" global-size=8\nglobal-fields {field} status=\"decoded\""
+        );
+        assert!(errors(&body)
+            .iter()
+            .any(|e| e.contains("outside the global")));
+    }
+}
+
+#[test]
+fn global_ui_binding_must_fit_the_global_block() {
+    let body = "catalog order=0 name=\"test\" global-size=8\nglobal-fields status=\"decoded\" { binding \"channel\" offset=8 status=\"decoded\" }";
+    assert!(errors(body)
+        .iter()
+        .any(|e| e.contains("outside the global")));
+}
+
 fn findings(body: &str, severity: Severity) -> Vec<String> {
     let text = format!("cdl \"0.1\"\ndevice \"t.x\"\n{body}");
     let d = parse_str("t.ctrl.kdl", &text).unwrap_or_else(|e| panic!("{e}"));
@@ -25,6 +45,72 @@ fn findings(body: &str, severity: Severity) -> Vec<String> {
 fn assert_one(found: Vec<String>, needle: &str) {
     assert_eq!(found.len(), 1, "{found:#?}");
     assert!(found[0].contains(needle), "{found:#?}");
+}
+
+#[test]
+fn panel_rejects_conflicting_bindings_and_key_colors() {
+    assert_one(
+        errors("panel { control \"x\" kind=\"jog\" element-index=1 jog-binding=#true }"),
+        "cannot bind both",
+    );
+    assert_one(
+        errors("panel { control \"x\" kind=\"pad\" key-black=#true }"),
+        "only valid on a key",
+    );
+    assert_one(errors("block \"s\" size=1 status=\"measured\"\npanel { control \"x\" kind=\"pad\" bind=\"s\" element-index=1 }"), "cannot combine bind");
+    assert_one(errors("block \"s\" size=1 status=\"measured\"\npanel { control \"x\" kind=\"jog\" bind=\"s\" jog-binding=#true }"), "cannot combine bind");
+}
+
+#[test]
+fn control_assignments_reject_offsets_outside_known_scene_size() {
+    let body = "catalog order=0 name=\"test\" scene-size=8\ncontrol-assignments { assign group=\"g\" label=\"x\" kind=\"note\" number-offset=8 }";
+    assert!(errors(body).iter().any(|e| e.contains("outside the scene")));
+    let jog = "catalog order=0 name=\"test\" scene-size=8\ncontrol-assignments { assign group=\"g\" label=\"x\" codec=\"jog-config\" codec-offset=0 }";
+    assert!(errors(jog).iter().any(|e| e.contains("outside the scene")));
+    let detail = "catalog order=0 name=\"test\" scene-size=8\ncontrol-assignments { assign group=\"g\" label=\"x\" kind=\"note\" description=\"d\" detail-offset=8 { detail 0 text=\"v\"; } }";
+    assert!(errors(detail)
+        .iter()
+        .any(|e| e.contains("outside the scene")));
+    for route in ["offset=7 count=2", "offset=0 if-offset=8 if-not-value=1"] {
+        let body = format!("catalog order=0 name=\"test\" scene-size=8\ncontrol-assignments {{ assign group=\"g\" label=\"x\" kind=\"note\" {{ live-number {route} }} }}");
+        assert!(errors(&body)
+            .iter()
+            .any(|e| e.contains("outside the scene")));
+    }
+    let global =
+        "catalog order=0 name=\"test\" global-size=8\ncontrol-assignments global-channel-offset=8";
+    assert!(errors(global)
+        .iter()
+        .any(|e| e.contains("outside the global")));
+}
+
+#[test]
+fn editor_pages_reject_offsets_outside_known_scene_size() {
+    for field in [
+        "offset=8 kind=\"number\" min=0 max=127",
+        "offset=0 kind=\"number\" min=0 max=127 enabled-if-offset=8 enabled-if-value=1",
+        "offset=0 kind=\"optional-number\" min=0 max=127 note-if-offset=8 note-if-value=1",
+        "offset=0 kind=\"text\" width=9",
+        "offset=0 kind=\"number\" min=0 max=127 min-from-offset=8",
+    ] {
+        let body = format!("catalog order=0 name=\"test\" scene-size=8\neditor-pages default=\"a\" {{ page \"a\" {{ field \"f\" {field} }} }}");
+        assert!(
+            errors(&body)
+                .iter()
+                .any(|e| e.contains("outside the scene")),
+            "{field}"
+        );
+    }
+}
+
+#[test]
+fn parameter_layout_rejects_invalid_bit_ranges_and_repeated_offsets() {
+    let head = "parameter-layouts status=\"decoded\" {\n layout \"scene\" order=0 size=8 elements=2 stride=6 version=1 {\n";
+    let tail = "\n }\n}";
+    let invalid_mask = format!("{head} parameter \"p\" id=0 offset=0 width=1 shift=5 mask=255 min=0 max=3 bias=0 kind=\"number\" default-source=\"unknown\"{tail}");
+    assert_one(errors(&invalid_mask), "mask does not fit");
+    let invalid_offset = format!("{head} parameter \"p\" id=0 offset=2 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind=\"number\" default-source=\"unknown\"{tail}");
+    assert_one(errors(&invalid_offset), "outside the payload");
 }
 
 const DB1_LIKE: &str = r#"

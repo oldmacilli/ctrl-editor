@@ -3,3 +3,11 @@
 cdl "0.1"
 include "common.inc.kdl"
 include "nanokontrol2.gen.inc.kdl"
+
+include "nanokontrol2.panel.inc.kdl"
+
+include "nanokontrol2.catalog.inc.kdl"
+
+include "nanokontrol2.sysex.inc.kdl"
+
+include "nanokontrol2.parameters.inc.kdl"

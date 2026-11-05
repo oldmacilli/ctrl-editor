@@ -1,0 +1,7 @@
+// Generated catalog metadata; do not edit.
+cdl "0.1"
+catalog order=15 name="NTS-3 kaoss pad kit" status="decoded" evidence="KORG product catalog" {
+    extension "nts3"
+    extension "nts3prog"
+    extension "nts3unit"
+}

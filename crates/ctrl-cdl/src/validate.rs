@@ -64,6 +64,10 @@ pub fn validate(d: &Descriptor) -> Report {
     };
     v.types();
     v.blocks();
+    v.parameter_layouts();
+    v.editor_pages();
+    v.control_assignments();
+    v.global_fields();
     v.transports();
     v.messages();
     v.procedures();
@@ -98,6 +102,34 @@ enum Target<'d> {
 }
 
 impl<'d> V<'d> {
+    fn global_fields(&mut self) {
+        let Some(fields) = self.d.global_fields.as_ref() else {
+            return;
+        };
+        let Some(size) = self
+            .d
+            .catalog
+            .as_ref()
+            .and_then(|catalog| catalog.global_size)
+        else {
+            self.error(fields.meta.pos, "global fields require a known global size");
+            return;
+        };
+        if fields
+            .name_offset
+            .zip(fields.name_width)
+            .is_some_and(|(offset, width)| offset.checked_add(width).is_none_or(|end| end > size))
+            || fields
+                .bpm_offset
+                .is_some_and(|offset| offset.checked_add(2).is_none_or(|end| end > size))
+            || fields.bindings.iter().any(|binding| binding.offset >= size)
+        {
+            self.error(
+                fields.meta.pos,
+                "global field extends outside the global block",
+            );
+        }
+    }
     fn push(&mut self, severity: Severity, pos: Pos, message: impl Into<String>) {
         let error = self.d.error_at(pos, message);
         self.findings.push(Finding { severity, error });
@@ -127,6 +159,149 @@ impl<'d> V<'d> {
     }
 
     // ---- types and blocks -------------------------------------------------
+
+    fn control_assignments(&mut self) {
+        if let Some((assignments, size)) = self.d.control_assignments.as_ref().zip(
+            self.d
+                .catalog
+                .as_ref()
+                .and_then(|catalog| catalog.global_size),
+        ) {
+            if assignments
+                .global_channel_offset
+                .is_some_and(|offset| offset >= size)
+            {
+                self.error(
+                    assignments.meta.pos,
+                    "global MIDI channel offset extends outside the global block",
+                );
+            }
+        }
+        let Some((assignments, size)) = self.d.control_assignments.as_ref().zip(
+            self.d
+                .catalog
+                .as_ref()
+                .and_then(|catalog| catalog.scene_size),
+        ) else {
+            return;
+        };
+        for item in &assignments.assignments {
+            if item
+                .codec_offset
+                .is_some_and(|offset| offset.checked_add(9).is_none_or(|end| end > size))
+                || [
+                    item.kind_offset,
+                    item.number_offset,
+                    item.channel_offset,
+                    item.detail_offset,
+                ]
+                .into_iter()
+                .flatten()
+                .any(|offset| offset >= size)
+                || item.live_numbers.iter().any(|route| {
+                    route
+                        .offset
+                        .checked_add(route.count)
+                        .is_none_or(|end| end > size)
+                        || route.if_offset.is_some_and(|offset| offset >= size)
+                })
+            {
+                self.error(
+                    assignments.meta.pos,
+                    format!(
+                        "control assignment `{}` extends outside the scene",
+                        item.label
+                    ),
+                );
+            }
+        }
+    }
+
+    fn editor_pages(&mut self) {
+        let Some((pages, size)) = self.d.editor_pages.as_ref().zip(
+            self.d
+                .catalog
+                .as_ref()
+                .and_then(|catalog| catalog.scene_size),
+        ) else {
+            return;
+        };
+        for page in &pages.pages {
+            for field in &page.fields {
+                if (field.kind != "heading" && field.offset >= size)
+                    || field.enabled_if_offset.is_some_and(|offset| offset >= size)
+                    || field.note_if_offset.is_some_and(|offset| offset >= size)
+                    || field.hidden_if_offset.is_some_and(|offset| offset >= size)
+                    || field.min_from_offset.is_some_and(|offset| offset >= size)
+                    || field.max_from_offset.is_some_and(|offset| offset >= size)
+                    || field.width.is_some_and(|width| {
+                        field.offset.checked_add(width).is_none_or(|end| end > size)
+                    })
+                {
+                    self.error(
+                        pages.meta.pos,
+                        format!(
+                            "editor page field `{}` extends outside the scene",
+                            field.label
+                        ),
+                    );
+                }
+            }
+        }
+    }
+
+    fn parameter_layouts(&mut self) {
+        let Some(layouts) = &self.d.parameter_layouts else {
+            return;
+        };
+        if layouts.meta.status == Some(Status::Unknown) && !layouts.layouts.is_empty() {
+            self.error(
+                layouts.meta.pos,
+                "unknown parameter layouts must not contain fields",
+            );
+        }
+        for layout in &layouts.layouts {
+            for parameter in &layout.parameters {
+                let bits = parameter.width.saturating_mul(8);
+                if !(1..=4).contains(&parameter.width)
+                    || parameter.shift >= bits
+                    || u64::from(parameter.mask)
+                        > ((1u64 << bits.min(32)) - 1) >> parameter.shift.min(32)
+                {
+                    self.error(
+                        parameter.meta.pos,
+                        format!(
+                            "parameter `{}`: mask does not fit its width and shift",
+                            parameter.key
+                        ),
+                    );
+                }
+                let end = u64::from(layout.elements.saturating_sub(1))
+                    .checked_mul(u64::from(layout.stride))
+                    .and_then(|base| base.checked_add(u64::from(parameter.offset)))
+                    .and_then(|base| base.checked_add(u64::from(parameter.width)));
+                if end.is_none_or(|end| end > u64::from(layout.size)) {
+                    self.error(
+                        parameter.meta.pos,
+                        format!("parameter `{}` extends outside the payload", parameter.key),
+                    );
+                }
+                if parameter.kind == "enum"
+                    && !parameter.labels.is_empty()
+                    && (i128::from(parameter.max) - i128::from(parameter.min) + 1)
+                        != parameter.labels.len() as i128
+                {
+                    self.error(
+                        parameter.meta.pos,
+                        format!(
+                            "parameter `{}` label count does not match its range",
+                            parameter.key
+                        ),
+                    );
+                }
+            }
+        }
+    }
 
     fn types(&mut self) {
         for t in &self.d.types {
@@ -1617,6 +1792,21 @@ impl<'d> V<'d> {
             for item in items {
                 match item {
                     PanelItem::Control(c) => {
+                        if c.element_index.is_some() && c.jog_binding {
+                            v.error(
+                                c.meta.pos,
+                                "a control cannot bind both an element and the jog block (§13)",
+                            );
+                        }
+                        if c.bind.is_some() && (c.element_index.is_some() || c.jog_binding) {
+                            v.error(
+                                c.meta.pos,
+                                "cannot combine bind with element-index or jog-binding (§13)",
+                            );
+                        }
+                        if c.key_black && c.kind != ControlKind::Key {
+                            v.error(c.meta.pos, "key-black is only valid on a key control (§13)");
+                        }
                         if let Some(bind) = &c.bind {
                             v.path(c.meta.pos, bind);
                         }

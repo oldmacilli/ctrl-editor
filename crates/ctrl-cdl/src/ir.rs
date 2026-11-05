@@ -60,6 +60,23 @@ pub struct Descriptor {
     /// The descriptor first, then its includes, in load order.
     pub files: Vec<String>,
     pub device: Device,
+    /// Optional editor catalog metadata, separate from protocol identity.
+    #[serde(default)]
+    pub catalog: Option<Catalog>,
+    /// Optional command-byte table recovered for a SysEx device.
+    #[serde(default)]
+    pub sysex_commands: Option<SysexCommands>,
+    /// Optional ordered editor parameter layouts for this device.
+    #[serde(default)]
+    pub parameter_layouts: Option<ParameterLayouts>,
+    /// Optional declarative editor pages.
+    #[serde(default)]
+    pub editor_pages: Option<EditorPages>,
+    #[serde(default)]
+    pub control_assignments: Option<ControlAssignments>,
+    /// Optional global text and tempo fields, loaded from the descriptor.
+    #[serde(default)]
+    pub global_fields: Option<GlobalFields>,
     pub identify: Vec<Matcher>,
     pub transports: Vec<Transport>,
     pub types: Vec<TypeDef>,
@@ -151,6 +168,199 @@ pub struct Device {
     pub replaces: Option<String>,
     /// `image "assets/x.png" role="thumbnail"`, relative to the descriptor.
     pub images: Vec<Picture>,
+}
+
+/// Device-list and factory-file metadata for an editor.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Catalog {
+    pub meta: Meta,
+    pub order: u32,
+    pub name: String,
+    pub localized_name: Option<String>,
+    pub scenes: Option<u32>,
+    pub scene_size: Option<u32>,
+    pub global_size: Option<u32>,
+    pub extensions: Vec<CatalogExtension>,
+    pub factory_files: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CatalogExtension {
+    pub extension: String,
+    pub os_type: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SysexCommands {
+    pub meta: Meta,
+    pub model_id: Option<u32>,
+    pub length_style: Option<String>,
+    pub commands: Vec<SysexCommand>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SysexCommand {
+    pub meta: Meta,
+    pub name: String,
+    pub byte: Option<u8>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ParameterLayouts {
+    pub meta: Meta,
+    pub layouts: Vec<ParameterLayout>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GlobalFields {
+    pub meta: Meta,
+    pub name_offset: Option<u32>,
+    pub name_width: Option<u32>,
+    pub bpm_offset: Option<u32>,
+    pub bindings: Vec<GlobalBinding>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GlobalBinding {
+    pub meta: Meta,
+    pub name: String,
+    pub offset: u32,
+    pub choices: Vec<GlobalChoice>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GlobalChoice {
+    pub meta: Meta,
+    pub label: String,
+    pub value: u8,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ParameterLayout {
+    pub meta: Meta,
+    pub payload: String,
+    pub order: u32,
+    pub size: u32,
+    pub elements: u32,
+    pub stride: u32,
+    pub version: u32,
+    pub parameters: Vec<ParameterEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ParameterEntry {
+    pub meta: Meta,
+    pub key: String,
+    pub id: u32,
+    pub offset: u32,
+    pub width: u32,
+    pub shift: u32,
+    pub mask: u32,
+    pub min: i64,
+    pub max: i64,
+    pub bias: i64,
+    pub kind: String,
+    pub default: Option<i64>,
+    pub default_source: String,
+    pub labels: Vec<String>,
+    pub display_label: Option<String>,
+    pub display_choices: Vec<String>,
+    pub display_choices_inferred: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct EditorPages {
+    pub meta: Meta,
+    pub default_page: String,
+    pub selectors: Vec<PageSelector>,
+    pub pages: Vec<EditorPage>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ControlAssignments {
+    pub meta: Meta,
+    pub global_channel_offset: Option<u32>,
+    pub assignments: Vec<ControlAssignment>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ControlAssignment {
+    pub meta: Meta,
+    pub group: String,
+    pub label: String,
+    pub codec: Option<String>,
+    pub codec_offset: Option<u32>,
+    pub kind: Option<String>,
+    pub kind_offset: Option<u32>,
+    pub fallback: Option<String>,
+    pub values: Vec<ControlAssignmentMap>,
+    pub number: Option<u8>,
+    pub number_offset: Option<u32>,
+    pub number_required: bool,
+    pub channel_offset: Option<u32>,
+    pub channel_required: bool,
+    pub description: Option<String>,
+    pub detail_offset: Option<u32>,
+    pub details: Vec<ControlAssignmentDetail>,
+    pub live_numbers: Vec<LiveNumber>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LiveNumber {
+    pub offset: u32,
+    pub count: u32,
+    pub max: u8,
+    pub if_offset: Option<u32>,
+    pub if_not_value: Option<u8>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ControlAssignmentDetail {
+    pub meta: Meta,
+    pub value: u8,
+    pub text: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ControlAssignmentMap {
+    pub meta: Meta,
+    pub value: u8,
+    pub kind: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PageSelector {
+    pub group: Option<String>,
+    pub label: Option<String>,
+    pub page: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct EditorPage {
+    pub name: String,
+    pub fields: Vec<EditorPageField>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct EditorPageField {
+    pub meta: Meta,
+    pub label: String,
+    pub offset: u32,
+    pub kind: String,
+    pub min: Option<i64>,
+    pub max: Option<i64>,
+    pub bias: Option<i64>,
+    pub enabled_if_offset: Option<u32>,
+    pub enabled_if_value: Option<u32>,
+    pub enabled_if_not_value: Option<u32>,
+    pub note_if_offset: Option<u32>,
+    pub note_if_value: Option<u32>,
+    pub hidden_if_offset: Option<u32>,
+    pub hidden_if_values: Vec<u32>,
+    pub width: Option<u32>,
+    pub min_from_offset: Option<u32>,
+    pub max_from_offset: Option<u32>,
+    pub choices: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -452,6 +662,9 @@ pub struct Panel {
     /// The panel picture's file, relative to the descriptor.
     pub image: Option<String>,
     pub source: Option<String>,
+    /// Whether control-to-parameter binding order is inferred.
+    #[serde(default)]
+    pub binding_inferred: bool,
     pub items: Vec<PanelItem>,
 }
 
@@ -499,6 +712,15 @@ pub struct Control {
     pub bind: Option<Path>,
     /// A reply capture that feeds a meter, `poll.breath`.
     pub live: Option<String>,
+    /// A raised black key, rather than a white key.
+    #[serde(default)]
+    pub key_black: bool,
+    /// Index into the device's parameter-schema element array.
+    #[serde(default)]
+    pub element_index: Option<u32>,
+    /// Selects the device-specific jog parameter block.
+    #[serde(default)]
+    pub jog_binding: bool,
 }
 
 /// A box coordinate: a number, or `{expr}` inside a `repeat`.

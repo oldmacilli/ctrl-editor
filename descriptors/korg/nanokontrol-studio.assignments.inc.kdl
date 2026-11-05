@@ -1,0 +1,276 @@
+cdl "0.1"
+control-assignments global-channel-offset=0 status="decoded" evidence="KORG editor behavior and measured scene layouts" {
+    assign group="Jog Wheel" label="Jog Wheel" codec="jog-config" codec-offset=512
+    assign group="Scene" label="Scene" kind="no-assign" description="Scene · switches scenes, sends no note or CC" detail-offset=12 {
+        detail 0 text="LED Mode Internal" status="inferred" evidence="Editor choice order"
+        detail 1 text="LED Mode External (host drives the LEDs)" status="inferred" evidence="Editor choice order"
+    }
+    assign group="Knob" label="Knob 1" kind-offset=17 fallback="undecoded" number-offset=18 number-required=#true channel-offset=16 channel-required=#true {
+        map 0 kind="control-change"
+    }
+    assign group="Knob" label="Knob 2" kind-offset=25 fallback="undecoded" number-offset=26 number-required=#true channel-offset=24 channel-required=#true {
+        map 0 kind="control-change"
+    }
+    assign group="Knob" label="Knob 3" kind-offset=33 fallback="undecoded" number-offset=34 number-required=#true channel-offset=32 channel-required=#true {
+        map 0 kind="control-change"
+    }
+    assign group="Knob" label="Knob 4" kind-offset=41 fallback="undecoded" number-offset=42 number-required=#true channel-offset=40 channel-required=#true {
+        map 0 kind="control-change"
+    }
+    assign group="Knob" label="Knob 5" kind-offset=49 fallback="undecoded" number-offset=50 number-required=#true channel-offset=48 channel-required=#true {
+        map 0 kind="control-change"
+    }
+    assign group="Knob" label="Knob 6" kind-offset=57 fallback="undecoded" number-offset=58 number-required=#true channel-offset=56 channel-required=#true {
+        map 0 kind="control-change"
+    }
+    assign group="Knob" label="Knob 7" kind-offset=65 fallback="undecoded" number-offset=66 number-required=#true channel-offset=64 channel-required=#true {
+        map 0 kind="control-change"
+    }
+    assign group="Knob" label="Knob 8" kind-offset=73 fallback="undecoded" number-offset=74 number-required=#true channel-offset=72 channel-required=#true {
+        map 0 kind="control-change"
+    }
+    assign group="Slider" label="Slider 1" kind-offset=81 fallback="undecoded" number-offset=82 number-required=#true channel-offset=80 channel-required=#true {
+        map 0 kind="control-change"
+    }
+    assign group="Slider" label="Slider 2" kind-offset=89 fallback="undecoded" number-offset=90 number-required=#true channel-offset=88 channel-required=#true {
+        map 0 kind="control-change"
+    }
+    assign group="Slider" label="Slider 3" kind-offset=97 fallback="undecoded" number-offset=98 number-required=#true channel-offset=96 channel-required=#true {
+        map 0 kind="control-change"
+    }
+    assign group="Slider" label="Slider 4" kind-offset=105 fallback="undecoded" number-offset=106 number-required=#true channel-offset=104 channel-required=#true {
+        map 0 kind="control-change"
+    }
+    assign group="Slider" label="Slider 5" kind-offset=113 fallback="undecoded" number-offset=114 number-required=#true channel-offset=112 channel-required=#true {
+        map 0 kind="control-change"
+    }
+    assign group="Slider" label="Slider 6" kind-offset=121 fallback="undecoded" number-offset=122 number-required=#true channel-offset=120 channel-required=#true {
+        map 0 kind="control-change"
+    }
+    assign group="Slider" label="Slider 7" kind-offset=129 fallback="undecoded" number-offset=130 number-required=#true channel-offset=128 channel-required=#true {
+        map 0 kind="control-change"
+    }
+    assign group="Slider" label="Slider 8" kind-offset=137 fallback="undecoded" number-offset=138 number-required=#true channel-offset=136 channel-required=#true {
+        map 0 kind="control-change"
+    }
+    assign group="Track Solo" label="Solo 1" kind-offset=145 fallback="undecoded" number-offset=146 number-required=#true channel-offset=144 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Solo" label="Solo 2" kind-offset=153 fallback="undecoded" number-offset=154 number-required=#true channel-offset=152 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Solo" label="Solo 3" kind-offset=161 fallback="undecoded" number-offset=162 number-required=#true channel-offset=160 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Solo" label="Solo 4" kind-offset=169 fallback="undecoded" number-offset=170 number-required=#true channel-offset=168 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Solo" label="Solo 5" kind-offset=177 fallback="undecoded" number-offset=178 number-required=#true channel-offset=176 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Solo" label="Solo 6" kind-offset=185 fallback="undecoded" number-offset=186 number-required=#true channel-offset=184 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Solo" label="Solo 7" kind-offset=193 fallback="undecoded" number-offset=194 number-required=#true channel-offset=192 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Solo" label="Solo 8" kind-offset=201 fallback="undecoded" number-offset=202 number-required=#true channel-offset=200 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Mute" label="Mute 1" kind-offset=209 fallback="undecoded" number-offset=210 number-required=#true channel-offset=208 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Mute" label="Mute 2" kind-offset=217 fallback="undecoded" number-offset=218 number-required=#true channel-offset=216 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Mute" label="Mute 3" kind-offset=225 fallback="undecoded" number-offset=226 number-required=#true channel-offset=224 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Mute" label="Mute 4" kind-offset=233 fallback="undecoded" number-offset=234 number-required=#true channel-offset=232 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Mute" label="Mute 5" kind-offset=241 fallback="undecoded" number-offset=242 number-required=#true channel-offset=240 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Mute" label="Mute 6" kind-offset=249 fallback="undecoded" number-offset=250 number-required=#true channel-offset=248 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Mute" label="Mute 7" kind-offset=257 fallback="undecoded" number-offset=258 number-required=#true channel-offset=256 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Mute" label="Mute 8" kind-offset=265 fallback="undecoded" number-offset=266 number-required=#true channel-offset=264 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Rec" label="Rec 1" kind-offset=273 fallback="undecoded" number-offset=274 number-required=#true channel-offset=272 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Rec" label="Rec 2" kind-offset=281 fallback="undecoded" number-offset=282 number-required=#true channel-offset=280 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Rec" label="Rec 3" kind-offset=289 fallback="undecoded" number-offset=290 number-required=#true channel-offset=288 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Rec" label="Rec 4" kind-offset=297 fallback="undecoded" number-offset=298 number-required=#true channel-offset=296 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Rec" label="Rec 5" kind-offset=305 fallback="undecoded" number-offset=306 number-required=#true channel-offset=304 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Rec" label="Rec 6" kind-offset=313 fallback="undecoded" number-offset=314 number-required=#true channel-offset=312 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Rec" label="Rec 7" kind-offset=321 fallback="undecoded" number-offset=322 number-required=#true channel-offset=320 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Rec" label="Rec 8" kind-offset=329 fallback="undecoded" number-offset=330 number-required=#true channel-offset=328 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Select" label="Select 1" kind-offset=337 fallback="undecoded" number-offset=338 number-required=#true channel-offset=336 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Select" label="Select 2" kind-offset=345 fallback="undecoded" number-offset=346 number-required=#true channel-offset=344 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Select" label="Select 3" kind-offset=353 fallback="undecoded" number-offset=354 number-required=#true channel-offset=352 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Select" label="Select 4" kind-offset=361 fallback="undecoded" number-offset=362 number-required=#true channel-offset=360 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Select" label="Select 5" kind-offset=369 fallback="undecoded" number-offset=370 number-required=#true channel-offset=368 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Select" label="Select 6" kind-offset=377 fallback="undecoded" number-offset=378 number-required=#true channel-offset=376 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Select" label="Select 7" kind-offset=385 fallback="undecoded" number-offset=386 number-required=#true channel-offset=384 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Track Select" label="Select 8" kind-offset=393 fallback="undecoded" number-offset=394 number-required=#true channel-offset=392 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Transport" label="Play" kind-offset=401 fallback="undecoded" number-offset=402 number-required=#true channel-offset=400 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Transport" label="Stop" kind-offset=409 fallback="undecoded" number-offset=410 number-required=#true channel-offset=408 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Transport" label="Rec" kind-offset=417 fallback="undecoded" number-offset=418 number-required=#true channel-offset=416 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Transport" label="Rewind" kind-offset=425 fallback="undecoded" number-offset=426 number-required=#true channel-offset=424 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Transport" label="Fast Fwd" kind-offset=433 fallback="undecoded" number-offset=434 number-required=#true channel-offset=432 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Transport" label="Cycle" kind-offset=441 fallback="undecoded" number-offset=442 number-required=#true channel-offset=440 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Transport" label="Return" kind-offset=449 fallback="undecoded" number-offset=450 number-required=#true channel-offset=448 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Transport" label="Set" kind-offset=457 fallback="undecoded" number-offset=458 number-required=#true channel-offset=456 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Transport" label="Marker ◀" kind-offset=465 fallback="undecoded" number-offset=466 number-required=#true channel-offset=464 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Transport" label="Marker ▶" kind-offset=473 fallback="undecoded" number-offset=474 number-required=#true channel-offset=472 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Transport" label="Track ◀" kind-offset=481 fallback="undecoded" number-offset=482 number-required=#true channel-offset=480 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+    assign group="Transport" label="Track ▶" kind-offset=489 fallback="undecoded" number-offset=490 number-required=#true channel-offset=488 channel-required=#true {
+        map 0 kind="control-change"
+        map 1 kind="note"
+        map 2 kind="no-assign"
+    }
+}

@@ -1,0 +1,65 @@
+cdl "0.1"
+editor-pages default="Common" status="decoded" evidence="KORG editor behavior" {
+    select "Common" group="Octave"
+    select "Pitch Button" group="Pitch Button"
+    select "Keyboard" group="Keyboard" label="Keyboard"
+    select "Sustain Button" group="Sustain Button" label="Sustain Button"
+    select "Mod Button" group="Mod Button" label="Mod Button"
+    page "Common" {
+        field "Key Mode MIDI Channel" offset=0 kind="channel-only"
+    }
+    page "Keyboard" {
+        field "Transpose" offset=8 kind="biased" min=-12 max=12 bias=64
+        field "Velocity Curve" offset=9 kind="choice" {
+            choice "Light"
+            choice "Normal"
+            choice "Heavy"
+            choice "Const"
+        }
+        field "Const Velocity Value" offset=10 kind="number" min=0 max=127 enabled-if-offset=9 enabled-if-value=3
+    }
+    page "Pitch Button" {
+        field "Pitch Bend Speed" offset=2 kind="choice" {
+            choice "No"
+            choice "Fast"
+            choice "Normal"
+            choice "Slow"
+        }
+    }
+    page "Sustain Button" {
+        field "Button Enable" offset=24 kind="choice" {
+            choice "Disable"
+            choice "Enable"
+        }
+        field "Button Behavior" offset=26 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+        field "CC Number" offset=25 kind="number" min=0 max=127
+        field "On Value" offset=28 kind="number" min=0 max=127
+        field "Off Value" offset=27 kind="number" min=0 max=127
+        field "Switch Speed" offset=29 kind="choice" {
+            choice "Immediate"
+            choice "Fast"
+            choice "Normal"
+        }
+    }
+    page "Mod Button" {
+        field "Button Enable" offset=16 kind="choice" {
+            choice "Disable"
+            choice "Enable"
+        }
+        field "Button Behavior" offset=18 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+        field "CC Number" offset=17 kind="number" min=0 max=127
+        field "On Value" offset=20 kind="number" min=0 max=127
+        field "Off Value" offset=19 kind="number" min=0 max=127
+        field "Switch Speed" offset=21 kind="choice" {
+            choice "Immediate"
+            choice "Fast"
+            choice "Normal"
+        }
+    }
+}

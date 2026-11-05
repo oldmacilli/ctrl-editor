@@ -1,0 +1,74 @@
+cdl "0.1"
+control-assignments global-channel-offset=0 status="decoded" evidence="KORG editor behavior and measured scene layouts" {
+    assign group="Knob" label="Knob 1" kind="control-change" number-offset=106 number-required=#true channel-offset=104
+    assign group="Knob" label="Knob 2" kind="control-change" number-offset=114 number-required=#true channel-offset=112
+    assign group="Knob" label="Knob 3" kind="control-change" number-offset=122 number-required=#true channel-offset=120
+    assign group="Knob" label="Knob 4" kind="control-change" number-offset=130 number-required=#true channel-offset=128
+    assign group="Knob" label="Knob 5" kind="control-change" number-offset=138 number-required=#true channel-offset=136
+    assign group="Knob" label="Knob 6" kind="control-change" number-offset=146 number-required=#true channel-offset=144
+    assign group="Knob" label="Knob 7" kind="control-change" number-offset=154 number-required=#true channel-offset=152
+    assign group="Knob" label="Knob 8" kind="control-change" number-offset=162 number-required=#true channel-offset=160
+    assign group="Trigger Pad" label="Pad 1" kind-offset=33 fallback="undecoded" number-offset=34 channel-offset=32 {
+        live-number offset=34 count=4 max=127
+        map 0 kind="note"
+        map 1 kind="control-change"
+        map 2 kind="program-change"
+        map 3 kind="no-assign"
+    }
+    assign group="Trigger Pad" label="Pad 2" kind-offset=41 fallback="undecoded" number-offset=42 channel-offset=40 {
+        live-number offset=42 count=4 max=127
+        map 0 kind="note"
+        map 1 kind="control-change"
+        map 2 kind="program-change"
+        map 3 kind="no-assign"
+    }
+    assign group="Trigger Pad" label="Pad 3" kind-offset=49 fallback="undecoded" number-offset=50 channel-offset=48 {
+        live-number offset=50 count=4 max=127
+        map 0 kind="note"
+        map 1 kind="control-change"
+        map 2 kind="program-change"
+        map 3 kind="no-assign"
+    }
+    assign group="Trigger Pad" label="Pad 4" kind-offset=57 fallback="undecoded" number-offset=58 channel-offset=56 {
+        live-number offset=58 count=4 max=127
+        map 0 kind="note"
+        map 1 kind="control-change"
+        map 2 kind="program-change"
+        map 3 kind="no-assign"
+    }
+    assign group="Trigger Pad" label="Pad 5" kind-offset=65 fallback="undecoded" number-offset=66 channel-offset=64 {
+        live-number offset=66 count=4 max=127
+        map 0 kind="note"
+        map 1 kind="control-change"
+        map 2 kind="program-change"
+        map 3 kind="no-assign"
+    }
+    assign group="Trigger Pad" label="Pad 6" kind-offset=73 fallback="undecoded" number-offset=74 channel-offset=72 {
+        live-number offset=74 count=4 max=127
+        map 0 kind="note"
+        map 1 kind="control-change"
+        map 2 kind="program-change"
+        map 3 kind="no-assign"
+    }
+    assign group="Trigger Pad" label="Pad 7" kind-offset=81 fallback="undecoded" number-offset=82 channel-offset=80 {
+        live-number offset=82 count=4 max=127
+        map 0 kind="note"
+        map 1 kind="control-change"
+        map 2 kind="program-change"
+        map 3 kind="no-assign"
+    }
+    assign group="Trigger Pad" label="Pad 8" kind-offset=89 fallback="undecoded" number-offset=90 channel-offset=88 {
+        live-number offset=90 count=4 max=127
+        map 0 kind="note"
+        map 1 kind="control-change"
+        map 2 kind="program-change"
+        map 3 kind="no-assign"
+    }
+    assign group="X-Y Pad" label="X-Y Pad" kind="control-change" number-offset=174 number-required=#true channel-offset=168 {
+        live-number offset=178
+        live-number offset=170 if-offset=169 if-not-value=1
+    }
+    assign group="Sustain" label="Sustain" kind="control-change" number=64 channel-offset=200
+    assign group="Touch Scale" label="Touch Scale" kind="control-change" number=19 channel-offset=192
+    assign group="Pitch/Mod" label="Pitch/Mod" kind="control-change" number=1
+}

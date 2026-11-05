@@ -1,0 +1,9 @@
+[package]
+name = "korg-sysex"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+thiserror.workspace = true

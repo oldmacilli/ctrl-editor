@@ -5,3 +5,11 @@ include "nts-1-digital-kit-mkii.gen.inc.kdl"
 
 // No KORG native SysEx descriptor was decoded for this device; its
 // protocol is not described yet.
+
+include "nts-1-digital-kit-mkii.panel.inc.kdl"
+
+include "nts-1-digital-kit-mkii.catalog.inc.kdl"
+
+include "nts-1-digital-kit-mkii.sysex.inc.kdl"
+
+include "nts-1-digital-kit-mkii.parameters.inc.kdl"

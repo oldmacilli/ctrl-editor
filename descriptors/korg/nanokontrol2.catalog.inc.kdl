@@ -1,0 +1,6 @@
+// Generated catalog metadata; do not edit.
+cdl "0.1"
+catalog order=2 name="nanoKONTROL2" localized-name="nanoKONTROL2" scenes=1 scene-size=339 status="decoded" evidence="KORG product catalog" {
+    extension "nktrl2_data" os-type="184D"
+    factory-file "nanoKONTROL2/nanoKONTROL2 Scene Data.nktrl2_data"
+}

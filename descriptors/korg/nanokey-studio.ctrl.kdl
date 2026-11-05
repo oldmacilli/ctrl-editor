@@ -66,20 +66,9 @@ procedure "write-scene-set" kind="write" status="measured" {
 }
 
 // Panel: korg_app::panel nanokey_studio(), picture 500 x 294.
-panel picture="500x294" source="measured by eye from the editor's panel picture" {
-    control "xy" kind="touchpad" label="X-Y Pad" group="X-Y Pad" box="190,42,108,80"
-    control "knob1" kind="knob" label="Knob 1" group="Knob" box="24,41,28,28"
-    control "knob2" kind="knob" label="Knob 2" group="Knob" box="63,41,28,28"
-    control "knob3" kind="knob" label="Knob 3" group="Knob" box="102,41,28,28"
-    control "knob4" kind="knob" label="Knob 4" group="Knob" box="142,41,28,28"
-    control "knob5" kind="knob" label="Knob 5" group="Knob" box="24,86,28,28"
-    control "knob6" kind="knob" label="Knob 6" group="Knob" box="63,86,28,28"
-    control "knob7" kind="knob" label="Knob 7" group="Knob" box="102,86,28,28"
-    control "knob8" kind="knob" label="Knob 8" group="Knob" box="142,86,28,28"
-}
 
 firmware status="unknown"
-procedure "calibrate-touch-pad" kind="commit" status="unknown" evidence="X14800_Calib class in the vendor application; needs a capture"
+procedure "calibrate-touch-pad" kind="commit" status="unknown" evidence="KORG calibration analysis; needs a capture"
 
 // Byte for byte from korg-sysex's capture tests, device id 0F.
 test-vector "identity-reply" message="identity" reply=#true status="measured" evidence="korg-sysex identity_replies_parse_for_both_studios" {
@@ -103,3 +92,16 @@ test-vector "scene-read" message="read-block-request" reply=#true variant="scene
     data "data" "53 74 61 6E 64 61 72 64 20 20 20 20 FF FF FF FF 08 FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF 08 01 64 80 80 80 00 FF 08 01 65 80 80 80 00 FF 08 01 66 80 80 80 00 FF 08 01 67 80 80 80 00 FF 08 01 68 80 80 80 00 FF 08 01 69 80 80 80 00 FF 08 01 6A 80 80 80 00 FF 08 01 6B 80 80 80 00 FF 08 FF FF FF FF FF FF FF 08 00 14 00 7F FF FF FF 08 00 15 00 7F FF FF FF 08 00 16 00 7F FF FF FF 08 00 17 00 7F FF FF FF 08 00 18 00 7F FF FF FF 08 00 19 00 7F FF FF FF 08 00 1A 00 7F FF FF FF 08 00 1B 00 7F FF FF FF 08 01 12 00 7F 00 11 00 7F 00 12 00 7F FF FF FF 00 01 00 7F FF FF FF 00 08 00 13 00 7F FF FF FF 08 00 40 00 7F 00 FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF"
     bytes "F0 42 4F 00 01 36 14 02 00 40 00 53 74 61 6E 64 61 72 60 64 20 20 20 20 7F 7F 7B 7F 7F 08 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 0F 7F 7F 7F 7F 08 01 64 17 00 00 00 00 7F 08 01 2E 65 00 00 00 00 7F 08 5C 01 66 00 00 00 00 7F 38 08 01 67 00 00 00 00 71 7F 08 01 68 00 00 00 62 00 7F 08 01 69 00 00 45 00 00 7F 08 01 6A 00 0B 00 00 00 7F 08 01 6B 57 00 00 00 00 7F 08 7F 3F 7F 7F 7F 7F 7F 7F 08 70 00 14 00 7F 7F 7F 7F 60 08 00 15 00 7F 7F 7F 41 7F 08 00 16 00 7F 7F 03 7F 7F 08 00 17 00 7F 07 7F 7F 7F 08 00 18 00 0E 7F 7F 7F 7F 08 00 19 1C 00 7F 7F 7F 7F 08 00 38 1A 00 7F 7F 7F 7F 08 70 00 1B 00 7F 7F 7F 7F 00 08 01 12 00 7F 00 11 40 00 7F 00 12 00 7F 7F 43 7F 7F 00 01 00 7F 7F 03 7F 7F 00 08 00 13 00 0E 7F 7F 7F 7F 08 00 40 78 00 7F 00 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 7F 03 7F 7F F7"
 }
+
+include "nanokey-studio.panel.inc.kdl"
+
+include "nanokey-studio.catalog.inc.kdl"
+
+include "nanokey-studio.sysex.inc.kdl"
+
+include "nanokey-studio.parameters.inc.kdl"
+
+include "nanokey-studio.pages.inc.kdl"
+
+include "nanokey-studio.assignments.inc.kdl"
+include "nanokey-studio.global.inc.kdl"

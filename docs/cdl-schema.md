@@ -14,6 +14,304 @@ Every node also takes:
 | `evidence` | where the fact comes from: a capture or code |
 | `note` | free text |
 
+## `control-assignments`
+
+Control-to-MIDI assignment decoding. (§4)
+
+- Arguments: none
+- Children: yes
+
+| Property | Meaning |
+|---|---|
+| `global-channel-offset` | global MIDI channel byte |
+
+## `global-fields`
+
+Optional global fields. (§4)
+
+- Arguments: none
+- Children: yes
+
+| Property | Meaning |
+|---|---|
+| `name-offset` | device name offset |
+| `name-width` | device name width |
+| `bpm-offset` | little-endian BPM word offset |
+
+## `global-fields/binding`
+
+Named global UI byte binding. (§4)
+
+- Arguments: 1: field name
+- Children: yes
+
+| Property | Meaning |
+|---|---|
+| `offset` | global byte offset |
+
+## `global-fields/binding/choice`
+
+Explicit global UI choice. (§4)
+
+- Arguments: 1: UI label
+- Children: none
+
+| Property | Meaning |
+|---|---|
+| `value` | stored byte value |
+
+## `control-assignments/assign`
+
+One control assignment. (§4)
+
+- Arguments: none
+- Children: yes
+
+| Property | Meaning |
+|---|---|
+| `group` | control group |
+| `label` | control label |
+| `codec` | structured assignment codec |
+| `codec-offset` | scene byte offset for the structured record |
+| `kind` | fixed message kind |
+| `kind-offset` | scene byte for kind |
+| `fallback` | unmapped kind |
+| `number` | fixed MIDI number |
+| `number-offset` | scene byte for number |
+| `number-required` | require the number byte |
+| `channel-offset` | scene byte for channel |
+| `channel-required` | require the channel byte |
+| `description` | control description |
+| `detail-offset` | scene byte selecting a description suffix |
+
+## `control-assignments/assign/map`
+
+Map a stored byte to a message kind. (§4)
+
+- Arguments: 1: stored byte
+- Children: none
+
+| Property | Meaning |
+|---|---|
+| `kind` | message kind |
+
+## `control-assignments/assign/detail`
+
+Map a byte to an optional description suffix. (§4)
+
+- Arguments: 1: stored byte
+- Children: none
+
+| Property | Meaning |
+|---|---|
+| `text` | description suffix |
+
+## `control-assignments/assign/live-number`
+
+Additional MIDI numbers for live indication. (§4)
+
+- Arguments: none
+- Children: none
+
+| Property | Meaning |
+|---|---|
+| `offset` | first scene byte |
+| `count` | number of bytes |
+| `max` | maximum MIDI number (0..127, default 127) |
+| `if-offset` | condition byte |
+| `if-not-value` | disabled when equal |
+
+## `editor-pages`
+
+Declarative editor pages. (§4)
+
+- Arguments: none
+- Children: yes
+
+| Property | Meaning |
+|---|---|
+| `default` | default page name |
+
+## `editor-pages/select`
+
+Select a page for a control. (§4)
+
+- Arguments: 1: page name
+- Children: none
+
+| Property | Meaning |
+|---|---|
+| `group` | control group |
+| `label` | control label |
+
+## `editor-pages/page`
+
+Ordered fields of a page. (§4)
+
+- Arguments: 1: page name
+- Children: yes
+- Properties: none besides the common ones
+
+## `editor-pages/page/field`
+
+Editable field or heading. (§4)
+
+- Arguments: 1: field label
+- Children: yes
+
+| Property | Meaning |
+|---|---|
+| `offset` | scene byte offset |
+| `kind` | field kind |
+| `min` | minimum shown value |
+| `max` | maximum shown value |
+| `bias` | stored value bias |
+| `enabled-if-offset` | scene byte governing editability |
+| `enabled-if-value` | required byte value |
+| `enabled-if-not-value` | excluded byte value |
+| `note-if-offset` | scene byte governing note display |
+| `note-if-value` | note display byte value |
+| `hidden-if-offset` | scene byte governing visibility |
+| `width` | text width in bytes |
+| `min-from-offset` | scene byte setting the minimum |
+| `max-from-offset` | scene byte setting the maximum |
+
+## `editor-pages/page/field/choice`
+
+One ordered choice. (§4)
+
+- Arguments: 1: choice label
+- Children: none
+- Properties: none besides the common ones
+
+## `editor-pages/page/field/hide-if-value`
+
+Hide the field for this byte value. (§4)
+
+- Arguments: 1: byte value
+- Children: none
+- Properties: none besides the common ones
+
+## `parameter-layouts`
+
+Ordered parameter layouts for the device. (§4)
+
+- Arguments: none
+- Children: yes
+- Properties: none besides the common ones
+
+## `parameter-layouts/layout`
+
+One payload's editor parameter layout. (§4)
+
+- Arguments: 1: payload name
+- Children: yes
+
+| Property | Meaning |
+|---|---|
+| `order` | zero-based order among editor layouts |
+| `size` | payload size in bytes |
+| `elements` | number of repeated elements |
+| `stride` | element stride in bytes |
+| `version` | layout format version |
+
+## `parameter-layouts/layout/parameter`
+
+One ordered parameter, including its packed representation. (§4)
+
+- Arguments: 1: parameter key
+- Children: yes
+
+| Property | Meaning |
+|---|---|
+| `id` | parameter id |
+| `offset` | byte offset |
+| `width` | byte width |
+| `shift` | bit shift |
+| `mask` | logical bit mask |
+| `min` | minimum value |
+| `max` | maximum value |
+| `bias` | stored value bias |
+| `kind` | number or enum |
+| `default` | optional factory default |
+| `default-source` | factory or unknown |
+| `display-label` | optional editor label |
+| `display-choices-inferred` | fallback choices include inferred values |
+
+## `parameter-layouts/layout/parameter/label`
+
+One ordered enum label. (§4)
+
+- Arguments: 1: display label
+- Children: none
+- Properties: none besides the common ones
+
+## `parameter-layouts/layout/parameter/display-choice`
+
+One editor choice when enum labels are absent. (§4)
+
+- Arguments: 1: fallback choice
+- Children: none
+- Properties: none besides the common ones
+
+## `sysex-commands`
+
+Recovered device command table. (§8)
+
+- Arguments: none
+- Children: yes
+
+| Property | Meaning |
+|---|---|
+| `model-id` | optional 14-bit model id |
+| `length-style` | optional SysEx length encoding |
+
+## `sysex-commands/command`
+
+A measured, decoded or unknown command. (§8)
+
+- Arguments: 1: command name
+- Children: none
+
+| Property | Meaning |
+|---|---|
+| `byte` | known 7-bit command byte; omit for unknown |
+
+## `catalog`
+
+Editor catalog metadata. (§3)
+
+- Arguments: none
+- Children: yes
+
+| Property | Meaning |
+|---|---|
+| `order` | zero-based device-list order |
+| `name` | device-list display name |
+| `localized-name` | optional localized display name |
+| `scenes` | number of scenes |
+| `scene-size` | bytes in one scene |
+| `global-size` | bytes in the global block |
+
+## `catalog/extension`
+
+An accepted file extension. (§3)
+
+- Arguments: 1: filename extension
+- Children: none
+
+| Property | Meaning |
+|---|---|
+| `os-type` | optional legacy OS type |
+
+## `catalog/factory-file`
+
+A factory data file, supplied separately. (§3)
+
+- Arguments: 1: relative factory-file path
+- Children: none
+- Properties: none besides the common ones
+
 ## `cdl`
 
 First node of every file. (§2)
@@ -329,6 +627,7 @@ The device drawing. (§13)
 | `picture` | size, `550x329` |
 | `image` | a path below the file's directory |
 | `source` | where the layout comes from |
+| `binding-inferred` | parameter binding order is inferred |
 
 ## `panel/control`
 
@@ -345,6 +644,9 @@ One control on the drawing. (§13)
 | `box` | `x,y,w,h` in picture pixels; expressions allowed |
 | `bind` | the block path it edits |
 | `live` | `message.value` it shows |
+| `key-black` | a raised black keyboard key |
+| `element-index` | parameter schema element index |
+| `jog-binding` | select the device jog block |
 
 ## `panel/repeat`
 

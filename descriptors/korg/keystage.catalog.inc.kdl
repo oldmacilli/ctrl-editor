@@ -1,0 +1,9 @@
+// Generated catalog metadata; do not edit.
+cdl "0.1"
+catalog order=10 name="Keystage" localized-name="Keystage" scenes=16 scene-size=500 global-size=3667 status="decoded" evidence="KORG product catalog" {
+    extension "keystage_data" os-type="287D"
+    extension "keystage_glob" os-type="287G"
+    extension "keystage_set" os-type="287S"
+    factory-file "Keystage/Keystage Global Data.keystage_glob"
+    factory-file "Keystage/Keystage Scene Set.keystage_set"
+}

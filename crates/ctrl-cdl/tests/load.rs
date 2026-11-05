@@ -34,6 +34,270 @@ fn errors(text: &str) -> Vec<String> {
 const HEAD: &str = "cdl \"0.1\"\ndevice \"t.x\"\n";
 
 #[test]
+fn global_binding_choices_are_explicit_and_unique() {
+    let input = format!("{HEAD}global-fields status=\"decoded\" {{ binding \"battery\" offset=2 status=\"decoded\" {{ choice \"Alkaline\" value=0 status=\"decoded\" evidence=\"UI\"; choice \"Ni-MH\" value=1 status=\"inferred\" evidence=\"UI\" }} }}");
+    let descriptor = parse_str("test", &input).unwrap();
+    let choices = &descriptor.global_fields.unwrap().bindings[0].choices;
+    assert_eq!(
+        choices
+            .iter()
+            .map(|c| (c.label.as_str(), c.value))
+            .collect::<Vec<_>>(),
+        [("Alkaline", 0), ("Ni-MH", 1)]
+    );
+    assert!(!errors(&format!("{HEAD}global-fields {{ binding \"battery\" offset=2 {{ choice \"A\" value=0; choice \"B\" value=0 }} }}")).is_empty());
+    assert!(!errors(&format!(
+        "{HEAD}global-fields {{ binding \"battery\" offset=2 {{ choice \"A\" value=256 }} }}"
+    ))
+    .is_empty());
+}
+
+#[test]
+fn global_ui_bindings_are_external_and_reject_duplicates() {
+    let doc = format!("{HEAD}global-fields status=\"decoded\" {{ binding \"channel\" offset=5; binding \"battery\" offset=7 }}");
+    let fields = parse_str("test", &doc).unwrap().global_fields.unwrap();
+    assert_eq!(fields.bindings[0].name, "channel");
+    assert_eq!(fields.bindings[0].offset, 5);
+    assert!(!errors(&format!(
+        "{HEAD}global-fields {{ binding \"channel\" offset=1; binding \"channel\" offset=2 }}"
+    ))
+    .is_empty());
+}
+
+#[test]
+fn live_routing_metadata_is_external_and_validated() {
+    let input = format!("{HEAD}control-assignments global-channel-offset=4 status=\"decoded\" {{ assign group=\"G\" label=\"L\" kind=\"note\" {{ live-number offset=20 count=4 max=127; live-number offset=30 if-offset=3 if-not-value=1 }} }}");
+    let descriptor = parse_str("test", &input).unwrap();
+    let assignments = descriptor.control_assignments.unwrap();
+    assert_eq!(assignments.global_channel_offset, Some(4));
+    assert_eq!(assignments.assignments[0].live_numbers.len(), 2);
+    assert_eq!(assignments.assignments[0].live_numbers[1].max, 127);
+    assert!(!errors(&format!("{HEAD}control-assignments {{ assign group=\"G\" label=\"L\" kind=\"note\" {{ live-number offset=1 max=128 }} }}")).is_empty());
+    assert!(!errors(&format!("{HEAD}control-assignments {{ assign group=\"G\" label=\"L\" kind=\"note\" {{ live-number offset=1 count=0 }} }}")).is_empty());
+    assert!(!errors(&format!("{HEAD}control-assignments {{ assign group=\"G\" label=\"L\" kind=\"note\" {{ live-number offset=1 status=\"unknown\" }} }}")).is_empty());
+}
+
+#[test]
+fn control_assignments_reject_ambiguous_and_invalid_mappings() {
+    for body in [
+        "assign group=\"g\" label=\"x\" kind=\"note\" kind-offset=1",
+        "assign group=\"g\" label=\"x\" kind-offset=1 fallback=\"undecoded\" { map 0 kind=\"note\"; map 0 kind=\"no-assign\"; }",
+        "assign group=\"g\" label=\"x\" kind=\"bogus\"",
+        "assign group=\"g\" label=\"x\" kind=\"note\" number-required=#true",
+        "assign group=\"g\" label=\"x\" kind=\"note\" number=300",
+        "assign group=\"g\" label=\"x\" kind=\"note\" status=\"unknown\"",
+        "assign group=\"g\" label=\"x\" kind-offset=1 fallback=\"undecoded\" { map 0 kind=\"note\" status=\"unknown\"; }",
+        "assign group=\"g\" label=\"x\" codec=\"jog-config\" codec-offset=4 kind=\"note\"",
+        "assign group=\"g\" label=\"x\" codec=\"bogus\" codec-offset=4",
+        "assign group=\"g\" label=\"x\" kind=\"note\" description=\"x\" detail-offset=1 { detail 0 text=\"a\"; detail 0 text=\"b\"; }",
+        "assign group=\"g\" label=\"x\" kind=\"note\" description=\"x\" { detail 0 text=\"a\"; }",
+    ] {
+        assert!(!errors(&format!("{HEAD}control-assignments {{ {body} }}\n")).is_empty(), "accepted {body}");
+    }
+}
+
+#[test]
+fn editor_page_field_retains_status_and_evidence() {
+    let descriptor = parse_str("t.kdl", &format!("{HEAD}editor-pages default=\"a\" {{ page \"a\" {{ field \"f\" offset=0 kind=\"number\" min=0 max=127 status=\"unknown\" evidence=\"unconfirmed\" }} }}")).unwrap();
+    let field = &descriptor.editor_pages.unwrap().pages[0].fields[0];
+    assert_eq!(field.meta.status, Some(Status::Unknown));
+    assert_eq!(field.meta.evidence.as_deref(), Some("unconfirmed"));
+}
+
+#[test]
+fn editor_pages_reject_invalid_conditions_and_dangling_selectors() {
+    for content in [
+        "editor-pages default=\"missing\" { page \"a\" }",
+        "editor-pages default=\"a\" { select \"missing\" group=\"g\"; page \"a\" }",
+        "editor-pages default=\"a\" { page \"a\" { field \"f\" offset=0 kind=\"number\" min=0 max=127 enabled-if-offset=9 } }",
+        "editor-pages default=\"a\" { page \"a\" { field \"f\" offset=0 kind=\"biased\" min=-12 max=12 bias=0 } }",
+        "editor-pages default=\"a\" { page \"a\" { field \"f\" offset=0 kind=\"number\" min=0 max=127 enabled-if-offset=9 enabled-if-value=1 enabled-if-not-value=2 } }",
+        "editor-pages default=\"a\" { page \"a\" { field \"f\" offset=0 kind=\"number\" min=0 max=127 enabled-if-value=1 enabled-if-not-value=2 } }",
+        "editor-pages default=\"a\" { page \"a\" { field \"f\" offset=0 kind=\"optional-number\" min=0 max=127 note-if-offset=9 } }",
+        "editor-pages default=\"a\" { page \"a\" { field \"f\" offset=0 kind=\"optional-number\" min=0 max=128 } }",
+        "editor-pages default=\"a\" { select \"a\" label=\"x\"; select \"b\" label=\"x\"; page \"a\"; page \"b\" }",
+        "editor-pages default=\"a\" { select \"a\" group=\"g\"; select \"b\" group=\"g\" label=\"x\"; page \"a\"; page \"b\" }",
+        "editor-pages default=\"a\" { select \"a\" group=\"g\"; select \"b\" label=\"x\"; page \"a\"; page \"b\" }",
+        "editor-pages default=\"a\" { page \"a\" { field \"f\" offset=0 kind=\"text\" width=0 } }",
+        "editor-pages default=\"a\" { page \"a\" { field \"f\" offset=0 kind=\"number\" min=0 max=127 hidden-if-offset=2 } }",
+        "editor-pages default=\"a\" { page \"a\" { field \"f\" offset=0 kind=\"number\" min=0 max=127 { hide-if-value 3; } } }",
+    ] {
+        assert!(!errors(&format!("{HEAD}{content}\n")).is_empty(), "accepted {content}");
+    }
+}
+
+#[test]
+fn device_catalog_preserves_order_extensions_and_factory_paths() {
+    let descriptor = parse_str(
+        "catalog.kdl",
+        r#"cdl "0.1"
+device "korg.example" { class "X12345"; file-key "1234"; }
+catalog order=2 name="Example" localized-name="Example " scenes=2 scene-size=64 {
+    extension "example_set" os-type="EXST"
+    extension "example_data"
+    factory-file "Example/Default.example_set"
+}
+
+"#,
+    )
+    .unwrap();
+    let catalog = descriptor.catalog.unwrap();
+    assert_eq!(catalog.order, 2);
+    assert_eq!(catalog.name, "Example");
+    assert_eq!(catalog.localized_name.as_deref(), Some("Example "));
+    assert_eq!(catalog.scenes, Some(2));
+    assert_eq!(catalog.scene_size, Some(64));
+    assert_eq!(catalog.extensions[0].os_type.as_deref(), Some("EXST"));
+    assert_eq!(catalog.extensions[1].os_type, None);
+    assert_eq!(catalog.factory_files, ["Example/Default.example_set"]);
+}
+
+#[test]
+fn device_catalog_rejects_missing_required_metadata_and_escaping_paths() {
+    let missing = errors(&format!("{HEAD}catalog name=\"Example\"\n"));
+    assert!(
+        missing.iter().any(|e| e.contains("needs `order=`")),
+        "{missing:?}"
+    );
+    let escape = errors(&format!(
+        "{HEAD}catalog order=0 name=\"Example\" {{\n factory-file \"../secret\"\n}}\n"
+    ));
+    assert!(
+        escape.iter().any(|e| e.contains("without `..`")),
+        "{escape:?}"
+    );
+}
+
+#[test]
+fn sysex_command_set_preserves_unknown_commands() {
+    let d = parse_str(
+        "commands.kdl",
+        r#"cdl "0.1"
+device "korg.example"
+sysex-commands model-id=274 length-style="short_or_long" status="decoded" {
+    command "scene_data" byte=0 status="decoded"
+    command "mode_check" status="unknown"
+}
+
+"#,
+    )
+    .unwrap();
+    let set = d.sysex_commands.unwrap();
+    assert_eq!(set.model_id, Some(274));
+    assert_eq!(set.length_style.as_deref(), Some("short_or_long"));
+    assert_eq!(set.commands[0].byte, Some(0));
+    assert_eq!(set.commands[1].byte, None);
+    assert_eq!(set.commands[1].meta.status, Some(Status::Unknown));
+}
+
+#[test]
+fn sysex_command_set_rejects_guesses_and_duplicate_names() {
+    let text = format!("{HEAD}sysex-commands {{\n command \"a\" status=\"unknown\" byte=1\n command \"a\" status=\"decoded\" byte=128\n}}\n");
+    let found = errors(&text).join("\n");
+    assert!(found.contains("unknown command must omit"), "{found}");
+    assert!(found.contains("duplicate SysEx command"), "{found}");
+    assert!(found.contains("7-bit"), "{found}");
+}
+
+#[test]
+fn parameter_layout_preserves_packed_fields_and_order() {
+    let descriptor = parse_str("parameters.kdl", r##"cdl "0.1"
+device "korg.example" { class "X12345"; }
+parameter-layouts status="decoded" {
+    layout "scene" order=0 size=97 elements=16 stride=6 version=1 {
+        parameter "AssignType" id=0 offset=0 width=1 shift=5 mask=7 min=0 max=3 bias=0 kind="enum" default=2 default-source="factory" {
+            label "No Assign"
+            label "Control Change"
+        }
+        parameter "AssignType" id=0 offset=1 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default-source="unknown"
+    }
+}
+"##).unwrap();
+    let layout = &descriptor.parameter_layouts.unwrap().layouts[0];
+    assert_eq!(
+        (
+            layout.payload.as_str(),
+            layout.size,
+            layout.elements,
+            layout.stride
+        ),
+        ("scene", 97, 16, 6)
+    );
+    assert_eq!(layout.parameters.len(), 2);
+    assert_eq!(layout.parameters[0].labels, ["No Assign", "Control Change"]);
+    assert_eq!(layout.parameters[0].shift, 5);
+    assert_eq!(layout.parameters[0].default, Some(2));
+    assert_eq!(layout.parameters[1].default, None);
+    assert_eq!(layout.parameters[1].key, "AssignType");
+}
+
+#[test]
+fn parameter_layout_rejects_invalid_kind_range_and_duplicate_payload() {
+    let text = format!("{HEAD}parameter-layouts {{\n layout \"scene\" order=0 size=8 elements=1 stride=1 version=1 {{\n parameter \"bad\" id=0 offset=0 width=1 shift=0 mask=255 min=5 max=2 bias=0 kind=\"bad\" default-source=\"unknown\"\n }}\n layout \"scene\" order=1 size=8 elements=1 stride=1 version=1\n}}\n");
+    let found = errors(&text).join("\n");
+    assert!(found.contains("invalid parameter kind"), "{found}");
+    assert!(found.contains("invalid parameter range"), "{found}");
+    assert!(found.contains("duplicate parameter layout"), "{found}");
+}
+
+#[test]
+fn panel_preserves_korg_interaction_metadata() {
+    let d = parse_str(
+        "panel.kdl",
+        r##"cdl "0.1"
+device "t.x"
+panel picture="100x50" binding-inferred=#true {
+    control "a" kind="key" key-black=#true element-index=3 box="1,2,3,4"
+    control "b" kind="jog" jog-binding=#true box="5,6,7,8"
+}
+"##,
+    )
+    .unwrap();
+    let panel = d.panel.unwrap();
+    assert!(panel.binding_inferred);
+    let PanelItem::Control(key) = &panel.items[0] else {
+        panic!()
+    };
+    assert!(key.key_black);
+    assert_eq!(key.element_index, Some(3));
+    assert!(!key.jog_binding);
+    let PanelItem::Control(jog) = &panel.items[1] else {
+        panic!()
+    };
+    assert!(jog.jog_binding);
+    assert_eq!(jog.element_index, None);
+}
+
+#[test]
+fn panel_repeat_preserves_expression_coordinates() {
+    let d = parse_str(
+        "panel.kdl",
+        r#"cdl "0.1"
+device "t.x"
+panel picture="550x329" {
+    repeat "n" "1..=8" {
+        control "knob{n}" kind="knob" box="{135.5 + 44.5 * n},146,28,28"
+    }
+}
+"#,
+    )
+    .unwrap();
+    let panel = d.panel.unwrap();
+    let PanelItem::Repeat { range, items, .. } = &panel.items[0] else {
+        panic!()
+    };
+    assert_eq!(*range, IntRange { lo: 1, hi: 8 });
+    let PanelItem::Control(knob) = &items[0] else {
+        panic!()
+    };
+    assert_eq!(
+        knob.bbox.as_ref().unwrap()[0],
+        Coord::Expr("135.5 + 44.5 * n".into())
+    );
+    assert_eq!(knob.bbox.as_ref().unwrap()[1], Coord::Num(146.0));
+}
+
+#[test]
 fn every_descriptor_loads() {
     let dir = FsPath::new(env!("CARGO_MANIFEST_DIR")).join("../../descriptors");
     let mut count = 0;
@@ -47,6 +311,40 @@ fn every_descriptor_loads() {
         }
     }
     assert!(count >= 5, "found {count} descriptors");
+}
+
+#[test]
+fn korg_panel_geometry_is_marked_inferred() {
+    let dir = FsPath::new(env!("CARGO_MANIFEST_DIR")).join("../../descriptors/korg");
+    let mut checked = 0;
+    for file in std::fs::read_dir(dir).unwrap() {
+        let path = file.unwrap().path();
+        if !path.to_string_lossy().ends_with(".ctrl.kdl") {
+            continue;
+        }
+        let d = load(&path).unwrap();
+        let Some(panel) = d.panel else { continue };
+        assert_eq!(
+            panel.meta.status,
+            Some(Status::Inferred),
+            "{}",
+            path.display()
+        );
+        for item in panel.items {
+            let PanelItem::Control(control) = item else {
+                panic!("unexpected repeated KORG panel")
+            };
+            assert_eq!(
+                control.meta.status,
+                Some(Status::Inferred),
+                "{}: {}",
+                path.display(),
+                control.name
+            );
+        }
+        checked += 1;
+    }
+    assert_eq!(checked, 16);
 }
 
 #[test]
@@ -114,10 +412,18 @@ fn db1_messages_and_procedures() {
 #[test]
 fn includes_merge_by_kind_and_name() {
     let d = load_ok("korg/nanokey-studio.ctrl.kdl");
-    assert_eq!(d.files.len(), 4);
+    assert_eq!(d.files.len(), 11);
+    assert!(d
+        .files
+        .iter()
+        .any(|path| path.ends_with("nanokey-studio.pages.inc.kdl")));
     assert!(d.files[1].ends_with("common.inc.kdl"));
     assert!(d.files[2].ends_with("studio.inc.kdl"));
     assert!(d.files[3].ends_with("nanokey-studio.gen.inc.kdl"));
+    assert!(d.files[4].ends_with("nanokey-studio.panel.inc.kdl"));
+    assert!(d.files[5].ends_with("nanokey-studio.catalog.inc.kdl"));
+    assert!(d.files[6].ends_with("nanokey-studio.sysex.inc.kdl"));
+    assert!(d.files[7].ends_with("nanokey-studio.parameters.inc.kdl"));
 
     // studio.inc.kdl raises the common frame to measured; local facts win
     // over the generated base.
@@ -221,23 +527,16 @@ fn nanokontrol_types_block_and_panel() {
             height: 329
         })
     );
-    let PanelItem::Control(jog) = &panel.items[0] else {
-        panic!();
-    };
+    let jog = panel
+        .items
+        .iter()
+        .find_map(|item| match item {
+            PanelItem::Control(control) if control.jog_binding => Some(control),
+            _ => None,
+        })
+        .expect("jog binding");
     assert_eq!(jog.kind, ControlKind::Jog);
-    assert_eq!(jog.bind.as_ref().unwrap().to_string(), "scene.jog");
-    let PanelItem::Repeat { range, items, .. } = &panel.items[2] else {
-        panic!();
-    };
-    assert_eq!(*range, IntRange { lo: 1, hi: 8 });
-    let PanelItem::Control(knob) = &items[0] else {
-        panic!();
-    };
-    assert_eq!(
-        knob.bbox.as_ref().unwrap()[0],
-        Coord::Expr("135.5 + 44.5 * n".into())
-    );
-    assert_eq!(knob.bbox.as_ref().unwrap()[1], Coord::Num(146.0));
+    assert_eq!(jog.label.as_deref(), Some("Jog Wheel"));
 }
 
 #[test]

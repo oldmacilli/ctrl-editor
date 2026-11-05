@@ -1,0 +1,7 @@
+// Generated catalog metadata; do not edit.
+cdl "0.1"
+catalog order=14 name="NTS-1 digital kit mkII" localized-name="NTS-1 digital kit mkII" status="decoded" evidence="KORG product catalog" {
+    extension "nts1mkii"
+    extension "nts1mkiiprog"
+    extension "nts1mkiiunit"
+}

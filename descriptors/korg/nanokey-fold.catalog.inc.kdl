@@ -1,0 +1,9 @@
+// Generated catalog metadata; do not edit.
+cdl "0.1"
+catalog order=11 name="nanoKEY Fold" localized-name="nanoKEY Fold" scenes=15 scene-size=304 global-size=72 status="decoded" evidence="KORG product catalog" {
+    extension "nanokey_fold_data" os-type="288D"
+    extension "nanokey_fold_glob" os-type="288G"
+    extension "nanokey_fold_set" os-type="288S"
+    factory-file "nanoKEY Fold/nanoKEY Fold Global Data.nanokey_fold_glob"
+    factory-file "nanoKEY Fold/nanoKEY Fold Scene Set.nanokey_fold_set"
+}

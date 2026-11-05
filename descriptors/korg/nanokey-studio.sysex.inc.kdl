@@ -1,0 +1,14 @@
+// Generated SysEx table; do not edit.
+cdl "0.1"
+sysex-commands model-id=310 length-style="short_or_long" status="decoded" evidence="KORG protocol analysis" {
+    command "scene_data" byte=0 status="decoded"
+    command "scene_data_write" byte=0 status="decoded"
+    command "scene_data_request" byte=0 status="decoded"
+    command "scene_set" byte=0 status="decoded"
+    command "scene_set_write" byte=0 status="decoded"
+    command "scene_set_request" byte=0 status="decoded"
+    command "global_data" byte=0 status="decoded"
+    command "global_data_write" byte=0 status="decoded"
+    command "global_data_request" byte=0 status="decoded"
+    command "mode_check" status="unknown"
+}

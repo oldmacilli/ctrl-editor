@@ -3,3 +3,11 @@
 cdl "0.1"
 include "common.inc.kdl"
 include "nanokey-fold.gen.inc.kdl"
+
+include "nanokey-fold.panel.inc.kdl"
+
+include "nanokey-fold.catalog.inc.kdl"
+
+include "nanokey-fold.sysex.inc.kdl"
+
+include "nanokey-fold.parameters.inc.kdl"

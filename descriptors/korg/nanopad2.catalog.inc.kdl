@@ -1,0 +1,9 @@
+// Generated catalog metadata; do not edit.
+cdl "0.1"
+catalog order=1 name="nanoPAD2" localized-name="nanoPAD2 " scenes=4 scene-size=97 global-size=47 status="decoded" evidence="KORG product catalog" {
+    extension "nanopad2_data" os-type="183D"
+    extension "nanopad2_glob" os-type="183G"
+    extension "nanopad2_set" os-type="183S"
+    factory-file "nanoPAD2/nanoPAD2 Global.nanopad2_glob"
+    factory-file "nanoPAD2/nanoPAD2 Scene Set.nanopad2_set"
+}

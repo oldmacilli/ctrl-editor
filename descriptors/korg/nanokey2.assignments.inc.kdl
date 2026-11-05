@@ -1,0 +1,5 @@
+cdl "0.1"
+control-assignments status="decoded" evidence="KORG editor behavior and measured scene layouts" {
+    assign group="Sustain Button" label="Sustain Button" kind="control-change" number=64
+    assign group="Mod Button" label="Mod Button" kind="control-change" number=1
+}

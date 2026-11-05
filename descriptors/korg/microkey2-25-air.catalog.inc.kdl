@@ -1,0 +1,6 @@
+// Generated catalog metadata; do not edit.
+cdl "0.1"
+catalog order=7 name="microKEY2-25 Air" localized-name="microKEY2-25 Air" scenes=1 scene-size=256 status="decoded" evidence="KORG product catalog" {
+    extension "microkey25air_data" os-type="423D"
+    factory-file "microKEY2/microKEY2-25 Air Scene Data.microkey25air_data"
+}

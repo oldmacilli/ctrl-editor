@@ -1,0 +1,311 @@
+cdl "0.1"
+editor-pages default="Keyboard" status="decoded" evidence="KORG editor behavior" {
+    select "Keyboard" group="Keyboard"
+    select "Chord" group="Chord Pad" label="Chord Pad"
+    select "XY" group="X-Y Pad" label="X-Y Pad"
+    select "PitchMod" group="Pitch/Mod" label="Pitch/Mod"
+    select "TouchScale" group="Touch Scale" label="Touch Scale"
+    select "Sustain" group="Sustain" label="Sustain"
+    select "Knob 1" group="Knob" label="Knob 1"
+    select "Knob 2" group="Knob" label="Knob 2"
+    select "Knob 3" group="Knob" label="Knob 3"
+    select "Knob 4" group="Knob" label="Knob 4"
+    select "Knob 5" group="Knob" label="Knob 5"
+    select "Knob 6" group="Knob" label="Knob 6"
+    select "Knob 7" group="Knob" label="Knob 7"
+    select "Knob 8" group="Knob" label="Knob 8"
+    select "Pad 1" group="Trigger Pad" label="Pad 1"
+    select "Pad 2" group="Trigger Pad" label="Pad 2"
+    select "Pad 3" group="Trigger Pad" label="Pad 3"
+    select "Pad 4" group="Trigger Pad" label="Pad 4"
+    select "Pad 5" group="Trigger Pad" label="Pad 5"
+    select "Pad 6" group="Trigger Pad" label="Pad 6"
+    select "Pad 7" group="Trigger Pad" label="Pad 7"
+    select "Pad 8" group="Trigger Pad" label="Pad 8"
+    page "Keyboard" {
+        field "MIDI Channel" offset=16 kind="channel"
+    }
+    page "Chord" {
+        field "MIDI Channel" offset=96 kind="channel"
+    }
+    page "XY" {
+        field "Common" offset=0 kind="heading"
+        field "MIDI Channel" offset=168 kind="channel"
+        field "Touch" offset=0 kind="heading"
+        field "Enable" offset=169 kind="choice" {
+            choice "Control Change"
+            choice "No Assign"
+        }
+        field "CC Number" offset=170 kind="number" min=0 max=127 enabled-if-offset=169 enabled-if-not-value=1
+        field "Off Value" offset=171 kind="number" min=0 max=127 enabled-if-offset=169 enabled-if-not-value=1
+        field "On Value" offset=172 kind="number" min=0 max=127 enabled-if-offset=169 enabled-if-not-value=1
+        field "X-axis" offset=0 kind="heading"
+        field "Assign Type" offset=173 kind="choice" {
+            choice "Control Change"
+            choice "No Assign"
+        }
+        field "CC Number" offset=174 kind="number" min=0 max=127
+        field "Left Value" offset=175 kind="number" min=0 max=127
+        field "Right Value" offset=176 kind="number" min=0 max=127
+        field "Y-axis" offset=0 kind="heading"
+        field "Assign Type" offset=177 kind="choice" {
+            choice "Control Change"
+            choice "No Assign"
+        }
+        field "CC Number" offset=178 kind="number" min=0 max=127
+        field "Lower Value" offset=179 kind="number" min=0 max=127
+        field "Upper Value" offset=180 kind="number" min=0 max=127
+    }
+    page "PitchMod" {
+        field "Mod" offset=0 kind="heading"
+        field "Enable" offset=184 kind="choice" {
+            choice "Enable"
+            choice "Disable"
+        }
+        field "CC Number" offset=185 kind="number" min=0 max=127
+        field "Lower Value" offset=186 kind="number" min=0 max=127
+        field "Upper Value" offset=187 kind="number" min=0 max=127
+    }
+    page "TouchScale" {
+        field "Common" offset=0 kind="heading"
+        field "MIDI Channel" offset=192 kind="channel"
+        field "Y-axis" offset=0 kind="heading"
+        field "Enable" offset=193 kind="choice" {
+            choice "Enable"
+            choice "Disable"
+        }
+        field "CC Number" offset=194 kind="number" min=0 max=127
+        field "Lower Value" offset=195 kind="number" min=0 max=127
+        field "Upper Value" offset=196 kind="number" min=0 max=127
+    }
+    page "Sustain" {
+        field "MIDI Channel" offset=200 kind="channel"
+        field "Assign Type" offset=201 kind="choice" {
+            choice "Control Change"
+            choice "not decoded"
+        }
+        field "CC Number" offset=202 kind="number" min=0 max=127
+        field "Off Value" offset=203 kind="number" min=0 max=127
+        field "On Value" offset=204 kind="number" min=0 max=127
+        field "Button Behavior" offset=205 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Knob 1" {
+        field "MIDI Channel" offset=104 kind="channel"
+        field "Enable" offset=105 kind="choice" {
+            choice "Enable"
+            choice "Disable"
+        }
+        field "CC Number" offset=106 kind="number" min=0 max=127
+        field "Left Value" offset=107 kind="number" min=0 max=127
+        field "Right Value" offset=108 kind="number" min=0 max=127
+    }
+    page "Knob 2" {
+        field "MIDI Channel" offset=112 kind="channel"
+        field "Enable" offset=113 kind="choice" {
+            choice "Enable"
+            choice "Disable"
+        }
+        field "CC Number" offset=114 kind="number" min=0 max=127
+        field "Left Value" offset=115 kind="number" min=0 max=127
+        field "Right Value" offset=116 kind="number" min=0 max=127
+    }
+    page "Knob 3" {
+        field "MIDI Channel" offset=120 kind="channel"
+        field "Enable" offset=121 kind="choice" {
+            choice "Enable"
+            choice "Disable"
+        }
+        field "CC Number" offset=122 kind="number" min=0 max=127
+        field "Left Value" offset=123 kind="number" min=0 max=127
+        field "Right Value" offset=124 kind="number" min=0 max=127
+    }
+    page "Knob 4" {
+        field "MIDI Channel" offset=128 kind="channel"
+        field "Enable" offset=129 kind="choice" {
+            choice "Enable"
+            choice "Disable"
+        }
+        field "CC Number" offset=130 kind="number" min=0 max=127
+        field "Left Value" offset=131 kind="number" min=0 max=127
+        field "Right Value" offset=132 kind="number" min=0 max=127
+    }
+    page "Knob 5" {
+        field "MIDI Channel" offset=136 kind="channel"
+        field "Enable" offset=137 kind="choice" {
+            choice "Enable"
+            choice "Disable"
+        }
+        field "CC Number" offset=138 kind="number" min=0 max=127
+        field "Left Value" offset=139 kind="number" min=0 max=127
+        field "Right Value" offset=140 kind="number" min=0 max=127
+    }
+    page "Knob 6" {
+        field "MIDI Channel" offset=144 kind="channel"
+        field "Enable" offset=145 kind="choice" {
+            choice "Enable"
+            choice "Disable"
+        }
+        field "CC Number" offset=146 kind="number" min=0 max=127
+        field "Left Value" offset=147 kind="number" min=0 max=127
+        field "Right Value" offset=148 kind="number" min=0 max=127
+    }
+    page "Knob 7" {
+        field "MIDI Channel" offset=152 kind="channel"
+        field "Enable" offset=153 kind="choice" {
+            choice "Enable"
+            choice "Disable"
+        }
+        field "CC Number" offset=154 kind="number" min=0 max=127
+        field "Left Value" offset=155 kind="number" min=0 max=127
+        field "Right Value" offset=156 kind="number" min=0 max=127
+    }
+    page "Knob 8" {
+        field "MIDI Channel" offset=160 kind="channel"
+        field "Enable" offset=161 kind="choice" {
+            choice "Enable"
+            choice "Disable"
+        }
+        field "CC Number" offset=162 kind="number" min=0 max=127
+        field "Left Value" offset=163 kind="number" min=0 max=127
+        field "Right Value" offset=164 kind="number" min=0 max=127
+    }
+    page "Pad 1" {
+        field "MIDI Channel" offset=32 kind="channel"
+        field "Assign Type" offset=33 kind="choice" {
+            choice "Note"
+            choice "Control Change"
+            choice "Program Change"
+            choice "No Assign"
+        }
+        field "Note/CC/Prog Number 1" offset=34 kind="optional-number" min=0 max=127 note-if-offset=33 note-if-value=0
+        field "Note/CC/Prog Number 2" offset=35 kind="optional-number" min=0 max=127 note-if-offset=33 note-if-value=0
+        field "Note/CC/Prog Number 3" offset=36 kind="optional-number" min=0 max=127 note-if-offset=33 note-if-value=0
+        field "Note/CC/Prog Number 4" offset=37 kind="optional-number" min=0 max=127 note-if-offset=33 note-if-value=0
+        field "Pad Behavior" offset=38 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Pad 2" {
+        field "MIDI Channel" offset=40 kind="channel"
+        field "Assign Type" offset=41 kind="choice" {
+            choice "Note"
+            choice "Control Change"
+            choice "Program Change"
+            choice "No Assign"
+        }
+        field "Note/CC/Prog Number 1" offset=42 kind="optional-number" min=0 max=127 note-if-offset=41 note-if-value=0
+        field "Note/CC/Prog Number 2" offset=43 kind="optional-number" min=0 max=127 note-if-offset=41 note-if-value=0
+        field "Note/CC/Prog Number 3" offset=44 kind="optional-number" min=0 max=127 note-if-offset=41 note-if-value=0
+        field "Note/CC/Prog Number 4" offset=45 kind="optional-number" min=0 max=127 note-if-offset=41 note-if-value=0
+        field "Pad Behavior" offset=46 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Pad 3" {
+        field "MIDI Channel" offset=48 kind="channel"
+        field "Assign Type" offset=49 kind="choice" {
+            choice "Note"
+            choice "Control Change"
+            choice "Program Change"
+            choice "No Assign"
+        }
+        field "Note/CC/Prog Number 1" offset=50 kind="optional-number" min=0 max=127 note-if-offset=49 note-if-value=0
+        field "Note/CC/Prog Number 2" offset=51 kind="optional-number" min=0 max=127 note-if-offset=49 note-if-value=0
+        field "Note/CC/Prog Number 3" offset=52 kind="optional-number" min=0 max=127 note-if-offset=49 note-if-value=0
+        field "Note/CC/Prog Number 4" offset=53 kind="optional-number" min=0 max=127 note-if-offset=49 note-if-value=0
+        field "Pad Behavior" offset=54 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Pad 4" {
+        field "MIDI Channel" offset=56 kind="channel"
+        field "Assign Type" offset=57 kind="choice" {
+            choice "Note"
+            choice "Control Change"
+            choice "Program Change"
+            choice "No Assign"
+        }
+        field "Note/CC/Prog Number 1" offset=58 kind="optional-number" min=0 max=127 note-if-offset=57 note-if-value=0
+        field "Note/CC/Prog Number 2" offset=59 kind="optional-number" min=0 max=127 note-if-offset=57 note-if-value=0
+        field "Note/CC/Prog Number 3" offset=60 kind="optional-number" min=0 max=127 note-if-offset=57 note-if-value=0
+        field "Note/CC/Prog Number 4" offset=61 kind="optional-number" min=0 max=127 note-if-offset=57 note-if-value=0
+        field "Pad Behavior" offset=62 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Pad 5" {
+        field "MIDI Channel" offset=64 kind="channel"
+        field "Assign Type" offset=65 kind="choice" {
+            choice "Note"
+            choice "Control Change"
+            choice "Program Change"
+            choice "No Assign"
+        }
+        field "Note/CC/Prog Number 1" offset=66 kind="optional-number" min=0 max=127 note-if-offset=65 note-if-value=0
+        field "Note/CC/Prog Number 2" offset=67 kind="optional-number" min=0 max=127 note-if-offset=65 note-if-value=0
+        field "Note/CC/Prog Number 3" offset=68 kind="optional-number" min=0 max=127 note-if-offset=65 note-if-value=0
+        field "Note/CC/Prog Number 4" offset=69 kind="optional-number" min=0 max=127 note-if-offset=65 note-if-value=0
+        field "Pad Behavior" offset=70 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Pad 6" {
+        field "MIDI Channel" offset=72 kind="channel"
+        field "Assign Type" offset=73 kind="choice" {
+            choice "Note"
+            choice "Control Change"
+            choice "Program Change"
+            choice "No Assign"
+        }
+        field "Note/CC/Prog Number 1" offset=74 kind="optional-number" min=0 max=127 note-if-offset=73 note-if-value=0
+        field "Note/CC/Prog Number 2" offset=75 kind="optional-number" min=0 max=127 note-if-offset=73 note-if-value=0
+        field "Note/CC/Prog Number 3" offset=76 kind="optional-number" min=0 max=127 note-if-offset=73 note-if-value=0
+        field "Note/CC/Prog Number 4" offset=77 kind="optional-number" min=0 max=127 note-if-offset=73 note-if-value=0
+        field "Pad Behavior" offset=78 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Pad 7" {
+        field "MIDI Channel" offset=80 kind="channel"
+        field "Assign Type" offset=81 kind="choice" {
+            choice "Note"
+            choice "Control Change"
+            choice "Program Change"
+            choice "No Assign"
+        }
+        field "Note/CC/Prog Number 1" offset=82 kind="optional-number" min=0 max=127 note-if-offset=81 note-if-value=0
+        field "Note/CC/Prog Number 2" offset=83 kind="optional-number" min=0 max=127 note-if-offset=81 note-if-value=0
+        field "Note/CC/Prog Number 3" offset=84 kind="optional-number" min=0 max=127 note-if-offset=81 note-if-value=0
+        field "Note/CC/Prog Number 4" offset=85 kind="optional-number" min=0 max=127 note-if-offset=81 note-if-value=0
+        field "Pad Behavior" offset=86 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+    page "Pad 8" {
+        field "MIDI Channel" offset=88 kind="channel"
+        field "Assign Type" offset=89 kind="choice" {
+            choice "Note"
+            choice "Control Change"
+            choice "Program Change"
+            choice "No Assign"
+        }
+        field "Note/CC/Prog Number 1" offset=90 kind="optional-number" min=0 max=127 note-if-offset=89 note-if-value=0
+        field "Note/CC/Prog Number 2" offset=91 kind="optional-number" min=0 max=127 note-if-offset=89 note-if-value=0
+        field "Note/CC/Prog Number 3" offset=92 kind="optional-number" min=0 max=127 note-if-offset=89 note-if-value=0
+        field "Note/CC/Prog Number 4" offset=93 kind="optional-number" min=0 max=127 note-if-offset=89 note-if-value=0
+        field "Pad Behavior" offset=94 kind="choice" {
+            choice "Momentary"
+            choice "Toggle"
+        }
+    }
+}

@@ -1,0 +1,15 @@
+// Generated from the KORG panel baseline; do not edit by hand.
+cdl "0.1"
+panel picture="96x90" binding-inferred=#false source="KORG editor panel geometry; positions estimated by eye" status="inferred" evidence="Panel geometry estimated by eye" {
+    control "control-0" kind="touchpad" label="X-Y Pad" group="X-Y Pad" box="22,44,55,37" status="inferred" evidence="Control geometry estimated by eye"
+    control "control-1" kind="button" label="Perform" group="Button" box="21,13,7,7" status="inferred" evidence="Control geometry estimated by eye"
+    control "control-2" kind="button" label="FX 1" group="Button" box="21,27.5,7,7" status="inferred" evidence="Control geometry estimated by eye"
+    control "control-3" kind="button" label="FX 2" group="Button" box="33.5,27.5,7,7" status="inferred" evidence="Control geometry estimated by eye"
+    control "control-4" kind="button" label="FX 3" group="Button" box="45.5,27.5,7,7" status="inferred" evidence="Control geometry estimated by eye"
+    control "control-5" kind="button" label="FX 4" group="Button" box="58,27.5,7,7" status="inferred" evidence="Control geometry estimated by eye"
+    control "control-6" kind="button" label="Edit" group="Button" box="70.5,27.5,7,7" status="inferred" evidence="Control geometry estimated by eye"
+    control "control-7" kind="knob" label="Program" group="Program" box="69,11,12,12" status="inferred" evidence="Control geometry estimated by eye"
+    control "control-8" kind="fader" label="Touch Slider" group="Touch Slider" box="11,45,8,36" status="inferred" evidence="Control geometry estimated by eye"
+    control "control-9" kind="button" label="Touch Button 1" group="Touch Button" box="79,47,8,10" status="inferred" evidence="Control geometry estimated by eye"
+    control "control-10" kind="button" label="Touch Button 2" group="Touch Button" box="79,58,8,10" status="inferred" evidence="Control geometry estimated by eye"
+}

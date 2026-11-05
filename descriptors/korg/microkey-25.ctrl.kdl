@@ -5,3 +5,11 @@ include "microkey-25.gen.inc.kdl"
 
 // No KORG native SysEx descriptor was decoded for this device; its
 // protocol is not described yet.
+
+include "microkey-25.panel.inc.kdl"
+
+include "microkey-25.catalog.inc.kdl"
+
+include "microkey-25.sysex.inc.kdl"
+
+include "microkey-25.parameters.inc.kdl"

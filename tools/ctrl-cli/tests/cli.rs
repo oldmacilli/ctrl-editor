@@ -36,6 +36,19 @@ fn check_passes_the_repository_descriptors() {
 }
 
 #[test]
+fn check_allows_optional_external_images_but_rejects_missing_local_images() {
+    let external = capture("external-image.kdl", "cdl \"0.1\"\ndevice \"test.example\" {\n image \"X.png\" role=\"external-thumbnail\"\n image \"X-panel.png\" role=\"external-panel\"\n}\n");
+    let (ok, out) = run(&["check", external.to_str().unwrap()]);
+    assert!(ok, "{out}");
+    let local = capture(
+        "local-image.kdl",
+        "cdl \"0.1\"\ndevice \"test.example\" {\n image \"missing.png\" role=\"thumbnail\"\n}\n",
+    );
+    let (ok, out) = run(&["check", local.to_str().unwrap()]);
+    assert!(!ok && out.contains("not found"), "{out}");
+}
+
+#[test]
 fn explain_prints_bytes_and_names_missing_values() {
     let file = descriptor("korg/nanokontrol-studio.ctrl.kdl");
     let f = file.to_str().unwrap();

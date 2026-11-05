@@ -5,3 +5,11 @@ include "sq-64.gen.inc.kdl"
 
 // No KORG native SysEx descriptor was decoded for this device; its
 // protocol is not described yet.
+
+include "sq-64.panel.inc.kdl"
+
+include "sq-64.catalog.inc.kdl"
+
+include "sq-64.sysex.inc.kdl"
+
+include "sq-64.parameters.inc.kdl"

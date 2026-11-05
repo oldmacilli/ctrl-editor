@@ -1,0 +1,15 @@
+[package]
+name = "korg-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+korg-model.workspace = true
+korg-format.workspace = true
+korg-core.workspace = true
+korg-app.workspace = true
+korg-devices.workspace = true
+korg-midi.workspace = true
+korg-midi-midir.workspace = true

@@ -4,6 +4,9 @@ Shared platform for three device editors. Read docs/CONCEPT.md first.
 
 ## Rules
 
+- On this development computer, build and test only the native platform and
+  architecture. Other platforms and universal builds belong on remote LAN CI.
+  Cargo's default target directory is outside the checkout; CI can override it.
 - Keep docs/TODO.md alive: tick items in the commit that finishes them,
   with the hash; add new items under their phase with an owner.
 - Descriptors follow docs/CDL.md. Every value that reaches a device carries
@@ -11,9 +14,9 @@ Shared platform for three device editors. Read docs/CONCEPT.md first.
   capture or code; use `status="unknown"` instead.
 - Do not commit vendor binaries, firmware images, manuals or extracted
   vendor content. Test data lives outside the repository.
-  Exception, approved by the owner on 2026-10-20: KORG labels and device
-  images, converted into our own layer (CDL `labels` and `enum` nodes,
-  `descriptors/korg/assets/`) by `tools/gen-korg-cdl` in the private KORG_Kontrol_Editor repository. Generated
+  Exception, approved by the owner on 2026-10-20: KORG labels converted into
+  CDL `labels` and `enum` nodes by `tools/gen-korg-cdl` in the private
+  KORG_Kontrol_Editor repository. Device images remain external. Generated
   `*.gen.inc.kdl` files are not edited by hand; rerun the generator.
 - The evidence for each device stays in its own repo
   (`KORG_Kontrol_Editor`, `OceanBeach_DB-1`, `TECcontrol`); link to it.

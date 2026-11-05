@@ -3,3 +3,11 @@
 cdl "0.1"
 include "common.inc.kdl"
 include "taktile-25-49.gen.inc.kdl"
+
+include "taktile-25-49.panel.inc.kdl"
+
+include "taktile-25-49.catalog.inc.kdl"
+
+include "taktile-25-49.sysex.inc.kdl"
+
+include "taktile-25-49.parameters.inc.kdl"

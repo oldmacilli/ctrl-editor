@@ -1,0 +1,11 @@
+// Generated catalog metadata; do not edit.
+cdl "0.1"
+catalog order=8 name="taktile-25/49" localized-name="taktile-25/49" scenes=16 scene-size=640 global-size=88 status="decoded" evidence="KORG product catalog" {
+    extension "taktile_data" os-type="185D"
+    extension "taktile_glob" os-type="185G"
+    extension "taktile_set" os-type="185S"
+    factory-file "taktile/taktile-25 Global Data.taktile_glob"
+    factory-file "taktile/taktile-25 Scene Set.taktile_set"
+    factory-file "taktile/taktile-49 Global Data.taktile_glob"
+    factory-file "taktile/taktile-49 Scene Set.taktile_set"
+}

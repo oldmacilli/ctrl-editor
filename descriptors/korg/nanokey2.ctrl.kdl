@@ -3,3 +3,15 @@
 cdl "0.1"
 include "common.inc.kdl"
 include "nanokey2.gen.inc.kdl"
+
+include "nanokey2.panel.inc.kdl"
+
+include "nanokey2.catalog.inc.kdl"
+
+include "nanokey2.sysex.inc.kdl"
+
+include "nanokey2.parameters.inc.kdl"
+
+include "nanokey2.pages.inc.kdl"
+
+include "nanokey2.assignments.inc.kdl"

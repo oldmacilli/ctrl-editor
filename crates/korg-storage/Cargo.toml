@@ -1,0 +1,13 @@
+[package]
+name = "korg-storage"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license = "MIT OR Apache-2.0"
+
+[features]
+default = []
+fs = []
+
+[dependencies]
+thiserror.workspace = true

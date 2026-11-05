@@ -8,11 +8,11 @@ device "korg.nanokontrol-studio" {
     model "nanoKONTROL Studio"
     class "X14802"
     file-key "1482"
-    image "assets/nanokontrol-studio/thumbnail.png" role="thumbnail"
-    image "assets/nanokontrol-studio/list-icon.png" role="list-icon"
+    image "X14802.png" role="external-thumbnail"
+    image "X14802-panel.png" role="external-panel"
 }
 
-const "model" 0x137 status="decoded" evidence="KORG analysis/sysex/descriptors.json: X14802SysExGenerator descriptor, length style short_or_long"
+const "model" 0x137 status="decoded" evidence="KORG analysis/sysex/descriptors.json: model and length style short_or_long"
 
 block "scene" size=560 count=5 status="decoded" evidence="KORG analysis/products/catalog.json (factory data)"
 block "global" size=128 status="decoded" evidence="KORG analysis/products/catalog.json (factory data)"
@@ -85,4 +85,4 @@ labels "en" source="KORG KONTROL EDITOR UI strings" {
     }
 }
 
-panel picture="550x329" image="assets/nanokontrol-studio/panel.png" source="KORG KONTROL EDITOR panel picture" status="decoded" evidence="KORG KONTROL EDITOR panel picture"
+panel picture="550x329" source="KORG KONTROL EDITOR panel picture" status="decoded" evidence="KORG KONTROL EDITOR panel picture"
