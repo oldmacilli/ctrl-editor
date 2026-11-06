@@ -30,10 +30,35 @@ editor-pages default="Overview" status="decoded" evidence="KORG parameter analys
         field "Velocity Curve" offset=9 kind="number" min=0 max=3
         field "Const Velocity Value" offset=10 kind="number" min=0 max=127
     }
+    page "Common" {
+        field "MIDI Channel" offset=0 kind="channel-only"
+    }
     page "Mod Wheel" {
         field "Wheel Enable" offset=16 kind="choice" { choice "Disable"; choice "Enable"; }
         field "CC Number" offset=17 kind="number" min=0 max=127
         field "Bottom Value" offset=19 kind="number" min=0 max=127
         field "Top Value" offset=20 kind="number" min=0 max=127
+    }
+    page "Assignable Switch" {
+        field "CC Number" offset=41 kind="number" min=0 max=127
+        field "Pedal Polarity" offset=45 kind="choice" { choice "Auto"; choice "Minus"; choice "Plus"; }
+    }
+    page "Wireless" {
+        field "Device Name" offset=208 kind="text" width=26
+        field "Encryption" offset=234 kind="choice" { choice "Off"; choice "On"; }
+        field "Auto Power Off" offset=240 kind="choice" { choice "Disable"; choice "Enable"; }
+        field "Battery Type" offset=241 kind="choice" { choice "Alkaline"; choice "Ni-MH"; }
+    }
+}
+
+// The vendor editor's group list, in its order.  Groups without a panel
+// control are reached through this list.
+labels "en" {
+    list "editor-page-navigation" {
+        item 0 "Common"
+        item 1 "Keyboard"
+        item 2 "Mod Wheel"
+        item 3 "Assignable Switch"
+        item 4 "Wireless"
     }
 }

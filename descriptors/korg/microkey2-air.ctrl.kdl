@@ -26,3 +26,4 @@ const "model" 312 status="measured" evidence="KORG live MIDI identity"
 block "scene" size=256 count=1 status="measured" evidence="KORG live scene receive"
 
 include "microkey2-air.parameters.inc.kdl"
+include "microkey2-air.scene-global.inc.kdl"
