@@ -12,6 +12,8 @@ device "korg.microkey2-air" {
     image "X14810-panel.png" role="external-panel"
 }
 
+const "model" 0x138 status="decoded" evidence="KORG analysis/sysex/descriptors.json: model"
+
 block "scene" size=256 count=1 status="decoded" evidence="KORG analysis/products/catalog.json (factory data)"
 
 driver "korg-file" provides="file:microkey2_data" status="decoded" evidence="KORG analysis/products/catalog.json (Info.plist document types)"

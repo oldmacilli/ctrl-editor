@@ -3,8 +3,7 @@
 cdl "0.1"
 include "microkey2-air.gen.inc.kdl"
 
-// No KORG native SysEx descriptor was decoded for this device; its
-// protocol is not described yet.
+transport "midi" kind="midi" port-match-in="microKEY2 Air KEYBOARD" port-match-out="microKEY2 Air CTRL" role="config" status="measured" evidence="CoreMIDI port enumeration"
 
 include "microkey2-air.panel.inc.kdl"
 

@@ -1,4 +1,9 @@
 // Generated SysEx table; do not edit.
 cdl "0.1"
-sysex-commands  status="unknown" evidence="KORG protocol analysis" {
+sysex-commands model-id=312 request-form="low" status="decoded" evidence="KORG protocol analysis" {
+    command "request_command" byte=40 status="decoded"
+    command "scene_data_request" byte=16 status="decoded"
+    command "scene_data_reply" byte=64 status="decoded"
+    command "scene_set_request" byte=18 status="decoded"
+    command "scene_select" byte=20 status="decoded"
 }
