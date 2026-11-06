@@ -1,16 +1,16 @@
 cdl "0.1"
-global-fields name-offset=8 name-width=26 bpm-offset=57 status="decoded" evidence="KORG global data analysis" {
-    binding "channel" offset=0 status="decoded" evidence="KORG global data analysis"
-    binding "battery" offset=1 status="decoded" evidence="KORG global data analysis" {
+global-fields name-label="Wireless Device Name" name-offset=8 name-width=26 bpm-label="BPM" bpm-offset=57 bpm-min=200 bpm-max=3000 chord-pad-label="Chord Pad" easy-scale-label="Easy Scale" status="decoded" evidence="KORG global data analysis" {
+    binding "channel" label="Global MIDI Channel" offset=0 min=1 max=16 bias=-1 status="decoded" evidence="existing editor range"
+    binding "battery" label="Battery Type" offset=1 status="decoded" evidence="KORG global data analysis" {
         choice "Alkaline" value=0 status="inferred" evidence="existing UI choice order"
         choice "Ni-MH" value=1 status="inferred" evidence="existing UI choice order"
     }
-    binding "clock" offset=56 status="decoded" evidence="KORG global data analysis" {
+    binding "clock" label="MIDI Clock Source" offset=56 status="decoded" evidence="KORG global data analysis" {
         choice "Auto" value=0 status="inferred" evidence="existing UI choice order"
         choice "Internal" value=1 status="inferred" evidence="existing UI choice order"
         choice "External-USB" value=2 status="inferred" evidence="existing UI choice order"
     }
-    binding "key-curve" offset=48 status="decoded" evidence="KORG global data analysis" {
+    binding "key-curve" label="Velocity Curve" offset=48 status="decoded" evidence="KORG global data analysis" {
         choice "Light" value=0 status="inferred" evidence="existing UI choice order"
         choice "Mid-Light" value=1 status="inferred" evidence="existing UI choice order"
         choice "Normal" value=2 status="inferred" evidence="existing UI choice order"
@@ -18,8 +18,8 @@ global-fields name-offset=8 name-width=26 bpm-offset=57 status="decoded" evidenc
         choice "Heavy" value=4 status="inferred" evidence="existing UI choice order"
         choice "Const" value=5 status="inferred" evidence="existing UI choice order"
     }
-    binding "key-constant" offset=49 status="decoded" evidence="KORG global data analysis"
-    binding "pad-curve" offset=50 status="decoded" evidence="KORG global data analysis" {
+    binding "key-constant" label="Velocity Const Value" offset=49 min=1 max=127 status="decoded" evidence="existing editor range"
+    binding "pad-curve" label="Velocity Curve" offset=50 status="decoded" evidence="KORG global data analysis" {
         choice "Light" value=0 status="inferred" evidence="existing UI choice order"
         choice "Mid-Light" value=1 status="inferred" evidence="existing UI choice order"
         choice "Normal" value=2 status="inferred" evidence="existing UI choice order"
@@ -27,44 +27,44 @@ global-fields name-offset=8 name-width=26 bpm-offset=57 status="decoded" evidenc
         choice "Heavy" value=4 status="inferred" evidence="existing UI choice order"
         choice "Const" value=5 status="inferred" evidence="existing UI choice order"
     }
-    binding "pad-constant" offset=51 status="decoded" evidence="KORG global data analysis"
-    binding "pad-sensitivity" offset=52 status="decoded" evidence="KORG global data analysis"
-    binding "touch-velocity" offset=53 status="decoded" evidence="KORG global data analysis"
-    binding "touch-curve" offset=54 status="decoded" evidence="KORG global data analysis" {
+    binding "pad-constant" label="Velocity Const Value" offset=51 min=1 max=127 status="decoded" evidence="existing editor range"
+    binding "pad-sensitivity" label="Sensitivity" offset=52 min=1 max=3 bias=-1 status="decoded" evidence="existing editor range"
+    binding "touch-velocity" label="Note On Velocity" offset=53 min=0 max=127 status="decoded" evidence="existing editor range"
+    binding "touch-curve" label="Return Speed" offset=54 status="decoded" evidence="KORG global data analysis" {
         choice "Immediate" value=0 status="inferred" evidence="existing UI choice order"
         choice "Fast" value=1 status="inferred" evidence="existing UI choice order"
         choice "Normal" value=2 status="inferred" evidence="existing UI choice order"
     }
-    binding "usb-led-off" offset=73 status="decoded" evidence="KORG global data analysis" {
+    binding "usb-led-off" label="Auto LED Off" offset=73 status="decoded" evidence="KORG global data analysis" {
         choice "Disable" value=0 status="inferred" evidence="existing UI choice order"
         choice "Enable" value=1 status="inferred" evidence="existing UI choice order"
     }
-    binding "usb-brightness" offset=74 status="decoded" evidence="KORG global data analysis"
-    binding "usb-illumination" offset=75 status="decoded" evidence="KORG global data analysis" {
+    binding "usb-brightness" label="LED Brightness" offset=74 min=1 max=3 bias=-1 status="decoded" evidence="existing editor range"
+    binding "usb-illumination" label="LED Illumination" offset=75 status="decoded" evidence="KORG global data analysis" {
         choice "Disable" value=0 status="inferred" evidence="existing UI choice order"
         choice "Enable" value=1 status="inferred" evidence="existing UI choice order"
     }
-    binding "usb-eco" offset=76 status="decoded" evidence="KORG global data analysis" {
+    binding "usb-eco" label="LED Eco Mode" offset=76 status="decoded" evidence="KORG global data analysis" {
         choice "Disable" value=0 status="inferred" evidence="existing UI choice order"
         choice "Enable" value=1 status="inferred" evidence="existing UI choice order"
     }
-    binding "battery-power" offset=80 status="decoded" evidence="KORG global data analysis" {
+    binding "battery-power" label="Auto Power Off" offset=80 status="decoded" evidence="KORG global data analysis" {
         choice "Disable" value=0 status="inferred" evidence="existing UI choice order"
         choice "30 min" value=1 status="inferred" evidence="existing UI choice order"
         choice "1 hour" value=2 status="inferred" evidence="existing UI choice order"
         choice "2 hours" value=3 status="inferred" evidence="existing UI choice order"
         choice "4 hours" value=4 status="inferred" evidence="existing UI choice order"
     }
-    binding "battery-led-off" offset=81 status="decoded" evidence="KORG global data analysis" {
+    binding "battery-led-off" label="Auto LED Off" offset=81 status="decoded" evidence="KORG global data analysis" {
         choice "Disable" value=0 status="inferred" evidence="existing UI choice order"
         choice "Enable" value=1 status="inferred" evidence="existing UI choice order"
     }
-    binding "battery-brightness" offset=82 status="decoded" evidence="KORG global data analysis"
-    binding "battery-illumination" offset=83 status="decoded" evidence="KORG global data analysis" {
+    binding "battery-brightness" label="LED Brightness" offset=82 min=1 max=3 bias=-1 status="decoded" evidence="existing editor range"
+    binding "battery-illumination" label="LED Illumination" offset=83 status="decoded" evidence="KORG global data analysis" {
         choice "Disable" value=0 status="inferred" evidence="existing UI choice order"
         choice "Enable" value=1 status="inferred" evidence="existing UI choice order"
     }
-    binding "battery-eco" offset=84 status="decoded" evidence="KORG global data analysis" {
+    binding "battery-eco" label="LED Eco Mode" offset=84 status="decoded" evidence="KORG global data analysis" {
         choice "Disable" value=0 status="inferred" evidence="existing UI choice order"
         choice "Enable" value=1 status="inferred" evidence="existing UI choice order"
     }

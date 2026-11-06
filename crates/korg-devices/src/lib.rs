@@ -1,4 +1,4 @@
-//! Device catalog, generated from `analysis/products/catalog.json`.
+//! Device catalog, projected from the external CDL descriptors.
 
 use korg_model::{DeviceInfo, FileModelKey, JogConfig, JogError, ParameterSchema, SysexDescriptor};
 use serde::Deserialize;
@@ -259,6 +259,35 @@ pub fn global_ui_choices(
     result
 }
 
+/// Verified display labels for global controls, ordered by the stable UI roles.
+pub fn global_ui_labels(fields: Option<&ctrl_cdl::GlobalFields>) -> Vec<String> {
+    let Some(fields) = fields.filter(|f| {
+        matches!(
+            f.meta.status,
+            Some(ctrl_cdl::Status::Decoded | ctrl_cdl::Status::Measured)
+        )
+    }) else {
+        return vec![String::new(); GLOBAL_UI_ROLES.len()];
+    };
+    GLOBAL_UI_ROLES
+        .iter()
+        .map(|role| {
+            fields
+                .bindings
+                .iter()
+                .find(|binding| {
+                    binding.name == *role
+                        && matches!(
+                            binding.meta.status,
+                            Some(ctrl_cdl::Status::Decoded | ctrl_cdl::Status::Measured)
+                        )
+                })
+                .and_then(|binding| binding.label.clone())
+                .unwrap_or_default()
+        })
+        .collect()
+}
+
 /// Translate a displayed choice back to its explicitly described byte.
 pub fn global_ui_choice_selection(
     fields: Option<&ctrl_cdl::GlobalFields>,
@@ -268,6 +297,61 @@ pub fn global_ui_choice_selection(
     let offset = usize::try_from(*global_ui_offsets(fields).get(role)?).ok()?;
     let choices = global_ui_choices(fields);
     Some((offset, choices.get(role)?.get(index)?.value))
+}
+
+/// Numeric UI ranges are usable only with verified fields and bindings.
+pub fn global_ui_number_range(
+    fields: Option<&ctrl_cdl::GlobalFields>,
+    role: usize,
+) -> Option<&ctrl_cdl::GlobalNumberRange> {
+    let fields = fields.filter(|f| {
+        matches!(
+            f.meta.status,
+            Some(ctrl_cdl::Status::Decoded | ctrl_cdl::Status::Measured)
+        )
+    })?;
+    let name = *GLOBAL_UI_ROLES.get(role)?;
+    fields
+        .bindings
+        .iter()
+        .find(|b| {
+            b.name == name
+                && matches!(
+                    b.meta.status,
+                    Some(ctrl_cdl::Status::Decoded | ctrl_cdl::Status::Measured)
+                )
+        })?
+        .range
+        .as_ref()
+}
+
+/// Translate a displayed number to its validated stored byte.
+pub fn global_ui_number_selection(
+    fields: Option<&ctrl_cdl::GlobalFields>,
+    role: usize,
+    value: i32,
+) -> Option<(usize, u8)> {
+    let range = global_ui_number_range(fields, role)?;
+    let value = i64::from(value);
+    if !(range.min..=range.max).contains(&value) {
+        return None;
+    }
+    let stored = u8::try_from(value.checked_add(range.bias)?).ok()?;
+    let offset = usize::try_from(*global_ui_offsets(fields).get(role)?).ok()?;
+    Some((offset, stored))
+}
+
+pub fn global_ui_bpm_range(
+    fields: Option<&ctrl_cdl::GlobalFields>,
+) -> Option<&ctrl_cdl::GlobalNumberRange> {
+    let fields = fields.filter(|f| {
+        matches!(
+            f.meta.status,
+            Some(ctrl_cdl::Status::Decoded | ctrl_cdl::Status::Measured)
+        )
+    })?;
+    fields.bpm_offset?;
+    fields.bpm_range.as_ref()
 }
 
 /// Missing or unverified roles use -1, so frontends cannot write a guessed byte.
@@ -450,6 +534,22 @@ pub fn scene_jog_config(class: &str, scene: &[u8]) -> Option<Result<JogConfig, J
 #[cfg(test)]
 mod tests {
     #[test]
+    fn global_numeric_ranges_validate_values_and_status() {
+        let descriptor = ctrl_cdl::parse_str("test", "cdl \"0.1\"\ndevice \"test\"\nglobal-fields status=\"decoded\" { binding \"channel\" offset=9 min=1 max=16 bias=-1 status=\"decoded\"; binding \"pad-constant\" offset=7 min=1 max=127 status=\"unknown\" }").unwrap();
+        let fields = descriptor.global_fields.as_ref();
+        assert_eq!(
+            super::global_ui_number_selection(fields, 0, 1),
+            Some((9, 0))
+        );
+        assert_eq!(
+            super::global_ui_number_selection(fields, 0, 16),
+            Some((9, 15))
+        );
+        assert_eq!(super::global_ui_number_selection(fields, 0, 17), None);
+        assert_eq!(super::global_ui_number_selection(fields, 6, 5), None);
+        assert_eq!(super::global_ui_number_selection(None, 0, 1), None);
+    }
+    #[test]
     fn global_ui_bindings_follow_external_offsets_and_reject_unknown() {
         let descriptor = ctrl_cdl::parse_str("test", "cdl \"0.1\"\ndevice \"test\"\nglobal-fields status=\"decoded\" { binding \"channel\" offset=9 status=\"decoded\"; binding \"battery\" offset=7 status=\"unknown\" }").unwrap();
         let offsets = super::global_ui_offsets(descriptor.global_fields.as_ref());
@@ -459,6 +559,14 @@ mod tests {
         assert!(super::global_ui_offsets(None)
             .iter()
             .all(|offset| *offset == -1));
+    }
+    #[test]
+    fn global_ui_labels_follow_verified_descriptor_bindings() {
+        let descriptor = ctrl_cdl::parse_str("test", "cdl \"0.1\"\ndevice \"test\"\nglobal-fields status=\"decoded\" { binding \"channel\" label=\"Global MIDI Channel\" offset=9 status=\"decoded\"; binding \"battery\" label=\"Battery Type\" offset=7 status=\"unknown\" }").unwrap();
+        let labels = super::global_ui_labels(descriptor.global_fields.as_ref());
+        assert_eq!(labels[0], "Global MIDI Channel");
+        assert_eq!(labels[1], "");
+        assert_eq!(super::global_ui_labels(None)[0], "");
     }
 
     #[test]
@@ -526,7 +634,7 @@ mod tests {
                     "Studio One",
                 ][..],
             ),
-            ("X14802", "scrub", &["Off", "On"][..]),
+            ("X14802", "scrub", &["Disable", "Enable"][..]),
         ] {
             let index = super::GLOBAL_UI_ROLES
                 .iter()
@@ -571,6 +679,26 @@ mod tests {
                 "{class}"
             );
         }
+        let key_labels = super::global_ui_labels(super::global_fields("X14800"));
+        assert_eq!(key_labels[0], "Global MIDI Channel");
+        assert_eq!(key_labels[8], "Note On Velocity");
+        let studio_labels = super::global_ui_labels(super::global_fields("X14802"));
+        assert_eq!(studio_labels[19], "Controller Mode");
+        let key_fields = super::global_fields("X14800").unwrap();
+        assert_eq!(
+            key_fields.name_label.as_deref(),
+            Some("Wireless Device Name")
+        );
+        assert_eq!(key_fields.bpm_label.as_deref(), Some("BPM"));
+        assert_eq!(key_fields.chord_pad_label.as_deref(), Some("Chord Pad"));
+        assert_eq!(key_fields.easy_scale_label.as_deref(), Some("Easy Scale"));
+        assert_eq!(
+            super::global_fields("X14802")
+                .unwrap()
+                .name_label
+                .as_deref(),
+            Some("Wireless Device Name")
+        );
     }
     use super::*;
 

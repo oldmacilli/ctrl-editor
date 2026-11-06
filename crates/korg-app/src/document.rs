@@ -113,6 +113,23 @@ pub fn factory_scenes(device: &DeviceInfo, products: &Path) -> Option<Vec<Scene>
     }
 }
 
+fn factory_global(device: &DeviceInfo, products: &Path) -> Option<Vec<u8>> {
+    let file = device.files.iter().find(|file| {
+        let extension = file.rsplit('.').next().unwrap_or_default();
+        extension.ends_with("_glob") && device.extensions.iter().any(|owned| owned == extension)
+    })?;
+    let chunk = korg_format::decode(&std::fs::read(products.join(file)).ok()?).ok()?;
+    if chunk.key.model != device.file_key()? {
+        return None;
+    }
+    match chunk.payload {
+        Payload::Global(data) if data.len() == usize::from(device.global_payload_size?) => {
+            Some(data)
+        }
+        _ => None,
+    }
+}
+
 /// Open a catalog device offline: factory scenes, or zeroed scenes.
 pub fn open_device<T: MidiTransport, C: Clock>(
     controller: &mut EditorController<T, C>,
@@ -146,12 +163,16 @@ pub fn open_device<T: MidiTransport, C: Clock>(
     // Work offline before the first receive: the Global dialog edits this
     // default block, and a later Receive Global replaces it.
     if let Some(global_size) = device.global_payload_size {
-        let mut data = vec![0u8; usize::from(global_size)];
-        if data.len() >= 59 {
-            let bpm = 1200u16;
-            data[57] = (bpm & 0xFF) as u8;
-            data[58] = (bpm >> 8) as u8;
-        }
+        controller.set_schema(korg_devices::parameter_schema(&device.class, "global"));
+        let data = factory_global(device, products).unwrap_or_else(|| {
+            let mut data = vec![0u8; usize::from(global_size)];
+            if data.len() >= 59 {
+                let bpm = 1200u16;
+                data[57] = (bpm & 0xFF) as u8;
+                data[58] = (bpm >> 8) as u8;
+            }
+            data
+        });
         controller.load(ControllerInput::Global(GlobalData { model, data }));
     }
     Ok(if unreadable {
@@ -537,6 +558,39 @@ mod tests {
         let view = controller.view();
         assert_eq!(view.scene_count, 5);
         assert!(view.jog.is_some());
+    }
+
+    #[test]
+    fn offline_open_loads_matching_factory_global_data() {
+        let mut device = catalog().find_by_class("X14802").unwrap().clone();
+        device.files = vec!["fixture.nktrl_st_glob".into()];
+        let directory =
+            std::env::temp_dir().join(format!("korg-global-fixture-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        let mut global = vec![0; usize::from(device.global_payload_size.unwrap())];
+        global[8..20].copy_from_slice(b"Fixture Name");
+        let chunk = Chunk {
+            key: ChunkKey::new(device.file_key().unwrap(), ChunkKind::GlobalData),
+            payload: Payload::Global(global.clone()),
+        };
+        std::fs::write(
+            directory.join("fixture.nktrl_st_glob"),
+            korg_format::encode(&chunk).unwrap(),
+        )
+        .unwrap();
+        let mut controller = new_controller();
+        open_device(&mut controller, &device, &directory).unwrap();
+        assert_eq!(
+            controller
+                .session()
+                .document()
+                .global
+                .as_ref()
+                .unwrap()
+                .data,
+            global
+        );
+        std::fs::remove_dir_all(directory).unwrap();
     }
 
     #[test]

@@ -262,19 +262,21 @@ impl<'d> V<'d> {
         }
         for layout in &layouts.layouts {
             for parameter in &layout.parameters {
-                let bits = parameter.width.saturating_mul(8);
-                if !(1..=4).contains(&parameter.width)
-                    || parameter.shift >= bits
-                    || u64::from(parameter.mask)
-                        > ((1u64 << bits.min(32)) - 1) >> parameter.shift.min(32)
-                {
-                    self.error(
-                        parameter.meta.pos,
-                        format!(
-                            "parameter `{}`: mask does not fit its width and shift",
-                            parameter.key
-                        ),
-                    );
+                if parameter.kind != "text" {
+                    let bits = parameter.width.saturating_mul(8);
+                    if !(1..=4).contains(&parameter.width)
+                        || parameter.shift >= bits
+                        || u64::from(parameter.mask)
+                            > ((1u64 << bits.min(32)) - 1) >> parameter.shift.min(32)
+                    {
+                        self.error(
+                            parameter.meta.pos,
+                            format!(
+                                "parameter `{}`: mask does not fit its width and shift",
+                                parameter.key
+                            ),
+                        );
+                    }
                 }
                 let end = u64::from(layout.elements.saturating_sub(1))
                     .checked_mul(u64::from(layout.stride))

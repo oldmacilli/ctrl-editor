@@ -7,6 +7,7 @@ use korg_model::{GlobalData, SceneSet};
 use thiserror::Error;
 
 pub mod controller;
+pub mod global_policy;
 pub mod measured;
 pub mod transfer;
 pub use controller::*;

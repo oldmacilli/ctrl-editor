@@ -24,6 +24,7 @@ component SpinArrow inherits Rectangle {
 // std SpinBox whose arrow buttons take a third of its width.  Same interface
 // (value, minimum, maximum, edited), plus wheel and Up/Down keys.
 component CompactSpin inherits Rectangle {
+    in property <bool> enabled: true;
     in property <int> minimum: 0;
     in property <int> maximum: 100;
     in-out property <int> value: 0;
@@ -37,6 +38,7 @@ component CompactSpin inherits Rectangle {
     border-color: field.has-focus ? #8a8a8a : #5a5a5a;
 
     function commit(number: int) {
+        if !root.enabled { return; }
         root.value = Math.max(root.minimum, Math.min(root.maximum, number));
         field.text = root.value;
         root.edited(root.value);
@@ -57,6 +59,7 @@ component CompactSpin inherits Rectangle {
                 }
             }
             field := TextInput {
+                enabled: root.enabled;
                 width: 100%;
                 height: 100%;
                 vertical-alignment: center;
@@ -271,6 +274,7 @@ component CompactCombo inherits Rectangle {
 }
 
 component BpmSpinBox inherits Rectangle {
+    in property <bool> enabled: true;
     in property <int> value: 1200;
     in property <int> minimum: 200;
     in property <int> maximum: 3000;
@@ -291,6 +295,7 @@ component BpmSpinBox inherits Rectangle {
     }
 
     function commit(number: int) {
+        if !root.enabled { return; }
         root.current = Math.max(root.minimum, Math.min(root.maximum, number));
         field.text = root.format(root.current);
         root.changed(root.current);
@@ -324,6 +329,7 @@ component BpmSpinBox inherits Rectangle {
                 }
             }
             field := TextInput {
+                enabled: root.enabled;
                 width: 100%;
                 height: 100%;
                 vertical-alignment: center;
@@ -379,6 +385,13 @@ export struct SceneTab {
 export struct GlobalChoiceList {
     labels: [string],
     selected: int,
+}
+
+export struct GlobalNumberRange {
+    minimum: int,
+    maximum: int,
+    bias: int,
+    available: bool,
 }
 
 export struct ParamRow {
@@ -850,6 +863,15 @@ component Editor inherits Rectangle {
     in property <[int]> global-bytes;
     in property <[int]> global-binding-offsets;
     in property <[GlobalChoiceList]> global-choice-lists;
+    in property <[string]> global-binding-labels;
+    in property <string> global-name-label: "";
+    in property <string> global-bpm-label: "";
+    in property <string> global-chord-pad-label: "";
+    in property <string> global-easy-scale-label: "";
+    in property <[GlobalNumberRange]> global-number-ranges;
+    in property <int> global-bpm-minimum: 0;
+    in property <int> global-bpm-maximum: 0;
+    in property <bool> global-bpm-available: false;
     in property <string> global-channel: "1";
     in property <string> global-controller: "Native";
     in property <string> global-battery: "Alkaline";
@@ -886,6 +908,8 @@ component Editor inherits Rectangle {
     in property <bool> panel-has-image: false;
     function gb(offset: int) -> int { return offset >= 0 && root.global-bytes.length > offset ? root.global-bytes[offset] : 0; }
     function goff(role: int) -> int { return role >= 0 && root.global-binding-offsets.length > role ? root.global-binding-offsets[role] : -1; }
+    function grange(role: int) -> GlobalNumberRange { return role >= 0 && root.global-number-ranges.length > role ? root.global-number-ranges[role] : { minimum: 0, maximum: 0, bias: 0, available: false }; }
+    function glabel(role: int) -> string { return role >= 0 && root.global-binding-labels.length > role ? root.global-binding-labels[role] : ""; }
     in property <int> control-index: 0;
     in property <string> control-label: "";
 
@@ -904,6 +928,7 @@ component Editor inherits Rectangle {
     callback set-param(int, int, int);
     callback set-param-byte(int, int);
     callback set-param-text(int, string);
+    callback set-param-schema-text(int, int, string);
     callback set-global-param(int, int, int);
     callback set-global-param-label(int, int, string);
     callback set-param-choice(int, string);
@@ -1479,14 +1504,26 @@ component Editor inherits Rectangle {
                         placeholder-text: row.hint;
                         // Commit on Enter or when focus leaves: a commit rebuilds the
                         // rows, which would drop the focus after every keystroke.
-                        accepted(text) => { root.set-param-text(row.byte-offset, text); }
+                        accepted(text) => {
+                        if row.index >= 0 {
+                        root.set-param-schema-text(row.element, row.index, text);
+                        } else {
+                        root.set-param-text(row.byte-offset, text);
+                        }
+                        }
                         changed has-focus => {
-                        if !self.has-focus { root.set-param-text(row.byte-offset, self.text); }
+                        if !self.has-focus {
+                        if row.index >= 0 {
+                        root.set-param-schema-text(row.element, row.index, self.text);
+                        } else {
+                        root.set-param-text(row.byte-offset, self.text);
+                        }
+                        }
                         }
                         }
                         if row.kind == 1 : CompactCombo {
                         width: 130px;
-                        model: row.choices.length > 0 ? row.choices : ["Disable", "Enable"];
+                        model: row.choices;
                         current-index: row.value - row.minimum;
                         selected(label) => {
                         if row.byte-offset >= 0 {
@@ -1542,12 +1579,12 @@ component Editor inherits Rectangle {
                     alignment: start;
                     if root.global-class == "X14800" : HorizontalLayout {
                     spacing: 10px;
-                    Text { text: "Global MIDI Channel"; width: 190px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
-                    CompactSpin { width: 92px; minimum: 1; maximum: 16; value: root.global-channel-value; edited => { root.set-global-byte(root.goff(0), self.value - 1); } }
+                    Text { text: root.glabel(0); width: 190px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
+                    CompactSpin { width: 92px; minimum: root.grange(0).minimum; maximum: root.grange(0).maximum; enabled: root.grange(0).available; value: root.gb(root.goff(0)) - root.grange(0).bias; edited => { root.set-global-byte(0, self.value); } }
                     }
                     if root.global-class == "X14800" : HorizontalLayout {
                     spacing: 10px;
-                    Text { text: "Wireless Device Name"; width: 190px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
+                    Text { text: root.global-name-label; width: 190px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
                     LineEdit { text: root.global-name-text; width: 300px; edited(text) => { root.set-global-text(root.goff(21), text); } }
                     }
                     // Information only: no MIDI message switches wireless (korg_app::wireless).
@@ -1565,14 +1602,14 @@ component Editor inherits Rectangle {
                     }
                     if root.global-class == "X14800" : HorizontalLayout {
                     spacing: 10px;
-                    Text { text: "MIDI Clock Source"; width: 190px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
+                    Text { text: root.glabel(2); width: 190px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
                     CompactCombo { width: 130px; model: root.global-choice-lists[2].labels; current-index: root.global-choice-lists[2].selected; selected-index(index) => { root.set-global-choice(2, index); } }
-                    Text { text: "BPM"; width: 40px; color: #f0f0f0; vertical-alignment: center; }
-                    BpmSpinBox { width: 104px; value: root.global-bpm-value; minimum: 200; maximum: 3000; changed(value) => { root.set-global-bpm(value); } }
+                    Text { text: root.global-bpm-label; width: 40px; color: #f0f0f0; vertical-alignment: center; }
+                    BpmSpinBox { width: 104px; value: root.global-bpm-value; minimum: root.global-bpm-minimum; maximum: root.global-bpm-maximum; enabled: root.global-bpm-available; changed(value) => { root.set-global-bpm(value); } }
                     }
                     if root.global-class == "X14800" : HorizontalLayout {
                     spacing: 10px;
-                    Text { text: "Battery Type"; width: 190px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
+                    Text { text: root.glabel(1); width: 190px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
                     CompactCombo { width: 130px; model: root.global-choice-lists[1].labels; current-index: root.global-choice-lists[1].selected; selected-index(index) => { root.set-global-choice(1, index); } }
                     }
                     }
@@ -1590,31 +1627,31 @@ component Editor inherits Rectangle {
                     Text { text: "Keyboard"; font-weight: 600; color: #c8c8c8; }
                     HorizontalLayout {
                     spacing: 10px;
-                    Text { text: "Velocity Curve"; width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
+                    Text { text: root.glabel(3); width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
                     CompactCombo { width: 130px; model: root.global-choice-lists[3].labels; current-index: root.global-choice-lists[3].selected; selected-index(index) => { root.set-global-choice(3, index); } }
                     }
                     HorizontalLayout {
                     spacing: 10px;
-                    Text { text: "Velocity Const Value"; width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
-                    if root.gb(root.goff(3)) == 5 : CompactSpin { width: 92px; minimum: 1; maximum: 127; value: root.gb(root.goff(4)); edited => { root.set-global-byte(root.goff(4), self.value); } }
+                    Text { text: root.glabel(4); width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
+                    if root.gb(root.goff(3)) == 5 : CompactSpin { width: 92px; minimum: root.grange(4).minimum; maximum: root.grange(4).maximum; enabled: root.grange(4).available; value: root.gb(root.goff(4)) - root.grange(4).bias; edited => { root.set-global-byte(4, self.value); } }
                     if root.gb(root.goff(3)) != 5 : Rectangle { width: 130px; height: 30px; background: #3a3a3a; border-radius: 4px; border-width: 1px; border-color: #5a5a5a; }
                     }
                     Text { text: "Trigger Pad"; font-weight: 600; color: #c8c8c8; }
                     HorizontalLayout {
                     spacing: 10px;
-                    Text { text: "Velocity Curve"; width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
+                    Text { text: root.glabel(3); width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
                     CompactCombo { width: 130px; model: root.global-choice-lists[5].labels; current-index: root.global-choice-lists[5].selected; selected-index(index) => { root.set-global-choice(5, index); } }
                     }
                     HorizontalLayout {
                     spacing: 10px;
-                    Text { text: "Velocity Const Value"; width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
-                    if root.gb(root.goff(5)) == 5 : CompactSpin { width: 92px; minimum: 1; maximum: 127; value: root.gb(root.goff(6)); edited => { root.set-global-byte(root.goff(6), self.value); } }
+                    Text { text: root.glabel(4); width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
+                    if root.gb(root.goff(5)) == 5 : CompactSpin { width: 92px; minimum: root.grange(6).minimum; maximum: root.grange(6).maximum; enabled: root.grange(6).available; value: root.gb(root.goff(6)) - root.grange(6).bias; edited => { root.set-global-byte(6, self.value); } }
                     if root.gb(root.goff(5)) != 5 : Rectangle { width: 130px; height: 30px; background: #3a3a3a; border-radius: 4px; border-width: 1px; border-color: #5a5a5a; }
                     }
                     HorizontalLayout {
                     spacing: 10px;
-                    Text { text: "Sensitivity"; width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
-                    CompactSpin { width: 92px; minimum: 1; maximum: 3; value: root.gb(root.goff(7)) + 1; edited => { root.set-global-byte(root.goff(7), self.value - 1); } }
+                    Text { text: root.glabel(7); width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
+                    CompactSpin { width: 92px; minimum: root.grange(7).minimum; maximum: root.grange(7).maximum; enabled: root.grange(7).available; value: root.gb(root.goff(7)) - root.grange(7).bias; edited => { root.set-global-byte(7, self.value); } }
                     }
                     }
                     VerticalLayout {
@@ -1622,24 +1659,24 @@ component Editor inherits Rectangle {
                     Text { text: "Touch Scale"; font-weight: 600; color: #c8c8c8; }
                     HorizontalLayout {
                     spacing: 10px;
-                    Text { text: "Note On Velocity"; width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
-                    CompactSpin { width: 92px; minimum: 0; maximum: 127; value: root.gb(root.goff(8)); edited => { root.set-global-byte(root.goff(8), self.value); } }
+                    Text { text: root.glabel(8); width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
+                    CompactSpin { width: 92px; minimum: root.grange(8).minimum; maximum: root.grange(8).maximum; enabled: root.grange(8).available; value: root.gb(root.goff(8)) - root.grange(8).bias; edited => { root.set-global-byte(8, self.value); } }
                     }
                     Text { text: "Touch Pad Pitch/Mod"; font-weight: 600; color: #c8c8c8; }
                     HorizontalLayout {
                     spacing: 10px;
-                    Text { text: "Return Speed"; width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
+                    Text { text: root.glabel(9); width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
                     CompactCombo { width: 130px; model: root.global-choice-lists[9].labels; current-index: root.global-choice-lists[9].selected; selected-index(index) => { root.set-global-choice(9, index); } }
                     }
                     Text { text: "Chord Octave Offset"; font-weight: 600; color: #c8c8c8; }
                     HorizontalLayout {
                     spacing: 10px;
-                    Text { text: "Chord Pad"; width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
+                    Text { text: root.global-chord-pad-label; width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
                     Text { text: "not decoded"; color: #a8a8a8; vertical-alignment: center; }
                     }
                     HorizontalLayout {
                     spacing: 10px;
-                    Text { text: "Easy Scale"; width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
+                    Text { text: root.global-easy-scale-label; width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
                     Text { text: "not decoded"; color: #a8a8a8; vertical-alignment: center; }
                     }
                     }
@@ -1657,19 +1694,19 @@ component Editor inherits Rectangle {
                     VerticalLayout {
                     spacing: 6px;
                     Text { text: "USB"; font-weight: 600; color: #c8c8c8; }
-                    HorizontalLayout { spacing: 10px; Text { text: "Auto LED Off"; width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactCombo { width: 130px; model: root.global-choice-lists[10].labels; current-index: root.global-choice-lists[10].selected; selected-index(index) => { root.set-global-choice(10, index); } } }
-                    HorizontalLayout { spacing: 10px; Text { text: "LED Brightness"; width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactSpin { width: 92px; minimum: 1; maximum: 3; value: root.gb(root.goff(11)) + 1; edited => { root.set-global-byte(root.goff(11), self.value - 1); } } }
-                    HorizontalLayout { spacing: 10px; Text { text: "LED Illumination"; width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactCombo { width: 130px; model: root.global-choice-lists[12].labels; current-index: root.global-choice-lists[12].selected; selected-index(index) => { root.set-global-choice(12, index); } } }
-                    HorizontalLayout { spacing: 10px; Text { text: "LED Eco Mode"; width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactCombo { width: 130px; model: root.global-choice-lists[13].labels; current-index: root.global-choice-lists[13].selected; selected-index(index) => { root.set-global-choice(13, index); } } }
+                    HorizontalLayout { spacing: 10px; Text { text: root.glabel(10); width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactCombo { width: 130px; model: root.global-choice-lists[10].labels; current-index: root.global-choice-lists[10].selected; selected-index(index) => { root.set-global-choice(10, index); } } }
+                    HorizontalLayout { spacing: 10px; Text { text: root.glabel(11); width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactSpin { width: 92px; minimum: root.grange(11).minimum; maximum: root.grange(11).maximum; enabled: root.grange(11).available; value: root.gb(root.goff(11)) - root.grange(11).bias; edited => { root.set-global-byte(11, self.value); } } }
+                    HorizontalLayout { spacing: 10px; Text { text: root.glabel(12); width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactCombo { width: 130px; model: root.global-choice-lists[12].labels; current-index: root.global-choice-lists[12].selected; selected-index(index) => { root.set-global-choice(12, index); } } }
+                    HorizontalLayout { spacing: 10px; Text { text: root.glabel(13); width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactCombo { width: 130px; model: root.global-choice-lists[13].labels; current-index: root.global-choice-lists[13].selected; selected-index(index) => { root.set-global-choice(13, index); } } }
                     }
                     VerticalLayout {
                     spacing: 6px;
                     Text { text: "Battery"; font-weight: 600; color: #c8c8c8; }
-                    HorizontalLayout { spacing: 10px; Text { text: "Auto Power Off"; width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactCombo { width: 130px; model: root.global-choice-lists[14].labels; current-index: root.global-choice-lists[14].selected; selected-index(index) => { root.set-global-choice(14, index); } } }
-                    HorizontalLayout { spacing: 10px; Text { text: "Auto LED Off"; width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactCombo { width: 130px; model: root.global-choice-lists[15].labels; current-index: root.global-choice-lists[15].selected; selected-index(index) => { root.set-global-choice(15, index); } } }
-                    HorizontalLayout { spacing: 10px; Text { text: "LED Brightness"; width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactSpin { width: 92px; minimum: 1; maximum: 3; value: root.gb(root.goff(16)) + 1; edited => { root.set-global-byte(root.goff(16), self.value - 1); } } }
-                    HorizontalLayout { spacing: 10px; Text { text: "LED Illumination"; width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactCombo { width: 130px; model: root.global-choice-lists[17].labels; current-index: root.global-choice-lists[17].selected; selected-index(index) => { root.set-global-choice(17, index); } } }
-                    HorizontalLayout { spacing: 10px; Text { text: "LED Eco Mode"; width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactCombo { width: 130px; model: root.global-choice-lists[18].labels; current-index: root.global-choice-lists[18].selected; selected-index(index) => { root.set-global-choice(18, index); } } }
+                    HorizontalLayout { spacing: 10px; Text { text: root.glabel(14); width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactCombo { width: 130px; model: root.global-choice-lists[14].labels; current-index: root.global-choice-lists[14].selected; selected-index(index) => { root.set-global-choice(14, index); } } }
+                    HorizontalLayout { spacing: 10px; Text { text: root.glabel(15); width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactCombo { width: 130px; model: root.global-choice-lists[15].labels; current-index: root.global-choice-lists[15].selected; selected-index(index) => { root.set-global-choice(15, index); } } }
+                    HorizontalLayout { spacing: 10px; Text { text: root.glabel(16); width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactSpin { width: 92px; minimum: root.grange(16).minimum; maximum: root.grange(16).maximum; enabled: root.grange(16).available; value: root.gb(root.goff(16)) - root.grange(16).bias; edited => { root.set-global-byte(16, self.value); } } }
+                    HorizontalLayout { spacing: 10px; Text { text: root.glabel(17); width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactCombo { width: 130px; model: root.global-choice-lists[17].labels; current-index: root.global-choice-lists[17].selected; selected-index(index) => { root.set-global-choice(17, index); } } }
+                    HorizontalLayout { spacing: 10px; Text { text: root.glabel(18); width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactCombo { width: 130px; model: root.global-choice-lists[18].labels; current-index: root.global-choice-lists[18].selected; selected-index(index) => { root.set-global-choice(18, index); } } }
                     }
                     }
                     }
@@ -1687,23 +1724,23 @@ component Editor inherits Rectangle {
                     alignment: start;
                     if root.global-class == "X14802" : HorizontalLayout {
                     spacing: 10px;
-                    Text { text: "Global MIDI Channel"; width: 190px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
-                    CompactSpin { width: 92px; minimum: 1; maximum: 16; value: root.global-channel-value; edited => { root.set-global-byte(root.goff(0), self.value - 1); } }
+                    Text { text: root.glabel(0); width: 190px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
+                    CompactSpin { width: 92px; minimum: root.grange(0).minimum; maximum: root.grange(0).maximum; enabled: root.grange(0).available; value: root.gb(root.goff(0)) - root.grange(0).bias; edited => { root.set-global-byte(0, self.value); } }
                     }
                     if root.global-class == "X14802" : HorizontalLayout {
                     spacing: 10px;
-                    Text { text: "Controller Mode"; width: 190px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
+                    Text { text: root.glabel(19); width: 190px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
                     // 0 Assignable and 1 Cubase are measured; the rest follow the option order.
                     CompactCombo { width: 160px; model: root.global-choice-lists[19].labels; current-index: root.global-choice-lists[19].selected; selected-index(index) => { root.set-global-choice(19, index); } }
                     }
                     if root.global-class == "X14802" : HorizontalLayout {
                     spacing: 10px;
-                    Text { text: "Battery Type"; width: 190px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
+                    Text { text: root.glabel(1); width: 190px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
                     CompactCombo { width: 130px; model: root.global-choice-lists[1].labels; current-index: root.global-choice-lists[1].selected; selected-index(index) => { root.set-global-choice(1, index); } }
                     }
                     if root.global-class == "X14802" : HorizontalLayout {
                     spacing: 10px;
-                    Text { text: "Wireless Device Name"; width: 190px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
+                    Text { text: root.global-name-label; width: 190px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
                     LineEdit { text: root.global-name-text; width: 300px; edited(text) => { root.set-global-text(root.goff(21), text); } }
                     }
                     // Information only: no MIDI message switches wireless (korg_app::wireless).
@@ -1721,7 +1758,7 @@ component Editor inherits Rectangle {
                     }
                     if root.global-class == "X14802" : HorizontalLayout {
                     spacing: 10px;
-                    Text { text: "Use Scene Button as Scrub"; width: 190px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
+                    Text { text: root.glabel(20); width: 190px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; }
                     CompactCombo { width: 130px; model: root.global-choice-lists[20].labels; current-index: root.global-choice-lists[20].selected; selected-index(index) => { root.set-global-choice(20, index); } }
                     }
                     if root.global-class != "X14800" && root.global-class != "X14802" : Text {
@@ -1764,17 +1801,17 @@ component Editor inherits Rectangle {
                     VerticalLayout {
                     spacing: 6px;
                     Text { text: "USB"; font-weight: 600; color: #c8c8c8; }
-                    HorizontalLayout { spacing: 10px; Text { text: "Auto LED Off"; width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactCombo { width: 130px; model: root.global-choice-lists[10].labels; current-index: root.global-choice-lists[10].selected; selected-index(index) => { root.set-global-choice(10, index); } } }
-                    HorizontalLayout { spacing: 10px; Text { text: "LED Brightness"; width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactSpin { width: 92px; minimum: 1; maximum: 3; value: root.gb(root.goff(11)) + 1; edited => { root.set-global-byte(root.goff(11), self.value - 1); } } }
-                    HorizontalLayout { spacing: 10px; Text { text: "LED Illumination"; width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactCombo { width: 130px; model: root.global-choice-lists[12].labels; current-index: root.global-choice-lists[12].selected; selected-index(index) => { root.set-global-choice(12, index); } } }
+                    HorizontalLayout { spacing: 10px; Text { text: root.glabel(10); width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactCombo { width: 130px; model: root.global-choice-lists[10].labels; current-index: root.global-choice-lists[10].selected; selected-index(index) => { root.set-global-choice(10, index); } } }
+                    HorizontalLayout { spacing: 10px; Text { text: root.glabel(11); width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactSpin { width: 92px; minimum: root.grange(11).minimum; maximum: root.grange(11).maximum; enabled: root.grange(11).available; value: root.gb(root.goff(11)) - root.grange(11).bias; edited => { root.set-global-byte(11, self.value); } } }
+                    HorizontalLayout { spacing: 10px; Text { text: root.glabel(12); width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactCombo { width: 130px; model: root.global-choice-lists[12].labels; current-index: root.global-choice-lists[12].selected; selected-index(index) => { root.set-global-choice(12, index); } } }
                     }
                     VerticalLayout {
                     spacing: 6px;
                     Text { text: "Battery"; font-weight: 600; color: #c8c8c8; }
-                    HorizontalLayout { spacing: 10px; Text { text: "Auto Power Save"; width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactCombo { width: 130px; model: root.global-choice-lists[14].labels; current-index: root.global-choice-lists[14].selected; selected-index(index) => { root.set-global-choice(14, index); } } }
-                    HorizontalLayout { spacing: 10px; Text { text: "Auto LED Off"; width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactCombo { width: 130px; model: root.global-choice-lists[15].labels; current-index: root.global-choice-lists[15].selected; selected-index(index) => { root.set-global-choice(15, index); } } }
-                    HorizontalLayout { spacing: 10px; Text { text: "LED Brightness"; width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactSpin { width: 92px; minimum: 1; maximum: 3; value: root.gb(root.goff(16)) + 1; edited => { root.set-global-byte(root.goff(16), self.value - 1); } } }
-                    HorizontalLayout { spacing: 10px; Text { text: "LED Illumination"; width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactCombo { width: 130px; model: root.global-choice-lists[17].labels; current-index: root.global-choice-lists[17].selected; selected-index(index) => { root.set-global-choice(17, index); } } }
+                    HorizontalLayout { spacing: 10px; Text { text: root.glabel(14); width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactCombo { width: 130px; model: root.global-choice-lists[14].labels; current-index: root.global-choice-lists[14].selected; selected-index(index) => { root.set-global-choice(14, index); } } }
+                    HorizontalLayout { spacing: 10px; Text { text: root.glabel(15); width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactCombo { width: 130px; model: root.global-choice-lists[15].labels; current-index: root.global-choice-lists[15].selected; selected-index(index) => { root.set-global-choice(15, index); } } }
+                    HorizontalLayout { spacing: 10px; Text { text: root.glabel(16); width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactSpin { width: 92px; minimum: root.grange(16).minimum; maximum: root.grange(16).maximum; enabled: root.grange(16).available; value: root.gb(root.goff(16)) - root.grange(16).bias; edited => { root.set-global-byte(16, self.value); } } }
+                    HorizontalLayout { spacing: 10px; Text { text: root.glabel(17); width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactCombo { width: 130px; model: root.global-choice-lists[17].labels; current-index: root.global-choice-lists[17].selected; selected-index(index) => { root.set-global-choice(17, index); } } }
                     }
                     }
                     }
@@ -1828,6 +1865,15 @@ export component AppWindow inherits Window {
     in property <[int]> global-bytes;
     in property <[int]> global-binding-offsets;
     in property <[GlobalChoiceList]> global-choice-lists;
+    in property <[string]> global-binding-labels;
+    in property <string> global-name-label: "";
+    in property <string> global-bpm-label: "";
+    in property <string> global-chord-pad-label: "";
+    in property <string> global-easy-scale-label: "";
+    in property <[GlobalNumberRange]> global-number-ranges;
+    in property <int> global-bpm-minimum: 0;
+    in property <int> global-bpm-maximum: 0;
+    in property <bool> global-bpm-available: false;
     in property <string> global-channel: "1";
     in property <string> global-controller: "Native";
     in property <string> global-battery: "Alkaline";
@@ -1898,6 +1944,7 @@ export component AppWindow inherits Window {
     callback set-param(int, int, int);
     callback set-param-byte(int, int);
     callback set-param-text(int, string);
+    callback set-param-schema-text(int, int, string);
     callback set-global-param(int, int, int);
     callback set-global-param-label(int, int, string);
     callback set-param-choice(int, string);
@@ -1991,6 +2038,15 @@ export component AppWindow inherits Window {
         global-bytes: root.global-bytes;
         global-binding-offsets: root.global-binding-offsets;
         global-choice-lists: root.global-choice-lists;
+        global-binding-labels: root.global-binding-labels;
+        global-name-label: root.global-name-label;
+        global-bpm-label: root.global-bpm-label;
+        global-chord-pad-label: root.global-chord-pad-label;
+        global-easy-scale-label: root.global-easy-scale-label;
+        global-number-ranges: root.global-number-ranges;
+        global-bpm-minimum: root.global-bpm-minimum;
+        global-bpm-maximum: root.global-bpm-maximum;
+        global-bpm-available: root.global-bpm-available;
         global-channel: root.global-channel;
         global-controller: root.global-controller;
         global-battery: root.global-battery;
@@ -2042,6 +2098,7 @@ export component AppWindow inherits Window {
         set-param(element, index, value) => { root.set-param(element, index, value); }
         set-param-byte(offset, value) => { root.set-param-byte(offset, value); }
         set-param-text(offset, text) => { root.set-param-text(offset, text); }
+        set-param-schema-text(element, index, text) => { root.set-param-schema-text(element, index, text); }
         set-global-param(element, index, value) => { root.set-global-param(element, index, value); }
         set-global-param-label(element, index, label) => { root.set-global-param-label(element, index, label); }
         set-param-choice(offset, label) => { root.set-param-choice(offset, label); }

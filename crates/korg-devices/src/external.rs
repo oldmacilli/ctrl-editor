@@ -1,7 +1,8 @@
 //! Load external CDL files without embedding them in the binary.
 //!
-//! This is an opt-in migration API. Existing KORG data remains the active
-//! source until the shared descriptors have passed the parity gates.
+//! This is the runtime source for the catalog, the parameter schemas, the
+//! SysEx descriptors and the panels.  The descriptor files are installed
+//! beside the executable or named by `KORG_DESCRIPTOR_DIR`.
 
 use std::collections::BTreeMap;
 use std::fmt;

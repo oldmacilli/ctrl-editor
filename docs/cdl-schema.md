@@ -34,9 +34,15 @@ Optional global fields. (§4)
 
 | Property | Meaning |
 |---|---|
+| `name-label` | device name display label |
 | `name-offset` | device name offset |
 | `name-width` | device name width |
+| `bpm-label` | BPM display label |
 | `bpm-offset` | little-endian BPM word offset |
+| `bpm-min` | minimum BPM tenths |
+| `bpm-max` | maximum BPM tenths |
+| `chord-pad-label` | Chord Pad display label |
+| `easy-scale-label` | Easy Scale display label |
 
 ## `global-fields/binding`
 
@@ -47,7 +53,11 @@ Named global UI byte binding. (§4)
 
 | Property | Meaning |
 |---|---|
+| `label` | field display label |
 | `offset` | global byte offset |
+| `min` | minimum displayed value |
+| `max` | maximum displayed value |
+| `bias` | stored minus displayed value |
 
 ## `global-fields/binding/choice`
 

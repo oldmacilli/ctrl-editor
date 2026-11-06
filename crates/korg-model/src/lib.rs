@@ -274,6 +274,8 @@ pub struct ParameterDef {
 pub enum ParameterKind {
     Number,
     Enum,
+    /// A text field: printable ASCII bytes.  No numeric decode or write.
+    Text,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -397,11 +399,17 @@ impl ParameterDef {
 
     /// Decode the logical value from one payload.
     pub fn decode(&self, payload: &[u8]) -> Option<i32> {
+        if self.kind == ParameterKind::Text {
+            return None;
+        }
         self.read_raw(payload).map(|raw| raw as i32 - self.bias)
     }
 
     /// Write a logical value into one payload.  Other bits stay unchanged.
     pub fn write(&self, payload: &mut [u8], value: i32) -> bool {
+        if self.kind == ParameterKind::Text {
+            return false;
+        }
         let Some(encoded) = self.encode(value) else {
             return false;
         };
@@ -436,6 +444,19 @@ impl ParameterDef {
     }
 
     pub fn validate(&self, payload_size: u16) -> Result<(), SchemaError> {
+        if self.kind == ParameterKind::Text {
+            if self.width == 0 || self.width as usize > payload_size as usize {
+                return Err(SchemaError::InvalidWidth {
+                    key: self.key.clone(),
+                });
+            }
+            if self.offset as usize + self.width as usize > payload_size as usize {
+                return Err(SchemaError::OffsetOutOfRange {
+                    key: self.key.clone(),
+                });
+            }
+            return Ok(());
+        }
         if self.width == 0 || self.width > 4 {
             return Err(SchemaError::InvalidWidth {
                 key: self.key.clone(),
@@ -511,6 +532,9 @@ impl ParameterSchema {
                 });
             };
             for parameter in &self.parameters {
+                if parameter.kind == ParameterKind::Text {
+                    continue;
+                }
                 let Some(value) = parameter.decode(slice) else {
                     return Err(SchemaError::OffsetOutOfRange {
                         key: parameter.key.clone(),

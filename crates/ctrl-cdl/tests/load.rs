@@ -34,6 +34,27 @@ fn errors(text: &str) -> Vec<String> {
 const HEAD: &str = "cdl \"0.1\"\ndevice \"t.x\"\n";
 
 #[test]
+fn global_numeric_ranges_are_validated() {
+    let valid = format!("{HEAD}global-fields bpm-offset=2 bpm-min=200 bpm-max=3000 status=\"decoded\" {{ binding \"channel\" offset=0 min=1 max=16 bias=-1 status=\"decoded\" }}");
+    assert!(parse_str("test", &valid).is_ok());
+    for binding in [
+        "min=3 max=1",
+        "min=0 max=256",
+        "min=1",
+        "min=0 max=1 bias=-1",
+    ] {
+        assert!(!errors(&format!(
+            "{HEAD}global-fields {{ binding \"n\" offset=0 {binding} }}"
+        ))
+        .is_empty());
+    }
+    assert!(!errors(&format!(
+        "{HEAD}global-fields bpm-offset=2 bpm-min=3000 bpm-max=200"
+    ))
+    .is_empty());
+}
+
+#[test]
 fn global_binding_choices_are_explicit_and_unique() {
     let input = format!("{HEAD}global-fields status=\"decoded\" {{ binding \"battery\" offset=2 status=\"decoded\" {{ choice \"Alkaline\" value=0 status=\"decoded\" evidence=\"UI\"; choice \"Ni-MH\" value=1 status=\"inferred\" evidence=\"UI\" }} }}");
     let descriptor = parse_str("test", &input).unwrap();

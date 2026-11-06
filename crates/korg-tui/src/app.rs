@@ -74,7 +74,7 @@ pub(crate) fn param_display(param: &ParamView) -> String {
 
 /// The Range column of a schema row.
 pub(crate) fn param_range(param: &ParamView) -> String {
-    if param.key == korg_core::DEVICE_NAME_KEY {
+    if param.key == korg_core::DEVICE_NAME_KEY || param.kind == ParameterKind::Text {
         return "text".to_owned();
     }
     param_channel(param)
@@ -2245,6 +2245,10 @@ impl<T: MidiTransport, C: Clock> App<T, C> {
                     param.min + (param.value - param.min + delta).rem_euclid(span.max(1))
                 }
                 ParameterKind::Number => (param.value + delta).clamp(param.min, param.max),
+                ParameterKind::Text => {
+                    self.status = format!("Press Enter to type the {}.", param.label);
+                    return;
+                }
             },
         };
         if value != param.value {
@@ -2325,6 +2329,15 @@ impl<T: MidiTransport, C: Clock> App<T, C> {
                     let text: String = input.chars().filter(|c| matches!(c, ' '..='~')).collect();
                     self.dispatch(ControllerAction::SetGlobalText {
                         offset: param.offset,
+                        text,
+                    });
+                    return;
+                }
+                if param.kind == ParameterKind::Text {
+                    let text: String = input.chars().filter(|c| matches!(c, ' '..='~')).collect();
+                    self.dispatch(ControllerAction::SetParameterText {
+                        element: param.element,
+                        index: param.index,
                         text,
                     });
                     return;

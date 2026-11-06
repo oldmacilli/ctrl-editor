@@ -123,9 +123,15 @@ display choices. Each `choice` names the stored byte explicitly, so labels
 and their order can change without changing the value written. The consumer
 must ignore choices whose status is unknown or missing and reject ambiguous
 labels or duplicate byte values. Inferred choices retain their status.
+Numeric bindings may carry inclusive displayed `min`/`max` and `bias`: the
+stored byte is the displayed number plus `bias`. The range inherits the
+binding's status and evidence; consumers must refuse edits when it is absent
+or not decoded/measured. `bpm-min` and `bpm-max` describe the permitted
+little-endian BPM word in tenths and inherit the enclosing status.
 
 ```kdl
 global-fields status="decoded" evidence="global data analysis" {
+    binding "channel" offset=0 min=1 max=16 bias=-1 status="decoded" evidence="existing editor range"
     binding "battery" offset=2 status="decoded" evidence="global data analysis" {
         choice "Alkaline" value=0 status="inferred" evidence="existing UI order"
         choice "Ni-MH" value=1 status="inferred" evidence="existing UI order"

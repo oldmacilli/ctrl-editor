@@ -1,6 +1,6 @@
 //! Runtime device data projected from external per-device CDL descriptors.
 use crate::{Catalog, SysexCatalog};
-use korg_model::ParameterSchema;
+use korg_model::{ParameterDef, ParameterSchema};
 use serde::Deserialize;
 use std::sync::OnceLock;
 
@@ -70,6 +70,22 @@ fn trusted_inherited(status: Option<ctrl_cdl::Status>) -> bool {
 
 type Descriptors = std::collections::BTreeMap<String, ctrl_cdl::Descriptor>;
 
+/// The vendor `parameter-names` list maps a parameter id to its name.
+fn parameter_names(descriptor: &ctrl_cdl::Descriptor) -> std::collections::BTreeMap<i64, String> {
+    descriptor
+        .labels
+        .iter()
+        .flat_map(|labels| labels.lists.iter())
+        .find(|list| list.name == "parameter-names")
+        .map(|list| {
+            list.items
+                .iter()
+                .map(|item| (item.value, item.label.clone()))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 fn parameters_from_loaded(
     descriptors: &Descriptors,
 ) -> Result<Vec<ParameterSchema>, serde_json::Error> {
@@ -99,6 +115,7 @@ fn parameters_from_loaded(
                     layout.payload
                 )));
             }
+            let names = parameter_names(descriptor);
             let mut parameters = Vec::new();
             for value in layout.parameters {
                 let meta: CatalogMeta = serde_json::from_value(
@@ -110,7 +127,11 @@ fn parameters_from_loaded(
                 if !trusted_inherited(meta.status) {
                     return Err(failure(format!("{class}: unverified parameter")));
                 }
-                parameters.push(serde_json::from_value(value)?);
+                let mut parameter: ParameterDef = serde_json::from_value(value)?;
+                if parameter.display_label.is_none() {
+                    parameter.display_label = names.get(&i64::from(parameter.id)).cloned();
+                }
+                parameters.push(parameter);
             }
             let schema = ParameterSchema {
                 schema_version: layout.version,
@@ -305,6 +326,19 @@ mod tests {
             .expect("set KORG_ANALYSIS_ROOT to the private KORG analysis checkout")
     }
 
+    /// Compare labels only where the private analysis records one.  Vendor
+    /// parameter names come from the extracted Strings XML, which the private
+    /// schema JSON does not contain.
+    fn align_optional_labels(actual: &mut [ParameterSchema], expected: &[ParameterSchema]) {
+        for (actual, expected) in actual.iter_mut().zip(expected) {
+            for (actual, expected) in actual.parameters.iter_mut().zip(&expected.parameters) {
+                if expected.display_label.is_none() {
+                    actual.display_label = None;
+                }
+            }
+        }
+    }
+
     #[test]
     #[ignore = "requires KORG_ANALYSIS_ROOT containing the private extracted analysis"]
     fn external_cdl_catalog_matches_the_existing_device_catalog() {
@@ -338,7 +372,7 @@ mod tests {
     #[ignore = "requires KORG_ANALYSIS_ROOT containing the private extracted analysis"]
     fn external_cdl_parameters_match_all_existing_schemas() {
         let root = crate::external::descriptor_root().unwrap();
-        let actual =
+        let mut actual =
             parameters_from_loaded(&crate::external::load_korg_descriptors(&root).unwrap())
                 .unwrap();
         let mut paths = std::fs::read_dir(private_root().join("analysis/parameters"))
@@ -387,6 +421,7 @@ mod tests {
                 schema
             })
             .collect();
+        align_optional_labels(&mut actual, &expected);
         assert_eq!(actual, expected);
     }
 
@@ -394,7 +429,7 @@ mod tests {
     #[ignore = "requires KORG_ANALYSIS_ROOT containing the private extracted analysis"]
     fn runtime_descriptors_preserve_all_behavioral_inputs() {
         let root = crate::external::descriptor_root().expect("external descriptor root");
-        let actual = load_from(&root).expect("valid external CDL");
+        let mut actual = load_from(&root).expect("valid external CDL");
         let private = private_root();
         let catalog: Catalog = serde_json::from_slice(
             &std::fs::read(private.join("analysis/products/catalog.json")).unwrap(),
@@ -448,6 +483,7 @@ mod tests {
                 schema
             })
             .collect();
+        align_optional_labels(&mut actual.schemas, &expected);
         assert_eq!(actual.schemas, expected);
 
         let mut expected: SysexCatalog = serde_json::from_slice(
@@ -525,5 +561,33 @@ mod tests {
         );
         assert_eq!(changed.sysex.devices["X10830"].commands["scene_data"], None);
         std::fs::remove_dir_all(temp).unwrap();
+    }
+
+    #[test]
+    fn parameter_names_project_into_scene_display_labels() {
+        let descriptor = ctrl_cdl::parse_str(
+            "test",
+            "cdl \"0.1\"\n\
+             device \"test\"\n\
+             parameter-layouts status=\"decoded\" {\n\
+                 layout \"scene\" order=0 size=16 elements=1 stride=1 version=1 {\n\
+                     parameter \"Value\" id=5 offset=0 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind=\"number\" default=0 default-source=\"factory\"\n\
+                 }\n\
+             }\n\
+             labels \"en\" {\n\
+                 list \"parameter-names\" {\n\
+                     item 5 \"CC Number\"\n\
+                 }\n\
+             }",
+        )
+        .unwrap();
+        let mut descriptors = std::collections::BTreeMap::new();
+        descriptors.insert("X1".to_owned(), descriptor);
+        let schemas = parameters_from_loaded(&descriptors).unwrap();
+        assert_eq!(schemas.len(), 1);
+        assert_eq!(
+            schemas[0].parameters[0].display_label.as_deref(),
+            Some("CC Number")
+        );
     }
 }

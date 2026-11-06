@@ -20,7 +20,8 @@ fn changed_external_global_offsets_are_used_for_display_and_writes() {
     let original = std::fs::read_to_string(&file).unwrap();
     let changed = original
         .replace("name-offset=8", "name-offset=20")
-        .replace("bpm-offset=57", "bpm-offset=70");
+        .replace("bpm-offset=57", "bpm-offset=70")
+        .replace("bpm-min=200 bpm-max=3000", "bpm-min=1000 bpm-max=1500");
     assert_ne!(original, changed);
     std::fs::write(file, changed).unwrap();
     std::env::set_var("KORG_DESCRIPTOR_DIR", &root);
@@ -42,6 +43,14 @@ fn changed_external_global_offsets_are_used_for_display_and_writes() {
         .dispatch(ControllerAction::SetGlobalBpm(1234))
         .error
         .is_none());
+    assert!(controller
+        .dispatch(ControllerAction::SetGlobalBpm(999))
+        .error
+        .is_some());
+    assert!(controller
+        .dispatch(ControllerAction::SetGlobalBpm(1501))
+        .error
+        .is_some());
     let global = &controller
         .session()
         .document()

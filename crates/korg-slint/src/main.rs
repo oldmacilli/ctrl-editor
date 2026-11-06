@@ -227,13 +227,16 @@ fn main() -> Result<(), slint::PlatformError> {
                 return;
             };
             let element_size = scenes.first().map(|scene| scene.data.len()).unwrap_or(0) as u16;
-            controller
-                .borrow_mut()
-                .load(ControllerInput::SceneSet(SceneSet {
+            {
+                let mut controller = controller.borrow_mut();
+                controller.set_schema(korg_devices::parameter_schema(&class, "scene"));
+                controller.set_device(Some(device_target(device)));
+                controller.load(ControllerInput::SceneSet(SceneSet {
                     model,
                     element_size,
                     scenes,
                 }));
+            }
             *selected_class.borrow_mut() = Some(class);
             ui.set_screen(1);
             ui.set_status("New document from factory data.".into());
@@ -653,6 +656,27 @@ fn main() -> Result<(), slint::PlatformError> {
                 selected_page_field(&class, data, offset as usize)
                     .is_some_and(|(_, field)| korg_app::pages::store_text(data, &field, &text))
             });
+            if let Some(ui) = weak.upgrade() {
+                refresh(&ui, &controller.borrow(), &catalog, &selected_class);
+            }
+        });
+    }
+
+    {
+        let weak = ui.as_weak();
+        let controller = controller.clone();
+        let catalog = catalog.clone();
+        let selected_class = selected_class.clone();
+        ui.on_set_param_schema_text(move |element, index, text| {
+            if let (Ok(element), Ok(index)) = (usize::try_from(element), usize::try_from(index)) {
+                controller
+                    .borrow_mut()
+                    .dispatch(ControllerAction::SetParameterText {
+                        element,
+                        index,
+                        text: text.to_string(),
+                    });
+            }
             if let Some(ui) = weak.upgrade() {
                 refresh(&ui, &controller.borrow(), &catalog, &selected_class);
             }
@@ -1316,16 +1340,22 @@ fn main() -> Result<(), slint::PlatformError> {
         let controller = controller.clone();
         let catalog = catalog.clone();
         let selected_class = selected_class.clone();
-        ui.on_set_global_byte(move |offset, value| {
-            if offset < 0 || !(0..=255).contains(&value) {
+        ui.on_set_global_byte(move |role, value| {
+            let Ok(role) = usize::try_from(role) else {
                 return;
-            }
+            };
+            let Some(class) = current_class(&controller, &catalog, &selected_class) else {
+                return;
+            };
+            let fields = korg_devices::global_fields(&class);
+            let Some((offset, value)) =
+                korg_devices::global_ui_number_selection(fields, role, value)
+            else {
+                return;
+            };
             controller
                 .borrow_mut()
-                .dispatch(ControllerAction::SetGlobalByte {
-                    offset: offset as usize,
-                    value: value as u8,
-                });
+                .dispatch(ControllerAction::SetGlobalByte { offset, value });
             if let Some(ui) = weak.upgrade() {
                 refresh(&ui, &controller.borrow(), &catalog, &selected_class);
             }
@@ -1359,6 +1389,17 @@ fn main() -> Result<(), slint::PlatformError> {
         let catalog = catalog.clone();
         let selected_class = selected_class.clone();
         ui.on_set_global_bpm(move |value| {
+            let Some(class) = current_class(&controller, &catalog, &selected_class) else {
+                return;
+            };
+            let Some(range) =
+                korg_devices::global_ui_bpm_range(korg_devices::global_fields(&class))
+            else {
+                return;
+            };
+            if !(range.min..=range.max).contains(&i64::from(value)) {
+                return;
+            }
             dispatch_ui_bpm(&mut controller.borrow_mut(), value);
             if let Some(ui) = weak.upgrade() {
                 refresh(&ui, &controller.borrow(), &catalog, &selected_class);
@@ -2375,7 +2416,11 @@ fn global_row(parameter: &korg_core::ParamView) -> ParamRow {
         value: parameter.value,
         minimum,
         maximum: parameter.max,
-        kind: i32::from(!choices.is_empty()),
+        kind: if parameter.kind == ParameterKind::Text {
+            3
+        } else {
+            i32::from(!choices.is_empty())
+        },
         display: choices
             .get(usize::try_from(parameter.value - minimum).unwrap_or(usize::MAX))
             .cloned()
@@ -2864,6 +2909,7 @@ fn refresh(
             };
             let hint = match channel {
                 Some(kind) => kind.range_hint(),
+                None if parameter.kind == ParameterKind::Text => "text".to_owned(),
                 None if !choices.is_empty() => format!("{} choices", choices.len()),
                 None => format!("{}..{}", parameter.min, parameter.max),
             };
@@ -2880,7 +2926,7 @@ fn refresh(
                 offset: parameter.offset as i32,
                 byte_offset: -1,
                 key: parameter.key.as_str().into(),
-                label: korg_app::pages::schema_label(&parameter.label).into(),
+                label: parameter.label.as_str().into(),
                 value: parameter.value,
                 minimum: if channel.is_some() { 0 } else { parameter.min },
                 maximum: if channel.is_some() {
@@ -2893,7 +2939,9 @@ fn refresh(
                 } else {
                     match parameter.kind {
                         ParameterKind::Number => 0,
-                        ParameterKind::Enum => 1,
+                        ParameterKind::Enum if !choices.is_empty() => 1,
+                        ParameterKind::Enum => 0,
+                        ParameterKind::Text => 3,
                     }
                 },
                 choices: ModelRc::new(VecModel::from(
@@ -3017,6 +3065,56 @@ fn refresh(
     ui.set_global_tab(GLOBAL_TAB.get());
     let bytes = global_data.as_deref().unwrap_or(&[]);
     let global_fields = class.as_deref().and_then(korg_devices::global_fields);
+    ui.set_global_name_label(
+        global_fields
+            .and_then(|fields| fields.name_label.as_deref())
+            .unwrap_or_default()
+            .into(),
+    );
+    ui.set_global_bpm_label(
+        global_fields
+            .and_then(|fields| fields.bpm_label.as_deref())
+            .unwrap_or_default()
+            .into(),
+    );
+    ui.set_global_chord_pad_label(
+        global_fields
+            .and_then(|fields| fields.chord_pad_label.as_deref())
+            .unwrap_or_default()
+            .into(),
+    );
+    ui.set_global_easy_scale_label(
+        global_fields
+            .and_then(|fields| fields.easy_scale_label.as_deref())
+            .unwrap_or_default()
+            .into(),
+    );
+    ui.set_global_binding_labels(ModelRc::new(VecModel::from(
+        korg_devices::global_ui_labels(global_fields)
+            .into_iter()
+            .map(SharedString::from)
+            .collect::<Vec<_>>(),
+    )));
+    let number_ranges = (0..korg_devices::GLOBAL_UI_ROLES.len())
+        .map(|role| {
+            let range = korg_devices::global_ui_number_range(global_fields, role);
+            GlobalNumberRange {
+                minimum: range.and_then(|r| i32::try_from(r.min).ok()).unwrap_or(0),
+                maximum: range.and_then(|r| i32::try_from(r.max).ok()).unwrap_or(0),
+                bias: range.and_then(|r| i32::try_from(r.bias).ok()).unwrap_or(0),
+                available: range.is_some_and(|r| {
+                    i32::try_from(r.min).is_ok()
+                        && i32::try_from(r.max).is_ok()
+                        && i32::try_from(r.bias).is_ok()
+                }),
+            }
+        })
+        .collect::<Vec<_>>();
+    ui.set_global_number_ranges(ModelRc::new(VecModel::from(number_ranges)));
+    let bpm_range = korg_devices::global_ui_bpm_range(global_fields);
+    ui.set_global_bpm_available(bpm_range.is_some());
+    ui.set_global_bpm_minimum(bpm_range.map_or(0, |r| r.min as i32));
+    ui.set_global_bpm_maximum(bpm_range.map_or(0, |r| r.max as i32));
     let offsets = korg_devices::global_ui_offsets(global_fields);
     let byte = |role: usize| {
         usize::try_from(offsets[role])
@@ -3694,6 +3792,23 @@ mod tests {
     }
 
     #[test]
+    fn battery_global_controls_use_battery_roles_and_labels() {
+        let labels = korg_devices::global_ui_labels(korg_devices::global_fields("X14800"));
+        assert_eq!(labels[10], "Auto LED Off"); // USB
+        assert_eq!(labels[14], "Auto Power Off"); // Battery
+        assert_eq!(labels[11], "LED Brightness"); // USB
+        assert_eq!(labels[16], "LED Brightness"); // Battery
+
+        // Keep the repeated battery panel bound to its own descriptor roles.
+        let ui = include_str!("../ui/app.slint");
+        assert!(ui.contains("glabel(14); width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactCombo { width: 130px; model: root.global-choice-lists[14].labels;"));
+        assert!(ui.contains("glabel(15); width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactCombo { width: 130px; model: root.global-choice-lists[15].labels;"));
+        assert!(ui.contains("glabel(16); width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactSpin { width: 92px; minimum: root.grange(16).minimum;"));
+        assert!(ui.contains("glabel(17); width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactCombo { width: 130px; model: root.global-choice-lists[17].labels;"));
+        assert!(ui.contains("glabel(18); width: 150px; horizontal-alignment: right; color: #f0f0f0; vertical-alignment: center; } CompactCombo { width: 130px; model: root.global-choice-lists[18].labels;"));
+    }
+
+    #[test]
     fn global_display_uses_relocated_external_bindings() {
         const CHILD: &str = "KORG_GLOBAL_BINDING_TEST_CHILD";
         if std::env::var_os(CHILD).is_some() {
@@ -3707,6 +3822,14 @@ mod tests {
                 ("4", "Rechargeable", "External-USB")
             );
             let offsets = korg_devices::global_ui_offsets(korg_devices::global_fields("X14800"));
+            let fields = korg_devices::global_fields("X14800");
+            let range = korg_devices::global_ui_number_range(fields, 0).unwrap();
+            assert_eq!((range.min, range.max, range.bias), (2, 8, -1));
+            assert_eq!(
+                korg_devices::global_ui_number_selection(fields, 0, 2),
+                Some((7, 1))
+            );
+            assert_eq!(korg_devices::global_ui_number_selection(fields, 0, 9), None);
             assert_eq!(
                 korg_devices::global_ui_choice_selection(
                     korg_devices::global_fields("X14800"),
@@ -3756,14 +3879,17 @@ mod tests {
         let data = std::fs::read_to_string(&file).unwrap();
         let modified = data
             .replace(
-                "binding \"channel\" offset=0",
-                "binding \"channel\" offset=7",
+                "binding \"channel\" label=\"Global MIDI Channel\" offset=0 min=1 max=16",
+                "binding \"channel\" label=\"Global MIDI Channel\" offset=7 min=2 max=8",
             )
             .replace(
-                "binding \"battery\" offset=1",
-                "binding \"battery\" offset=4",
+                "binding \"battery\" label=\"Battery Type\" offset=1",
+                "binding \"battery\" label=\"Battery Type\" offset=4",
             )
-            .replace("binding \"clock\" offset=56", "binding \"clock\" offset=6");
+            .replace(
+                "binding \"clock\" label=\"MIDI Clock Source\" offset=56",
+                "binding \"clock\" label=\"MIDI Clock Source\" offset=6",
+            );
         let modified = modified.replace(
             "choice \"Ni-MH\" value=1",
             "choice \"Rechargeable\" value=9",

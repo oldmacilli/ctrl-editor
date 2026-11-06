@@ -549,7 +549,32 @@ impl Builder {
                     }
                     cx.node(child, "global-fields/binding");
                     let name = cx.arg_str(child, 0).unwrap_or_default();
+                    let label = cx.prop_str(child, "label");
                     let offset = required_u32(cx, child, "offset");
+                    let min = cx.prop_i64(child, "min");
+                    let max = cx.prop_i64(child, "max");
+                    let bias = cx.prop_i64(child, "bias");
+                    let range = match (min, max) {
+                        (Some(min), Some(max)) => {
+                            let bias = bias.unwrap_or(0);
+                            if min > max
+                                || min
+                                    .checked_add(bias)
+                                    .is_none_or(|v| !(0..=255).contains(&v))
+                                || max
+                                    .checked_add(bias)
+                                    .is_none_or(|v| !(0..=255).contains(&v))
+                            {
+                                cx.err(child.pos, "invalid global numeric range");
+                            }
+                            Some(GlobalNumberRange { min, max, bias })
+                        }
+                        (None, None) if bias.is_none() => None,
+                        _ => {
+                            cx.err(child.pos, "global numeric range requires min and max");
+                            None
+                        }
+                    };
                     if bindings.iter().any(|b| b.name == name) {
                         cx.err(child.pos, "duplicate global field binding");
                     }
@@ -579,12 +604,36 @@ impl Builder {
                     bindings.push(GlobalBinding {
                         meta: cx.meta(child),
                         name,
+                        label,
                         offset,
+                        range,
                         choices,
                     });
                 }
+                let name_label = cx.prop_str(n, "name-label");
                 let name_offset = cx.prop_u32(n, "name-offset");
                 let name_width = cx.prop_u32(n, "name-width");
+                let bpm_label = cx.prop_str(n, "bpm-label");
+                let chord_pad_label = cx.prop_str(n, "chord-pad-label");
+                let easy_scale_label = cx.prop_str(n, "easy-scale-label");
+                let bpm_offset = cx.prop_u32(n, "bpm-offset");
+                let bpm_min = cx.prop_i64(n, "bpm-min");
+                let bpm_max = cx.prop_i64(n, "bpm-max");
+                let bpm_range = match (bpm_min, bpm_max) {
+                    (Some(min), Some(max))
+                        if bpm_offset.is_some()
+                            && (0..=65535).contains(&min)
+                            && (0..=65535).contains(&max)
+                            && min <= max =>
+                    {
+                        Some(GlobalNumberRange { min, max, bias: 0 })
+                    }
+                    (None, None) => None,
+                    _ => {
+                        cx.err(n.pos, "invalid BPM range");
+                        None
+                    }
+                };
                 if name_offset.is_some() != name_width.is_some() || name_width == Some(0) {
                     cx.err(
                         n.pos,
@@ -593,9 +642,14 @@ impl Builder {
                 }
                 let fields = GlobalFields {
                     meta: cx.meta(n),
+                    name_label,
                     name_offset,
                     name_width,
-                    bpm_offset: cx.prop_u32(n, "bpm-offset"),
+                    bpm_label,
+                    chord_pad_label,
+                    easy_scale_label,
+                    bpm_offset,
+                    bpm_range,
                     bindings,
                 };
                 once(cx, n, &mut self.global_fields, fields);
@@ -1208,7 +1262,7 @@ fn parameter_layouts(cx: &mut Cx, n: &RawNode) -> ParameterLayouts {
                 display_choices: Vec::new(),
                 display_choices_inferred: cx.prop_bool(field, "display-choices-inferred"),
             };
-            if !matches!(p.kind.as_str(), "number" | "enum")
+            if !matches!(p.kind.as_str(), "number" | "enum" | "text")
                 || !matches!(p.default_source.as_str(), "factory" | "unknown")
             {
                 cx.err(field.pos, "invalid parameter kind or default-source");

@@ -214,9 +214,14 @@ pub struct ParameterLayouts {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GlobalFields {
     pub meta: Meta,
+    pub name_label: Option<String>,
     pub name_offset: Option<u32>,
     pub name_width: Option<u32>,
+    pub bpm_label: Option<String>,
+    pub chord_pad_label: Option<String>,
+    pub easy_scale_label: Option<String>,
     pub bpm_offset: Option<u32>,
+    pub bpm_range: Option<GlobalNumberRange>,
     pub bindings: Vec<GlobalBinding>,
 }
 
@@ -224,8 +229,18 @@ pub struct GlobalFields {
 pub struct GlobalBinding {
     pub meta: Meta,
     pub name: String,
+    pub label: Option<String>,
     pub offset: u32,
+    pub range: Option<GlobalNumberRange>,
     pub choices: Vec<GlobalChoice>,
+}
+
+/// Inclusive displayed bounds; the stored value is displayed value plus bias.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GlobalNumberRange {
+    pub min: i64,
+    pub max: i64,
+    pub bias: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

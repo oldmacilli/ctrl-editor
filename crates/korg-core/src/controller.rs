@@ -36,6 +36,12 @@ pub enum ControllerAction {
         index: usize,
         value: i32,
     },
+    /// Write printable ASCII into the text parameter `ParamView::index`.
+    SetParameterText {
+        element: usize,
+        index: usize,
+        text: String,
+    },
     Undo,
     Redo,
     MarkSaved,
@@ -447,7 +453,20 @@ impl<T: MidiTransport, C: Clock> EditorController<T, C> {
                 ..ControllerOutcome::default()
             };
         };
-        let offset = korg_devices::global_fields_for_file_key(&global.model)
+        let fields = korg_devices::global_fields_for_file_key(&global.model);
+        let Some(range) = korg_devices::global_ui_bpm_range(fields) else {
+            return ControllerOutcome {
+                error: Some(CoreError::NoGlobalData.into()),
+                ..ControllerOutcome::default()
+            };
+        };
+        if !(range.min..=range.max).contains(&i64::from(tenths)) {
+            return ControllerOutcome {
+                error: Some(ControllerError::ParameterWrite),
+                ..ControllerOutcome::default()
+            };
+        }
+        let offset = fields
             .and_then(|fields| fields.bpm_offset)
             .map(|offset| offset as usize);
         let mut data = global.data;
@@ -584,18 +603,42 @@ impl<T: MidiTransport, C: Clock> EditorController<T, C> {
                 if repeated {
                     continue;
                 }
+                let name = parameter
+                    .display_label
+                    .clone()
+                    .unwrap_or_else(|| parameter.key.clone());
+                let label = if schema.elements > 1 {
+                    format!("{} {}", element + 1, name)
+                } else {
+                    name
+                };
+                if parameter.kind == ParameterKind::Text {
+                    let offset = usize::from(parameter.offset);
+                    let width = usize::from(parameter.width);
+                    let text = slice.get(offset..).unwrap_or_default();
+                    let end = text
+                        .iter()
+                        .take(width)
+                        .position(|byte| !(0x20..0x7F).contains(byte))
+                        .unwrap_or(text.len().min(width));
+                    let display = String::from_utf8_lossy(&text[..end]).trim_end().to_owned();
+                    rows.push(ParamView {
+                        element,
+                        index,
+                        offset: usize::from(parameter.offset),
+                        key: parameter.key.clone(),
+                        label,
+                        value: 0,
+                        min: 0,
+                        max: 0,
+                        kind: ParameterKind::Text,
+                        choices: Vec::new(),
+                        display,
+                    });
+                    continue;
+                }
                 let Some(value) = parameter.decode(slice) else {
                     continue;
-                };
-                let label = if schema.payload == "global" {
-                    parameter
-                        .display_label
-                        .clone()
-                        .unwrap_or_else(|| parameter.key.clone())
-                } else if schema.elements > 1 {
-                    format!("{} {}", element + 1, parameter.key)
-                } else {
-                    parameter.key.clone()
                 };
                 let choices: Vec<String> =
                     if parameter.labels.is_empty() && schema.payload == "global" {
@@ -652,6 +695,11 @@ impl<T: MidiTransport, C: Clock> EditorController<T, C> {
                 index,
                 value,
             } => self.set_global_parameter(element, index, value),
+            ControllerAction::SetParameterText {
+                element,
+                index,
+                text,
+            } => self.set_parameter_text(element, index, &text),
             ControllerAction::Undo => self.dispatch_session(SessionAction::Undo),
             ControllerAction::Redo => self.dispatch_session(SessionAction::Redo),
             ControllerAction::MarkSaved => self.dispatch_session(SessionAction::MarkSaved),
@@ -756,6 +804,104 @@ impl<T: MidiTransport, C: Clock> EditorController<T, C> {
         if !parameter.write(field, value) {
             return Err(ControllerError::ParameterWrite);
         }
+        Ok(data)
+    }
+
+    /// Set the text parameter `index` of `element`: printable ASCII only, cut
+    /// to the width, pad with spaces, keep the other bytes.
+    fn set_parameter_text(
+        &mut self,
+        element: usize,
+        index: usize,
+        text: &str,
+    ) -> ControllerOutcome {
+        if self.session.document().scene_set.is_none() && self.session.document().global.is_some() {
+            return self.set_global_parameter_text(element, index, text);
+        }
+        let scene = self.session.selected_scene();
+        let Some(data) = self
+            .session
+            .document()
+            .scene_set
+            .as_ref()
+            .and_then(|set| set.scenes.get(scene))
+            .map(|scene| scene.data.clone())
+        else {
+            return ControllerOutcome {
+                error: Some(ControllerError::Session(CoreError::NoSceneSet)),
+                ..ControllerOutcome::default()
+            };
+        };
+        match Self::write_parameter_text(self.schema.as_ref(), data, element, index, text) {
+            Ok(data) => self.dispatch_session(SessionAction::SetSceneData { index: scene, data }),
+            Err(error) => ControllerOutcome {
+                error: Some(error),
+                ..ControllerOutcome::default()
+            },
+        }
+    }
+
+    fn set_global_parameter_text(
+        &mut self,
+        element: usize,
+        index: usize,
+        text: &str,
+    ) -> ControllerOutcome {
+        let Some(data) = self
+            .session
+            .document()
+            .global
+            .as_ref()
+            .map(|global| global.data.clone())
+        else {
+            return ControllerOutcome {
+                error: Some(ControllerError::Session(CoreError::NoGlobalData)),
+                ..ControllerOutcome::default()
+            };
+        };
+        match Self::write_parameter_text(self.global_schema.as_ref(), data, element, index, text) {
+            Ok(data) => self.dispatch_session(SessionAction::SetGlobalData(data)),
+            Err(error) => ControllerOutcome {
+                error: Some(error),
+                ..ControllerOutcome::default()
+            },
+        }
+    }
+
+    /// `data` with the text parameter `index` of `element` set to `text`.
+    fn write_parameter_text(
+        schema: Option<&ParameterSchema>,
+        mut data: Vec<u8>,
+        element: usize,
+        index: usize,
+        text: &str,
+    ) -> Result<Vec<u8>, ControllerError> {
+        let schema = schema.ok_or(ControllerError::NoSchema)?;
+        let parameter = schema
+            .parameters
+            .get(index)
+            .filter(|_| element < schema.elements as usize)
+            .ok_or_else(|| {
+                ControllerError::UnknownParameter(format!("{index} element {element}"))
+            })?;
+        if parameter.kind != ParameterKind::Text {
+            return Err(ControllerError::ParameterWrite);
+        }
+        let base = element * schema.stride as usize;
+        let offset = usize::from(parameter.offset);
+        let width = usize::from(parameter.width);
+        let end = base
+            .checked_add(offset)
+            .and_then(|start| start.checked_add(width))
+            .filter(|end| *end <= data.len())
+            .ok_or(ControllerError::ParameterWrite)?;
+        let mut bytes: Vec<u8> = text
+            .bytes()
+            .filter(|byte| (0x20..=0x7E).contains(byte))
+            .take(width)
+            .collect();
+        bytes.resize(width, b' ');
+        data[base + offset..end].copy_from_slice(&bytes);
         Ok(data)
     }
 
@@ -870,7 +1016,7 @@ mod tests {
     use super::*;
     use crate::transfer::ManualClock;
     use korg_midi::{Direction, MockTransport, PortId, PortInfo};
-    use korg_model::{JogAcceleration, JogType, Scene, SceneSet};
+    use korg_model::{DefaultSource, JogAcceleration, JogType, ParameterDef, Scene, SceneSet};
 
     fn ports() -> Vec<PortInfo> {
         vec![
@@ -904,6 +1050,156 @@ mod tests {
                 data: vec![1, 2, 3, 4],
             }],
         }
+    }
+
+    /// A synthetic scene schema with one text parameter at offset 208, width
+    /// 26, matching the microKEY Air "Device Name" contract.
+    fn text_schema() -> ParameterSchema {
+        ParameterSchema {
+            schema_version: 1,
+            model: "14810".into(),
+            table: "scene".into(),
+            payload: "scene".into(),
+            payload_size: 256,
+            elements: 1,
+            stride: 1,
+            source: std::collections::BTreeMap::new(),
+            parameters: vec![ParameterDef {
+                id: 11,
+                key: "Device Name".into(),
+                offset: 208,
+                width: 26,
+                shift: 0,
+                mask: 0,
+                min: 0,
+                max: 0,
+                bias: 0,
+                kind: ParameterKind::Text,
+                labels: Vec::new(),
+                display_label: None,
+                display_choices: Vec::new(),
+                display_choices_inferred: false,
+                default: None,
+                default_source: DefaultSource::Unknown,
+                notes: None,
+            }],
+        }
+    }
+
+    #[test]
+    fn text_parameter_renders_and_writes() {
+        let mut controller = controller();
+        controller.set_schema(Some(text_schema()));
+        let mut data = vec![0u8; 256];
+        data[205] = 0xAA;
+        data[207] = 0xBB;
+        data[234] = 0xCC;
+        data[208..215].copy_from_slice(b"MY NAME");
+        controller.load(ControllerInput::SceneSet(SceneSet {
+            model: FileModelKey::new("0820").unwrap(),
+            element_size: 256,
+            scenes: vec![Scene { name: None, data }],
+        }));
+
+        let view = controller.view();
+        assert_eq!(view.params.len(), 1);
+        let row = &view.params[0];
+        assert_eq!(row.kind, ParameterKind::Text);
+        assert_eq!(row.key, "Device Name");
+        assert_eq!(row.offset, 208);
+        assert_eq!(row.display, "MY NAME");
+        assert_eq!((row.value, row.min, row.max), (0, 0, 0));
+
+        let outcome = controller.dispatch(ControllerAction::SetParameterText {
+            element: 0,
+            index: 0,
+            text: "AB".into(),
+        });
+        assert!(outcome.error.is_none());
+        let data = &controller
+            .session()
+            .document()
+            .scene_set
+            .as_ref()
+            .unwrap()
+            .scenes[0]
+            .data;
+        assert_eq!(&data[208..210], b"AB");
+        assert_eq!(&data[210..234], &[b' '; 24][..]);
+        // Bytes outside the field stay unchanged.
+        assert_eq!(data[205], 0xAA);
+        assert_eq!(data[207], 0xBB);
+        assert_eq!(data[234], 0xCC);
+        // The refreshed row shows the padded, trimmed text.
+        assert_eq!(controller.view().params[0].display, "AB");
+    }
+
+    #[test]
+    fn scene_rows_use_the_display_label() {
+        let schema = ParameterSchema {
+            schema_version: 1,
+            model: "14810".into(),
+            table: "scene".into(),
+            payload: "scene".into(),
+            payload_size: 256,
+            elements: 1,
+            stride: 1,
+            source: std::collections::BTreeMap::new(),
+            parameters: vec![ParameterDef {
+                id: 5,
+                key: "Value".into(),
+                offset: 17,
+                width: 1,
+                shift: 0,
+                mask: 0xff,
+                min: 0,
+                max: 127,
+                bias: 0,
+                kind: ParameterKind::Number,
+                labels: Vec::new(),
+                display_label: Some("CC Number".into()),
+                display_choices: Vec::new(),
+                display_choices_inferred: false,
+                default: None,
+                default_source: DefaultSource::Unknown,
+                notes: None,
+            }],
+        };
+        let rows = EditorController::<MockTransport, ManualClock>::rows(&schema, &vec![0u8; 256]);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].label, "CC Number");
+        assert_eq!(rows[0].key, "Value");
+    }
+
+    #[test]
+    fn text_write_drops_non_printable_bytes() {
+        let mut controller = controller();
+        controller.set_schema(Some(text_schema()));
+        controller.load(ControllerInput::SceneSet(SceneSet {
+            model: FileModelKey::new("0820").unwrap(),
+            element_size: 256,
+            scenes: vec![Scene {
+                name: None,
+                data: vec![0u8; 256],
+            }],
+        }));
+        let outcome = controller.dispatch(ControllerAction::SetParameterText {
+            element: 0,
+            index: 0,
+            text: "A\x01B~C".into(),
+        });
+        assert!(outcome.error.is_none());
+        let data = &controller
+            .session()
+            .document()
+            .scene_set
+            .as_ref()
+            .unwrap()
+            .scenes[0]
+            .data;
+        // The control byte is dropped; the four printable bytes remain.
+        assert_eq!(&data[208..212], b"AB~C");
+        assert_eq!(&data[212..234], &[b' '; 22][..]);
     }
 
     #[test]
