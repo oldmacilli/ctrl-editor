@@ -7,6 +7,8 @@ transport "midi" kind="midi" port-match-in="microKEY2 Air KEYBOARD" port-match-o
 
 include "microkey2-air.panel.inc.kdl"
 
+include "microkey2-air.pages.inc.kdl"
+
 include "microkey2-air.catalog.inc.kdl"
 
 include "microkey2-air.sysex.inc.kdl"

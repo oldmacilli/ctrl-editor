@@ -1,8 +1,7 @@
 cdl "0.1"
-// The overview retains access to fields without a dedicated panel control.
+// The vendor editor opens no page for the pitch wheel and the octave keys.
+// The overview stays the default page for fields without a panel control.
 editor-pages default="Overview" status="decoded" evidence="KORG parameter analysis and editor labels" {
-    select "Overview" group="Octave"
-    select "Overview" group="Wheel" label="Pitch"
     select "Mod Wheel" group="Wheel" label="Mod"
     select "Keyboard" group="Keyboard"
     page "Overview" {
