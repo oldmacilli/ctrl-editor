@@ -195,6 +195,7 @@ pub struct SysexCommands {
     pub meta: Meta,
     pub model_id: Option<u32>,
     pub length_style: Option<String>,
+    pub request_form: Option<String>,
     pub commands: Vec<SysexCommand>,
 }
 

@@ -275,6 +275,7 @@ Recovered device command table. (§8)
 |---|---|
 | `model-id` | optional 14-bit model id |
 | `length-style` | optional SysEx length encoding |
+| `request-form` | optional SysEx request form (low) |
 
 ## `sysex-commands/command`
 

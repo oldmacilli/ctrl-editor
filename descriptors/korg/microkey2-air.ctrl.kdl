@@ -12,4 +12,16 @@ include "microkey2-air.catalog.inc.kdl"
 
 include "microkey2-air.sysex.inc.kdl"
 
+// Live scene request was measured against microKEY2 Air firmware 1.04.
+sysex-commands model-id=312 request-form="low" status="measured" evidence="KORG live MIDI trace" {
+    command "request_command" byte=40 status="measured"
+    command "scene_data_request" byte=16 status="measured"
+    command "scene_data_reply" byte=64 status="measured"
+    command "scene_set_request" byte=18 status="decoded"
+    command "scene_select" byte=20 status="decoded"
+}
+
+const "model" 312 status="measured" evidence="KORG live MIDI identity"
+block "scene" size=256 count=1 status="measured" evidence="KORG live scene receive"
+
 include "microkey2-air.parameters.inc.kdl"

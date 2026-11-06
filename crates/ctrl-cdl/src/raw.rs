@@ -58,6 +58,7 @@ impl RawNode {
 
 /// Node kinds whose first argument is a name.
 const NAMED: &[&str] = &[
+    "command",
     "device",
     "transport",
     "capture",

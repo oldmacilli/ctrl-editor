@@ -126,6 +126,7 @@ pub static SCHEMA: &[NodeSpec] = &[
     n("sysex-commands", (0, 0), "", Some(&[
         p("model-id", "optional 14-bit model id"),
         p("length-style", "optional SysEx length encoding"),
+        p("request-form", "optional SysEx request form (low)"),
     ]), true, "8", "Recovered device command table."),
     n("sysex-commands/command", (1, 1), "command name", Some(&[
         p("byte", "known 7-bit command byte; omit for unknown"),

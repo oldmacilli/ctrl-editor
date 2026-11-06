@@ -1311,6 +1311,10 @@ fn sysex_commands(cx: &mut Cx, n: &RawNode) -> SysexCommands {
         cx.err(n.pos, "model-id must fit the KORG 14-bit model field");
     }
     let length_style = cx.prop_str(n, "length-style");
+    let request_form = cx.prop_str(n, "request-form");
+    if request_form.as_deref().is_some_and(|form| form != "low") {
+        cx.err(n.pos, "unsupported SysEx request-form");
+    }
     if length_style
         .as_deref()
         .is_some_and(|style| !matches!(style, "short_or_long" | "fixed3"))
@@ -1346,6 +1350,7 @@ fn sysex_commands(cx: &mut Cx, n: &RawNode) -> SysexCommands {
         meta: cx.meta(n),
         model_id,
         length_style,
+        request_form,
         commands,
     }
 }

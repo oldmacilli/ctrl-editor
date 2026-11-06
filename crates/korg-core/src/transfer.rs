@@ -631,6 +631,7 @@ pub(crate) fn test_descriptor() -> SysexDescriptor {
     .map(|(key, byte)| (key.to_owned(), Some(byte)))
     .collect();
     SysexDescriptor {
+        request_form: None,
         model_id: Some(korg_model::SysexModelId(0x112)),
         length_style: Some("short_or_long".to_owned()),
         commands,

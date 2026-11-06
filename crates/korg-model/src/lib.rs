@@ -99,6 +99,8 @@ pub struct SysexDescriptor {
     /// `short_or_long` or `fixed3`.
     #[serde(default)]
     pub length_style: Option<String>,
+    #[serde(default)]
+    pub request_form: Option<String>,
     /// Command byte per operation.  `None` means not recovered.
     #[serde(default)]
     pub commands: std::collections::BTreeMap<String, Option<u8>>,

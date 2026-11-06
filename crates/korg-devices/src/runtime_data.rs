@@ -33,6 +33,7 @@ struct SysexInfo {
     meta: CatalogMeta,
     model_id: Option<u32>,
     length_style: Option<String>,
+    request_form: Option<String>,
     commands: Vec<SysexCommandInfo>,
 }
 
@@ -176,6 +177,7 @@ fn sysex_from_loaded(descriptors: &Descriptors) -> Result<SysexCatalog, serde_js
             Some(ctrl_cdl::Status::Unknown)
                 if info.model_id.is_none()
                     && info.length_style.is_none()
+                    && info.request_form.is_none()
                     && info.commands.is_empty() =>
             {
                 continue
@@ -215,6 +217,7 @@ fn sysex_from_loaded(descriptors: &Descriptors) -> Result<SysexCatalog, serde_js
             korg_model::SysexDescriptor {
                 model_id: info.model_id.map(korg_model::SysexModelId),
                 length_style: info.length_style,
+                request_form: info.request_form,
                 commands,
                 source: None,
             },

@@ -95,15 +95,14 @@ fn layout_from_descriptor(d: &ctrl_cdl::Descriptor) -> Option<DescriptorLayout> 
     use ctrl_cdl::Status;
     let model_const = d.constant("model")?;
     let scene = d.block("scene")?;
-    let global = d.block("global")?;
-    if [
-        model_const.meta.status,
-        scene.meta.status,
-        global.meta.status,
-    ]
-    .iter()
-    .any(|status| *status != Some(Status::Measured))
+    let global = d.block("global");
+    if [model_const.meta.status, scene.meta.status]
+        .iter()
+        .any(|status| *status != Some(Status::Measured))
     {
+        return None;
+    }
+    if global.is_some_and(|block| block.meta.status != Some(Status::Measured)) {
         return None;
     }
     let model = u32::try_from(model_const.value)
@@ -113,9 +112,12 @@ fn layout_from_descriptor(d: &ctrl_cdl::Descriptor) -> Option<DescriptorLayout> 
     let scene_len = usize::try_from(scene.size?)
         .ok()
         .filter(|n| (1..=u16::MAX as usize).contains(n))?;
-    let global_len = usize::try_from(global.size?)
-        .ok()
-        .filter(|n| (1..=u16::MAX as usize).contains(n))?;
+    let global_len = match global {
+        Some(block) => usize::try_from(block.size?)
+            .ok()
+            .filter(|n| (1..=u16::MAX as usize).contains(n))?,
+        None => 0,
+    };
     let key = d
         .device
         .file_key
@@ -852,7 +854,7 @@ mod tests {
     #[test]
     fn sysex_descriptors_load() {
         let catalog = sysex_catalog().unwrap();
-        assert_eq!(catalog.devices.len(), 9);
+        assert_eq!(catalog.devices.len(), 10);
         let pad2 = catalog.devices.get("X10830").unwrap();
         assert_eq!(pad2.model_id.map(|id| id.0), Some(0x112));
         assert_eq!(pad2.commands.get("scene_data").copied().flatten(), Some(0));
@@ -888,6 +890,21 @@ mod tests {
         assert_eq!(control.write_header, Some([0x01, 0x05, 0x00, 0x40]));
         assert!(measured_layout(0x112).is_none());
         assert!(measured_layout_for_key("0820").is_none());
+    }
+
+    #[test]
+    fn microkey_air_has_measured_scene_and_low_request_metadata() {
+        let layout = measured_layout(0x138).expect("microKEY Air measured layout");
+        assert_eq!(
+            (layout.scene_count, layout.scene_len, layout.global_len),
+            (1, 256, 0)
+        );
+        let catalog = sysex_catalog().unwrap();
+        let device = catalog.devices.get("X14810").unwrap();
+        assert_eq!(device.request_form.as_deref(), Some("low"));
+        assert_eq!(device.commands.get("request_command"), Some(&Some(0x28)));
+        assert_eq!(device.commands.get("scene_data_request"), Some(&Some(0x10)));
+        assert_eq!(device.commands.get("scene_data_reply"), Some(&Some(0x40)));
     }
 
     #[test]
