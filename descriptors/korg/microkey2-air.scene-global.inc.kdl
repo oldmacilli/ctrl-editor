@@ -1,14 +1,9 @@
 cdl "0.1"
 // The microKEY2 Air has no separate global block: the vendor editor offers
 // only scene read and write, and a global request is refused (NAK).  The
-// Global tab shows the device-wide scene fields of the vendor groups
-// Common and Wireless.
+// Global tab shows the channel; the Wireless group retains its own fields.
 labels "en" {
     list "scene-global-offsets" {
         item 0 "MIDI Channel"
-        item 208 "Device Name"
-        item 234 "Encryption"
-        item 240 "Auto Power Off"
-        item 241 "Battery Type"
     }
 }
