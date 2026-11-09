@@ -2322,7 +2322,7 @@ fn page_row(row: &korg_app::pages::PageRow, data: &[u8]) -> ParamRow {
     };
     let (minimum, maximum) = field.range();
     let (kind, value) = match field.kind {
-        FieldKind::Text { .. } => (3, 0),
+        FieldKind::Text { .. } | FieldKind::TextPadded { .. } => (3, 0),
         FieldKind::Number { .. } | FieldKind::Biased { .. } | FieldKind::OptionalNumber { .. } => (
             0,
             if field.enabled {

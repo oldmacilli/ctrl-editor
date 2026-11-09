@@ -6,4 +6,10 @@ sysex-commands model-id=312 request-form="low" status="decoded" evidence="KORG p
     command "scene_data_reply" byte=64 status="decoded"
     command "scene_set_request" byte=18 status="decoded"
     command "scene_select" byte=20 status="decoded"
+    command "writable_member_00" byte=0 status="decoded"
+    command "writable_member_08" byte=8 status="decoded"
+    command "writable_member_10" byte=16 status="decoded"
+    command "writable_member_18" byte=24 status="decoded"
+    command "writable_member_20" byte=32 status="decoded"
+    command "writable_member_28" byte=40 status="decoded"
 }

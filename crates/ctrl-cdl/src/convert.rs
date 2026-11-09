@@ -258,6 +258,18 @@ impl Cx<'_> {
         }
     }
 
+    fn prop_u8(&mut self, n: &RawNode, key: &str) -> Option<u8> {
+        let v = n.prop(key)?;
+        let i = self.int(&format!("`{key}`"), v)?;
+        match u8::try_from(i) {
+            Ok(value) => Some(value),
+            Err(_) => {
+                self.err(v.pos, format!("`{key}`: {i} is out of range for a byte"));
+                None
+            }
+        }
+    }
+
     fn prop_bool(&mut self, n: &RawNode, key: &str) -> bool {
         let Some(v) = n.prop(key) else {
             return false;
@@ -1099,6 +1111,8 @@ fn editor_pages(cx: &mut Cx, n: &RawNode) -> EditorPages {
                         hidden_if_offset: cx.prop_u32(field, "hidden-if-offset"),
                         hidden_if_values: Vec::new(),
                         width: cx.prop_u32(field, "width"),
+                        write_width: cx.prop_u32(field, "write-width"),
+                        padding: cx.prop_u8(field, "padding"),
                         min_from_offset: cx.prop_u32(field, "min-from-offset"),
                         max_from_offset: cx.prop_u32(field, "max-from-offset"),
                         choices: Vec::new(),
@@ -1167,6 +1181,14 @@ fn editor_pages(cx: &mut Cx, n: &RawNode) -> EditorPages {
                         || (item.kind == "optional-number" && item.max.is_some_and(|max| max > 127))
                         || (item.kind == "text"
                             && item.width.is_none_or(|width| width == 0 || width > 255))
+                        || (item.kind == "text"
+                            && item.write_width.is_some_and(|width| {
+                                width == 0 || width > item.width.unwrap_or_default()
+                            }))
+                        || (item.kind == "text"
+                            && item.padding.is_some() != item.write_width.is_some())
+                        || (item.kind != "text"
+                            && (item.write_width.is_some() || item.padding.is_some()))
                         || (item.kind != "text" && item.width.is_some())
                         || ((item.min_from_offset.is_some() || item.max_from_offset.is_some())
                             && item.kind != "number")

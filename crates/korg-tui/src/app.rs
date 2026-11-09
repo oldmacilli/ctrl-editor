@@ -2172,7 +2172,7 @@ impl<T: MidiTransport, C: Clock> App<T, C> {
         };
         let (min, max) = field.field.range();
         let next = match field.kind {
-            FieldKind::Text { .. } => {
+            FieldKind::Text { .. } | FieldKind::TextPadded { .. } => {
                 self.status = format!("Press Enter to type the {}.", field.label);
                 return;
             }
@@ -2304,7 +2304,10 @@ impl<T: MidiTransport, C: Clock> App<T, C> {
                     let Some(field) = fields.get(self.param_cursor) else {
                         return;
                     };
-                    if matches!(field.kind, FieldKind::Text { .. }) {
+                    if matches!(
+                        field.kind,
+                        FieldKind::Text { .. } | FieldKind::TextPadded { .. }
+                    ) {
                         self.set_scene_text(field, &input);
                         return;
                     }
@@ -2554,7 +2557,7 @@ fn prompt_field_value(field: &korg_app::pages::PageField, input: &str) -> Option
         | FieldKind::ChannelOnly
         | FieldKind::Choice(_)
         | FieldKind::ExternalChoice(_) => korg_app::pages::choice_index(field, input),
-        FieldKind::Text { .. } => None,
+        FieldKind::Text { .. } | FieldKind::TextPadded { .. } => None,
         // A number, or a note name in a note field ("C#4").
         _ => field.parse_number(input),
     }

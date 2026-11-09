@@ -73,7 +73,9 @@ impl PageField {
     pub fn display(&self, scene: &[u8]) -> String {
         let raw = scene.get(self.offset).copied();
         match self.kind {
-            FieldKind::Text { .. } => assign::studio_text(scene, &self.record()),
+            FieldKind::Text { .. } | FieldKind::TextPadded { .. } => {
+                assign::studio_text(scene, &self.record())
+            }
             FieldKind::Number { .. } | FieldKind::OptionalNumber { .. }
                 if self.note_name(scene).is_some() =>
             {
@@ -110,7 +112,7 @@ impl PageField {
     pub fn shown(&self, scene: &[u8]) -> Option<i32> {
         let raw = i32::from(*scene.get(self.offset)?);
         match self.kind {
-            FieldKind::Text { .. } => None,
+            FieldKind::Text { .. } | FieldKind::TextPadded { .. } => None,
             FieldKind::Biased { bias, .. } => Some(raw - i32::from(bias)),
             FieldKind::OptionalNumber { .. } if raw >= 128 => None,
             _ => Some(raw),
@@ -124,7 +126,7 @@ impl PageField {
                 (i32::from(min), i32::from(max))
             }
             FieldKind::Biased { min, max, .. } => (i32::from(min), i32::from(max)),
-            FieldKind::Text { .. } => (0, 0),
+            FieldKind::Text { .. } | FieldKind::TextPadded { .. } => (0, 0),
             kind => (0, kind.labels().len() as i32 - 1),
         }
     }
@@ -196,9 +198,18 @@ pub fn fields(
                         min: u8::try_from(field.min?).ok()?,
                         max: u8::try_from(field.max?).ok()?,
                     },
-                    "text" => FieldKind::Text {
-                        width: u8::try_from(field.width?).ok()?,
-                    },
+                    "text" => {
+                        let width = u8::try_from(field.width?).ok()?;
+                        match (field.write_width, field.padding) {
+                            (Some(write_width), Some(padding)) => FieldKind::TextPadded {
+                                width,
+                                write_width: u8::try_from(write_width).ok()?,
+                                padding,
+                            },
+                            (None, None) => FieldKind::Text { width },
+                            _ => return None,
+                        }
+                    }
                     "biased" => FieldKind::Biased {
                         min: i8::try_from(field.min?).ok()?,
                         max: i8::try_from(field.max?).ok()?,
@@ -269,7 +280,12 @@ pub fn store(
     field: &PageField,
     value: i32,
 ) -> bool {
-    if !field.enabled || matches!(field.kind, FieldKind::Text { .. }) {
+    if !field.enabled
+        || matches!(
+            field.kind,
+            FieldKind::Text { .. } | FieldKind::TextPadded { .. }
+        )
+    {
         return false;
     }
     let (min, max) = field.range();
@@ -839,7 +855,10 @@ mod tests {
                         (b.offset, b.label, expected_note)
                     );
                     assert_eq!(a.kind.labels(), b.kind.labels());
-                    if matches!(b.kind, FieldKind::Text { .. }) {
+                    if matches!(
+                        b.kind,
+                        FieldKind::Text { .. } | FieldKind::TextPadded { .. }
+                    ) {
                         for text in ["", "TRAKTOR", "0123456789abcdef", "x\u{00e4}z"] {
                             let mut actual_scene = scene.clone();
                             let mut expected_scene = scene.clone();

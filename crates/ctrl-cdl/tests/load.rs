@@ -99,6 +99,18 @@ fn live_routing_metadata_is_external_and_validated() {
 }
 
 #[test]
+fn editor_text_padding_and_write_width_are_declarative() {
+    let input = format!(
+        "{HEAD}editor-pages default=\"wireless\" {{ page \"wireless\" {{ field \"Device Name\" offset=208 kind=\"text\" width=26 write-width=16 padding=0 }} }}"
+    );
+    let pages = parse_str("test", &input).unwrap().editor_pages.unwrap();
+    let field = &pages.pages[0].fields[0];
+    assert_eq!(field.width, Some(26));
+    assert_eq!(field.write_width, Some(16));
+    assert_eq!(field.padding, Some(0));
+}
+
+#[test]
 fn control_assignments_reject_ambiguous_and_invalid_mappings() {
     for body in [
         "assign group=\"g\" label=\"x\" kind=\"note\" kind-offset=1",
@@ -140,6 +152,9 @@ fn editor_pages_reject_invalid_conditions_and_dangling_selectors() {
         "editor-pages default=\"a\" { select \"a\" group=\"g\"; select \"b\" group=\"g\" label=\"x\"; page \"a\"; page \"b\" }",
         "editor-pages default=\"a\" { select \"a\" group=\"g\"; select \"b\" label=\"x\"; page \"a\"; page \"b\" }",
         "editor-pages default=\"a\" { page \"a\" { field \"f\" offset=0 kind=\"text\" width=0 } }",
+        "editor-pages default=\"a\" { page \"a\" { field \"f\" offset=0 kind=\"text\" width=26 write-width=27 padding=0 } }",
+        "editor-pages default=\"a\" { page \"a\" { field \"f\" offset=0 kind=\"text\" width=26 padding=0 } }",
+        "editor-pages default=\"a\" { page \"a\" { field \"f\" offset=0 kind=\"number\" min=0 max=127 write-width=8 padding=0 } }",
         "editor-pages default=\"a\" { page \"a\" { field \"f\" offset=0 kind=\"number\" min=0 max=127 hidden-if-offset=2 } }",
         "editor-pages default=\"a\" { page \"a\" { field \"f\" offset=0 kind=\"number\" min=0 max=127 { hide-if-value 3; } } }",
     ] {

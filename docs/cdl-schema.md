@@ -183,6 +183,8 @@ Editable field or heading. (§4)
 | `note-if-value` | note display byte value |
 | `hidden-if-offset` | scene byte governing visibility |
 | `width` | text width in bytes |
+| `write-width` | maximum byte range changed by text edits |
+| `padding` | byte used to pad text inside write-width |
 | `min-from-offset` | scene byte setting the minimum |
 | `max-from-offset` | scene byte setting the maximum |
 

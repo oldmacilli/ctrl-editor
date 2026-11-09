@@ -374,6 +374,11 @@ pub struct EditorPageField {
     pub hidden_if_offset: Option<u32>,
     pub hidden_if_values: Vec<u32>,
     pub width: Option<u32>,
+    /// Optional byte range updated by text edits; `width` remains the full
+    /// decoded field width.
+    pub write_width: Option<u32>,
+    /// Optional byte used to pad the writable text range.
+    pub padding: Option<u8>,
     pub min_from_offset: Option<u32>,
     pub max_from_offset: Option<u32>,
     pub choices: Vec<String>,

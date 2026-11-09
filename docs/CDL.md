@@ -259,7 +259,13 @@ remains visible but cannot be edited. `note-if-offset` with `note-if-value`
 enables note-name display and input for a numeric field. `heading` fields
 are non-editable section headings; `channel` includes a Global choice, and
 `optional-number` displays stored values outside MIDI's 0–127 range as empty.
-`text` fields give a byte `width`. A `hidden-if-offset` and `hide-if-value`
+`text` fields give a byte `width`. Optional `write-width` limits the byte
+range changed by edits without changing the full decoded width; `padding`
+sets the byte used to fill the remainder of that writable range. These two
+properties must appear together, and only on a text field. With zero padding,
+one byte is reserved for the NUL terminator, so at most `write-width - 1`
+printable characters are stored. Bytes after `write-width` are preserved.
+A `hidden-if-offset` and `hide-if-value`
 children omit a field for the listed byte values; `min-from-offset` and
 `max-from-offset` constrain numeric writes to another scene byte. Missing
 condition bytes do not enable or reveal a field. Selectors for different

@@ -464,6 +464,13 @@ pub enum FieldKind {
     Text {
         width: u8,
     },
+    /// Text with an explicit mutable byte range and padding byte. Bytes
+    /// between `write_width` and `width` remain untouched.
+    TextPadded {
+        width: u8,
+        write_width: u8,
+        padding: u8,
+    },
 }
 
 impl FieldKind {
@@ -480,7 +487,8 @@ impl FieldKind {
             FieldKind::Number { .. }
             | FieldKind::Biased { .. }
             | FieldKind::OptionalNumber { .. }
-            | FieldKind::Text { .. } => Vec::new(),
+            | FieldKind::Text { .. }
+            | FieldKind::TextPadded { .. } => Vec::new(),
         }
     }
 
@@ -496,6 +504,11 @@ impl FieldKind {
             FieldKind::Biased { min, max, .. } => format!("{min}..{max}"),
             FieldKind::OptionalNumber { min, max } => format!("{min}..{max} or empty"),
             FieldKind::Text { width } => format!("up to {width} characters"),
+            FieldKind::TextPadded {
+                write_width,
+                padding,
+                ..
+            } => format!("up to {} characters", text_capacity(write_width, padding)),
         }
     }
 }
@@ -603,8 +616,9 @@ pub const STUDIO_NAME_WIDTH: usize = 12;
 /// The text of a `FieldKind::Text` field, trailing padding removed.  The
 /// device pads with spaces ("TRAKTOR     ") and the factory set with zeros.
 pub fn studio_text(scene: &[u8], field: &RecordField) -> String {
-    let FieldKind::Text { width } = field.kind else {
-        return String::new();
+    let width = match field.kind {
+        FieldKind::Text { width } | FieldKind::TextPadded { width, .. } => width,
+        _ => return String::new(),
     };
     let bytes = scene
         .get(field.offset..field.offset + usize::from(width))
@@ -620,17 +634,34 @@ pub fn studio_text(scene: &[u8], field: &RecordField) -> String {
 /// the width and padded with spaces as the device pads.  Returns false when
 /// the field is not text or lies outside `scene`.
 pub fn studio_store_text(scene: &mut [u8], field: &RecordField, text: &str) -> bool {
-    let FieldKind::Text { width } = field.kind else {
+    let (width, write_width, padding) = match field.kind {
+        FieldKind::Text { width } => (width, width, b' '),
+        FieldKind::TextPadded {
+            width,
+            write_width,
+            padding,
+        } => (width, write_width, padding),
+        _ => return false,
+    };
+    if write_width == 0 || write_width > width {
+        return false;
+    }
+    let Some(slot) = scene.get_mut(field.offset..field.offset + usize::from(write_width)) else {
         return false;
     };
-    let Some(slot) = scene.get_mut(field.offset..field.offset + usize::from(width)) else {
-        return false;
-    };
-    let mut chars = text.bytes().filter(|byte| (0x20..0x7F).contains(byte));
+    let capacity = text_capacity(write_width, padding);
+    let mut chars = text
+        .bytes()
+        .filter(|byte| (0x20..0x7F).contains(byte))
+        .take(capacity);
     for byte in slot.iter_mut() {
-        *byte = chars.next().unwrap_or(b' ');
+        *byte = chars.next().unwrap_or(padding);
     }
     true
+}
+
+fn text_capacity(write_width: u8, padding: u8) -> usize {
+    usize::from(write_width).saturating_sub(usize::from(padding == 0))
 }
 
 /// The jog block's scene offset (`docs/midi-sysex.md`, jog wheel).

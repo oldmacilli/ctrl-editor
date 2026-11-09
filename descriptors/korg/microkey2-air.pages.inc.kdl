@@ -9,8 +9,8 @@ editor-pages default="Overview" status="decoded" evidence="KORG parameter analys
         field "MIDI Channel" offset=0 kind="channel-only"
         field "Keyboard" offset=0 kind="heading"
         field "Transpose" offset=8 kind="biased" min=-12 max=12 bias=64
-        field "Velocity Curve" offset=9 kind="number" min=0 max=3
-        field "Const Velocity Value" offset=10 kind="number" min=0 max=127
+        field "Velocity Curve" offset=9 kind="choice" { choice "Velocity Curve 1"; choice "Velocity Curve 2"; choice "Velocity Curve 3"; choice "Velocity Curve 4"; choice "Velocity Curve 5"; choice "Velocity Curve 6"; choice "Velocity Curve 7"; choice "Velocity Curve 8"; choice "Const"; }
+        field "Const Velocity Value" offset=10 kind="number" min=1 max=127 enabled-if-offset=9 enabled-if-value=8
         field "Mod Wheel" offset=0 kind="heading"
         field "Wheel Enable" offset=16 kind="choice" { choice "Disable"; choice "Enable"; }
         field "CC Number" offset=17 kind="number" min=0 max=127
@@ -20,15 +20,15 @@ editor-pages default="Overview" status="decoded" evidence="KORG parameter analys
         field "CC Number" offset=41 kind="number" min=0 max=127
         field "Pedal Polarity" offset=45 kind="choice" { choice "Auto"; choice "Minus"; choice "Plus"; }
         field "Wireless" offset=0 kind="heading"
-        field "Device Name" offset=208 kind="text" width=26
-        field "Encryption" offset=234 kind="choice" { choice "Off"; choice "On"; }
+        field "Device Name" offset=208 kind="text" width=26 write-width=16 padding=0
+        field "Connection Type" offset=234 kind="choice" { choice "2"; choice "1"; }
         field "Auto Power Off" offset=240 kind="choice" { choice "Disable"; choice "Enable"; }
         field "Battery Type" offset=241 kind="choice" { choice "Alkaline"; choice "Ni-MH"; }
     }
     page "Keyboard" {
         field "Transpose" offset=8 kind="biased" min=-12 max=12 bias=64
-        field "Velocity Curve" offset=9 kind="number" min=0 max=3
-        field "Const Velocity Value" offset=10 kind="number" min=0 max=127
+        field "Velocity Curve" offset=9 kind="choice" { choice "Velocity Curve 1"; choice "Velocity Curve 2"; choice "Velocity Curve 3"; choice "Velocity Curve 4"; choice "Velocity Curve 5"; choice "Velocity Curve 6"; choice "Velocity Curve 7"; choice "Velocity Curve 8"; choice "Const"; }
+        field "Const Velocity Value" offset=10 kind="number" min=1 max=127 enabled-if-offset=9 enabled-if-value=8
     }
     page "Common" {
         field "MIDI Channel" offset=0 kind="channel-only"
@@ -44,8 +44,8 @@ editor-pages default="Overview" status="decoded" evidence="KORG parameter analys
         field "Pedal Polarity" offset=45 kind="choice" { choice "Auto"; choice "Minus"; choice "Plus"; }
     }
     page "Wireless" {
-        field "Device Name" offset=208 kind="text" width=26
-        field "Encryption" offset=234 kind="choice" { choice "Off"; choice "On"; }
+        field "Device Name" offset=208 kind="text" width=26 write-width=16 padding=0
+        field "Connection Type" offset=234 kind="choice" { choice "2"; choice "1"; }
         field "Auto Power Off" offset=240 kind="choice" { choice "Disable"; choice "Enable"; }
         field "Battery Type" offset=241 kind="choice" { choice "Alkaline"; choice "Ni-MH"; }
     }
