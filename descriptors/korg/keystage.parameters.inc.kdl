@@ -3,18 +3,50 @@ cdl "0.1"
 parameter-layouts status="decoded" evidence="KORG parameter analysis" {
     layout "global" order=16 size=3667 elements=1 stride=1 version=1 {
         parameter "MidiCh" id=0 offset=0 width=1 shift=0 mask=255 min=0 max=15 bias=0 kind="number" default=0 default-source="factory"
-        parameter "ControllerMode" id=1 offset=1 width=1 shift=0 mask=255 min=0 max=9 bias=0 kind="enum" default=0 default-source="factory"
+        parameter "ControllerMode" id=1 offset=1 width=1 shift=0 mask=255 min=0 max=9 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Assignable"
+            label "Logic"
+            label "GarageBand"
+            label "Live"
+            label "FL Studio"
+            label "Cubase"
+            label "Studio One"
+            label "D.Performer"
+            label "Pro Tools"
+            label "Cakewalk"
+        }
         parameter "Contrast" id=16 offset=16 width=1 shift=0 mask=255 min=0 max=9 bias=0 kind="enum" default=4 default-source="factory"
         parameter "AutoPowerOff" id=17 offset=17 width=1 shift=0 mask=255 min=0 max=5 bias=0 kind="enum" default=4 default-source="factory"
-        parameter "AutoScreenOff" id=18 offset=18 width=1 shift=0 mask=255 min=0 max=8 bias=0 kind="enum" default=3 default-source="factory"
+        parameter "AutoScreenOff" id=18 offset=18 width=1 shift=0 mask=255 min=0 max=8 bias=0 kind="enum" default=3 default-source="factory" {
+            label "Disabled"
+            label "1 min"
+            label "5 min"
+            label "15 min"
+            label "30 min"
+            label "1 hour"
+            label "2 hours"
+            label "3 hours"
+            label "4 hours"
+        }
         parameter "KnobMode" id=2 offset=2 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory"
         parameter "Value" id=3 offset=3 width=1 shift=0 mask=255 min=0 max=20 bias=10 kind="number" default=0 default-source="factory"
-        parameter "ATMode" id=4 offset=4 width=1 shift=0 mask=255 min=0 max=3 bias=0 kind="enum" default=2 default-source="factory"
+        parameter "ATMode" id=4 offset=4 width=1 shift=0 mask=255 min=0 max=3 bias=0 kind="enum" default=2 default-source="factory" {
+            label "Off"
+            label "Channel"
+            label "Polyphonic"
+            label "MPE"
+        }
         parameter "Value" id=5 offset=5 width=1 shift=0 mask=255 min=0 max=20 bias=10 kind="number" default=0 default-source="factory"
         parameter "Value" id=6 offset=6 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=0 default-source="factory"
         parameter "Value" id=7 offset=7 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=127 default-source="factory"
         parameter "AssignType" id=8 offset=8 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory"
-        parameter "AssignMode" id=9 offset=9 width=1 shift=0 mask=255 min=0 max=4 bias=0 kind="enum" default=0 default-source="factory"
+        parameter "AssignMode" id=9 offset=9 width=1 shift=0 mask=255 min=0 max=4 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Damper"
+            label "Expression"
+            label "CC"
+            label "Program Up"
+            label "Program Down"
+        }
         parameter "Value" id=10 offset=10 width=1 shift=0 mask=255 min=0 max=119 bias=0 kind="number" default=7 default-source="factory"
         parameter "Value" id=11 offset=11 width=1 shift=0 mask=255 min=0 max=20 bias=10 kind="number" default=0 default-source="factory"
         parameter "AssignType" id=12 offset=12 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=1 default-source="factory"
@@ -41,9 +73,23 @@ parameter-layouts status="decoded" evidence="KORG parameter analysis" {
         parameter "MidiCh" id=50 offset=50 width=1 shift=0 mask=255 min=0 max=16 bias=0 kind="number" default=16 default-source="factory"
         parameter "Value" id=51 offset=51 width=1 shift=0 mask=255 min=0 max=6 bias=3 kind="number" default=0 default-source="factory"
         parameter "Value" id=52 offset=52 width=1 shift=0 mask=255 min=0 max=24 bias=12 kind="number" default=0 default-source="factory"
-        parameter "OnOff" id=29 offset=29 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory"
-        parameter "OnOff" id=30 offset=30 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=1 default-source="factory"
-        parameter "ArpMode" id=31 offset=31 width=1 shift=0 mask=255 min=0 max=6 bias=0 kind="enum" default=0 default-source="factory"
+        parameter "OnOff" id=29 offset=29 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Enable"
+            label "Disable"
+        }
+        parameter "OnOff" id=30 offset=30 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=1 default-source="factory" {
+            label "Displayed"
+            label "Not Displayed"
+        }
+        parameter "ArpMode" id=31 offset=31 width=1 shift=0 mask=255 min=0 max=6 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Up"
+            label "Down"
+            label "Up-down"
+            label "Down-up"
+            label "Played"
+            label "Random"
+            label "Trigger"
+        }
         parameter "Value" id=32 offset=32 width=1 shift=0 mask=255 min=0 max=3 bias=0 kind="number" default=0 default-source="factory"
         parameter "OnOff" id=33 offset=33 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory"
         parameter "OnOff" id=34 offset=34 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=1 default-source="factory"
@@ -66,8 +112,8 @@ parameter-layouts status="decoded" evidence="KORG parameter analysis" {
         parameter "Value" id=55 offset=55 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=127 default-source="factory"
         parameter "MidiCh" id=56 offset=56 width=1 shift=0 mask=255 min=0 max=16 bias=0 kind="number" default=16 default-source="factory"
         parameter "AssignType" id=57 offset=57 width=1 shift=0 mask=255 min=0 max=2 bias=0 kind="enum" default=1 default-source="factory" {
-            label "No Assign"
-            label "Control Change"
+            label "NoAssign"
+            label "CC"
             label "Note"
         }
         parameter "Value" id=58 offset=58 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=43 default-source="factory"
@@ -88,8 +134,8 @@ parameter-layouts status="decoded" evidence="KORG parameter analysis" {
             label "Note"
         }
         parameter "SwType" id=67 offset=448 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=1 default-source="factory" {
-            label "Momt"
-            label "Tgl"
+            label "Toggle"
+            label "Momentary"
         }
         parameter "Value" id=68 offset=449 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=41 default-source="factory"
         parameter "Value" id=69 offset=450 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=0 default-source="factory"

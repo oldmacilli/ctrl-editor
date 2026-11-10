@@ -21,6 +21,13 @@ parameter-layouts status="decoded" evidence="KORG parameter analysis" {
             display-choice "16"
         }
         parameter "ControllerMode" id=1 offset=1 width=1 shift=0 mask=255 min=0 max=6 bias=0 kind="enum" default=0 default-source="factory" display-label="Controller Mode" display-choices-inferred=#true {
+            label "Assignable"
+            label "Cubase"
+            label "Digital Performer"
+            label "Live"
+            label "Pro Tools"
+            label "SONAR"
+            label "Studio One"
             display-choice "Assignable"
             display-choice "Cubase"
             display-choice "Digital Performer"
@@ -31,16 +38,22 @@ parameter-layouts status="decoded" evidence="KORG parameter analysis" {
         }
         parameter "OnOff" id=36 offset=80 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" display-label="Firmware display flag 80 (no editor control)"
         parameter "OnOff" id=37 offset=2 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" display-label="Battery Type" {
+            label "Alkaline"
+            label "Ni-MH"
             display-choice "Alkaline"
             display-choice "Ni-MH"
         }
         parameter "OnOff" id=40 offset=3 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" display-label="Use Scene Button as Scrub" {
+            label "Disable"
+            label "Enable"
             display-choice "Disable"
             display-choice "Enable"
         }
         parameter "OnOff" id=39 offset=80 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" display-label="Firmware display flag 80 (no editor control)"
         parameter "AutoPowerOffType" id=28 offset=64 width=1 shift=0 mask=255 min=0 max=4 bias=0 kind="enum" default=0 default-source="factory" display-label="USB Auto Power Off (no editor control)"
         parameter "OnOff" id=29 offset=65 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" display-label="USB Auto LED Off" {
+            label "Disable"
+            label "Enable"
             display-choice "Disable"
             display-choice "Enable"
         }
@@ -50,10 +63,17 @@ parameter-layouts status="decoded" evidence="KORG parameter analysis" {
             display-choice "3"
         }
         parameter "OnOff" id=31 offset=67 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=1 default-source="factory" display-label="USB LED Illumination" {
+            label "Disable"
+            label "Enable"
             display-choice "Disable"
             display-choice "Enable"
         }
         parameter "AutoPowerOffType" id=32 offset=72 width=1 shift=0 mask=255 min=0 max=4 bias=0 kind="enum" default=3 default-source="factory" display-label="Battery Auto Power Save" {
+            label "Disable"
+            label "30 min"
+            label "1 hour"
+            label "2 hours"
+            label "4 hours"
             display-choice "Disable"
             display-choice "30 min"
             display-choice "1 hour"
@@ -61,6 +81,8 @@ parameter-layouts status="decoded" evidence="KORG parameter analysis" {
             display-choice "4 hours"
         }
         parameter "OnOff" id=33 offset=73 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=1 default-source="factory" display-label="Battery Auto LED Off" {
+            label "Disable"
+            label "Enable"
             display-choice "Disable"
             display-choice "Enable"
         }
@@ -70,19 +92,30 @@ parameter-layouts status="decoded" evidence="KORG parameter analysis" {
             display-choice "3"
         }
         parameter "OnOff" id=35 offset=75 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=1 default-source="factory" display-label="Battery LED Illumination" {
+            label "Disable"
+            label "Enable"
             display-choice "Disable"
             display-choice "Enable"
         }
     }
     layout "scene" order=13 size=560 elements=1 stride=1 version=1 {
-        parameter "OnOff" id=32 offset=12 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory"
+        parameter "OnOff" id=32 offset=12 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Internal"
+            label "External"
+        }
         parameter "MidiCh" id=12 offset=16 width=1 shift=0 mask=255 min=0 max=16 bias=0 kind="number" default=0 default-source="factory"
-        parameter "AssignType" id=13 offset=17 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory"
+        parameter "AssignType" id=13 offset=17 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Enable"
+            label "Disable"
+        }
         parameter "Value" id=14 offset=18 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=13 default-source="factory"
         parameter "Value" id=15 offset=19 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=0 default-source="factory"
         parameter "Value" id=16 offset=20 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=127 default-source="factory"
         parameter "MidiCh" id=12 offset=80 width=1 shift=0 mask=255 min=0 max=16 bias=0 kind="number" default=0 default-source="factory"
-        parameter "AssignType" id=13 offset=81 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory"
+        parameter "AssignType" id=13 offset=81 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Enable"
+            label "Disable"
+        }
         parameter "Value" id=14 offset=82 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=2 default-source="factory"
         parameter "Value" id=15 offset=83 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=0 default-source="factory"
         parameter "Value" id=16 offset=84 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=127 default-source="factory"
@@ -117,7 +150,15 @@ parameter-layouts status="decoded" evidence="KORG parameter analysis" {
         parameter "Value" id=21 offset=404 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=127 default-source="factory"
         parameter "SwType" id=22 offset=405 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory"
         parameter "MidiCh" id=23 offset=512 width=1 shift=0 mask=255 min=0 max=16 bias=0 kind="number" default=0 default-source="factory"
-        parameter "JogDialValueType" id=24 offset=513 width=1 shift=0 mask=255 min=0 max=6 bias=0 kind="enum" default=2 default-source="factory"
+        parameter "JogDialValueType" id=24 offset=513 width=1 shift=0 mask=255 min=0 max=6 bias=0 kind="enum" default=2 default-source="factory" {
+            label "Inc/Dec 1"
+            label "Inc/Dec 2"
+            label "Continuous"
+            label "Sign Magnitude"
+            label "No Assign"
+            label "Encoder 01/7F"
+            label "Encoder 3F/41"
+        }
         parameter "OnOff" id=25 offset=514 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=1 default-source="factory"
         parameter "Value" id=26 offset=515 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=82 default-source="factory"
         parameter "Value" id=27 offset=516 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=83 default-source="factory"

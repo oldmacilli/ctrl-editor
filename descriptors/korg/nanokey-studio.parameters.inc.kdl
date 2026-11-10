@@ -5,36 +5,93 @@ parameter-layouts status="decoded" evidence="KORG parameter analysis" {
         parameter "MidiCh" id=0 offset=0 width=1 shift=0 mask=255 min=0 max=15 bias=0 kind="number" default=0 default-source="factory" display-label="Global MIDI Channel"
         parameter "ClockSource" id=33 offset=56 width=1 shift=0 mask=255 min=0 max=3 bias=0 kind="number" default=0 default-source="factory" display-label="MIDI Clock Source"
         parameter "Value" id=44 offset=58 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="enum" default=4 default-source="factory"
-        parameter "Value" id=46 offset=1 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" display-label="Battery Type"
+        parameter "Value" id=46 offset=1 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" display-label="Battery Type" {
+            label "Alkaline"
+            label "Ni-MH"
+        }
         parameter "Value" id=47 offset=40 width=1 shift=0 mask=255 min=-2 max=2 bias=64 kind="number" default=0 default-source="factory"
         parameter "Value" id=48 offset=41 width=1 shift=0 mask=255 min=-2 max=2 bias=64 kind="number" default=0 default-source="factory"
-        parameter "VelocityCurve" id=27 offset=48 width=1 shift=0 mask=255 min=0 max=5 bias=0 kind="enum" default=2 default-source="factory" display-label="Key Velocity Curve"
+        parameter "VelocityCurve" id=27 offset=48 width=1 shift=0 mask=255 min=0 max=5 bias=0 kind="enum" default=2 default-source="factory" display-label="Key Velocity Curve" {
+            label "Light"
+            label "Mid-Light"
+            label "Normal"
+            label "Mid-Heavy"
+            label "Heavy"
+            label "Const"
+        }
         parameter "Value" id=28 offset=49 width=1 shift=0 mask=255 min=1 max=127 bias=0 kind="number" default=127 default-source="factory"
-        parameter "VelocityCurve" id=29 offset=50 width=1 shift=0 mask=255 min=0 max=5 bias=0 kind="enum" default=2 default-source="factory" display-label="Trigger Pad Velocity Curve"
+        parameter "VelocityCurve" id=29 offset=50 width=1 shift=0 mask=255 min=0 max=5 bias=0 kind="enum" default=2 default-source="factory" display-label="Trigger Pad Velocity Curve" {
+            label "Light"
+            label "Mid-Light"
+            label "Normal"
+            label "Mid-Heavy"
+            label "Heavy"
+            label "Const"
+        }
         parameter "Value" id=30 offset=51 width=1 shift=0 mask=255 min=1 max=127 bias=0 kind="number" default=127 default-source="factory"
         parameter "Value" id=31 offset=52 width=1 shift=0 mask=255 min=0 max=2 bias=0 kind="number" default=0 default-source="factory"
         parameter "Value" id=32 offset=53 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=127 default-source="factory"
-        parameter "Value" id=43 offset=54 width=1 shift=0 mask=255 min=0 max=3 bias=0 kind="enum" default=2 default-source="factory" display-label="Touch Scale Response"
+        parameter "Value" id=43 offset=54 width=1 shift=0 mask=255 min=0 max=3 bias=0 kind="enum" default=2 default-source="factory" display-label="Touch Scale Response" {
+            label "Immediate"
+            label "Fast"
+            label "Normal"
+            label "Slow"
+        }
         parameter "AutoPowerOffType" id=34 offset=72 width=1 shift=0 mask=255 min=0 max=4 bias=0 kind="enum" default=0 default-source="factory" display-label="Auto Power Off"
-        parameter "OnOff" id=35 offset=73 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory"
+        parameter "OnOff" id=35 offset=73 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Disable"
+            label "Enable"
+        }
         parameter "Value" id=36 offset=74 width=1 shift=0 mask=255 min=0 max=2 bias=0 kind="number" default=2 default-source="factory"
-        parameter "OnOff" id=37 offset=75 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=1 default-source="factory"
-        parameter "OnOff" id=45 offset=76 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory"
-        parameter "AutoPowerOffType" id=38 offset=80 width=1 shift=0 mask=255 min=0 max=4 bias=0 kind="enum" default=3 default-source="factory"
-        parameter "OnOff" id=39 offset=81 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=1 default-source="factory"
+        parameter "OnOff" id=37 offset=75 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=1 default-source="factory" {
+            label "Disable"
+            label "Enable"
+        }
+        parameter "OnOff" id=45 offset=76 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Disable"
+            label "Enable"
+        }
+        parameter "AutoPowerOffType" id=38 offset=80 width=1 shift=0 mask=255 min=0 max=4 bias=0 kind="enum" default=3 default-source="factory" {
+            label "Disable"
+            label "30 min"
+            label "1 hour"
+            label "2 hours"
+            label "4 hours"
+        }
+        parameter "OnOff" id=39 offset=81 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=1 default-source="factory" {
+            label "Disable"
+            label "Enable"
+        }
         parameter "Value" id=40 offset=82 width=1 shift=0 mask=255 min=0 max=2 bias=0 kind="number" default=1 default-source="factory"
-        parameter "OnOff" id=41 offset=83 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory"
-        parameter "OnOff" id=45 offset=84 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory"
+        parameter "OnOff" id=41 offset=83 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Disable"
+            label "Enable"
+        }
+        parameter "OnOff" id=45 offset=84 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Disable"
+            label "Enable"
+        }
     }
     layout "scene" order=11 size=240 elements=1 stride=1 version=1 {
         parameter "MidiCh" id=12 offset=16 width=1 shift=0 mask=255 min=0 max=16 bias=0 kind="number" default=16 default-source="factory"
         parameter "MidiCh" id=13 offset=32 width=1 shift=0 mask=255 min=0 max=16 bias=0 kind="number" default=16 default-source="factory"
-        parameter "AssignType" id=14 offset=33 width=1 shift=0 mask=255 min=0 max=3 bias=0 kind="enum" default=0 default-source="factory"
+        parameter "AssignType" id=14 offset=33 width=1 shift=0 mask=255 min=0 max=3 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Note"
+            label "Control Change"
+            label "Program Change"
+            label "No Assign"
+        }
         parameter "Value" id=15 offset=34 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=43 default-source="factory"
-        parameter "SwType" id=19 offset=38 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory"
+        parameter "SwType" id=19 offset=38 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Momentary"
+            label "Toggle"
+        }
         parameter "MidiCh" id=20 offset=96 width=1 shift=0 mask=255 min=0 max=16 bias=0 kind="number" default=16 default-source="factory"
         parameter "MidiCh" id=21 offset=104 width=1 shift=0 mask=255 min=0 max=16 bias=0 kind="number" default=16 default-source="factory"
-        parameter "AssignType" id=22 offset=105 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory"
+        parameter "AssignType" id=22 offset=105 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Enable"
+            label "Disable"
+        }
         parameter "Value" id=23 offset=106 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=20 default-source="factory"
         parameter "Value" id=24 offset=107 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=0 default-source="factory"
         parameter "Value" id=25 offset=108 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=127 default-source="factory"
@@ -43,28 +100,47 @@ parameter-layouts status="decoded" evidence="KORG parameter analysis" {
         parameter "Value" id=28 offset=170 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=18 default-source="factory"
         parameter "Value" id=29 offset=171 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=0 default-source="factory"
         parameter "Value" id=30 offset=172 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=127 default-source="factory"
-        parameter "AssignType" id=31 offset=173 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory"
+        parameter "AssignType" id=31 offset=173 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Control Change"
+            label "No Assign"
+        }
         parameter "Value" id=32 offset=174 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=16 default-source="factory"
         parameter "Value" id=33 offset=175 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=0 default-source="factory"
         parameter "Value" id=34 offset=176 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=127 default-source="factory"
-        parameter "AssignType" id=35 offset=177 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory"
+        parameter "AssignType" id=35 offset=177 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Control Change"
+            label "No Assign"
+        }
         parameter "Value" id=36 offset=178 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=17 default-source="factory"
         parameter "Value" id=37 offset=179 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=0 default-source="factory"
         parameter "Value" id=38 offset=180 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=127 default-source="factory"
-        parameter "AssignType" id=39 offset=184 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory"
+        parameter "AssignType" id=39 offset=184 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Enable"
+            label "Disable"
+        }
         parameter "Value" id=40 offset=185 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=1 default-source="factory"
         parameter "Value" id=41 offset=186 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=0 default-source="factory"
         parameter "Value" id=42 offset=187 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=127 default-source="factory"
         parameter "MidiCh" id=44 offset=192 width=1 shift=0 mask=255 min=0 max=16 bias=0 kind="number" default=16 default-source="factory"
-        parameter "AssignType" id=45 offset=193 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory"
+        parameter "AssignType" id=45 offset=193 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Enable"
+            label "Disable"
+        }
         parameter "Value" id=46 offset=194 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=19 default-source="factory"
         parameter "Value" id=47 offset=195 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=0 default-source="factory"
         parameter "Value" id=48 offset=196 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=127 default-source="factory"
         parameter "MidiCh" id=49 offset=200 width=1 shift=0 mask=255 min=0 max=16 bias=0 kind="number" default=16 default-source="factory"
-        parameter "AssignType" id=50 offset=201 width=1 shift=0 mask=255 min=0 max=2 bias=0 kind="enum" default=0 default-source="factory"
+        parameter "AssignType" id=50 offset=201 width=1 shift=0 mask=255 min=0 max=2 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Control Change"
+            label "Note"
+            label "No Assign"
+        }
         parameter "Value" id=51 offset=202 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=64 default-source="factory"
         parameter "Value" id=52 offset=203 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=0 default-source="factory"
         parameter "Value" id=53 offset=204 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=127 default-source="factory"
-        parameter "SwType" id=54 offset=205 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory"
+        parameter "SwType" id=54 offset=205 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Momentary"
+            label "Toggle"
+        }
     }
 }

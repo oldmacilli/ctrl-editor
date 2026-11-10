@@ -7,22 +7,46 @@ parameter-layouts status="decoded" evidence="KORG parameter analysis" {
         parameter "ClockSource" id=2 offset=4 width=1 shift=0 mask=255 min=0 max=3 bias=0 kind="number" default=0 default-source="factory"
         parameter "Value" id=4 offset=6 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="enum" default=4 default-source="factory"
         parameter "Value" id=5 offset=8 width=1 shift=0 mask=255 min=1 max=127 bias=0 kind="number" default=80 default-source="factory"
-        parameter "VelocityCurve" id=6 offset=9 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory"
-        parameter "Value" id=7 offset=10 width=1 shift=0 mask=255 min=0 max=3 bias=0 kind="enum" default=2 default-source="factory"
+        parameter "VelocityCurve" id=6 offset=9 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Jump"
+            label "Catch"
+        }
+        parameter "Value" id=7 offset=10 width=1 shift=0 mask=255 min=0 max=3 bias=0 kind="enum" default=2 default-source="factory" {
+            label "Immediate"
+            label "Fast"
+            label "Normal"
+            label "Slow"
+        }
         parameter "Value" id=8 offset=11 width=1 shift=0 mask=255 min=1 max=127 bias=0 kind="number" default=80 default-source="factory"
         parameter "Value" id=9 offset=16 width=1 shift=0 mask=255 min=-2 max=2 bias=64 kind="number" default=0 default-source="factory"
-        parameter "OnOff" id=10 offset=24 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory"
+        parameter "OnOff" id=10 offset=24 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Disable"
+            label "Enable"
+        }
         parameter "Value" id=11 offset=25 width=1 shift=0 mask=255 min=0 max=2 bias=0 kind="number" default=2 default-source="factory"
-        parameter "OnOff" id=12 offset=26 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=1 default-source="factory"
-        parameter "OnOff" id=13 offset=27 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory"
+        parameter "OnOff" id=12 offset=26 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=1 default-source="factory" {
+            label "Disable"
+            label "Enable"
+        }
+        parameter "OnOff" id=13 offset=27 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Disable"
+            label "Enable"
+        }
     }
     layout "scene" order=19 size=304 elements=1 stride=1 version=1 {
         parameter "MidiCh" id=12 offset=16 width=1 shift=0 mask=255 min=0 max=16 bias=0 kind="number" default=16 default-source="factory"
         parameter "Value" id=13 offset=17 width=1 shift=0 mask=255 min=0 max=8 bias=0 kind="number" default=4 default-source="factory"
         parameter "Value" id=14 offset=18 width=1 shift=0 mask=255 min=0 max=24 bias=0 kind="number" default=12 default-source="factory"
         parameter "MidiCh" id=15 offset=24 width=1 shift=0 mask=255 min=0 max=16 bias=0 kind="number" default=16 default-source="factory"
-        parameter "AssignType" id=16 offset=25 width=1 shift=0 mask=255 min=0 max=2 bias=0 kind="enum" default=1 default-source="factory"
-        parameter "SwType" id=17 offset=26 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory"
+        parameter "AssignType" id=16 offset=25 width=1 shift=0 mask=255 min=0 max=2 bias=0 kind="enum" default=1 default-source="factory" {
+            label "Control Change"
+            label "Program Change"
+            label "No Assign"
+        }
+        parameter "SwType" id=17 offset=26 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Momentary"
+            label "Toggle"
+        }
         parameter "Value" id=18 offset=27 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=0 default-source="factory"
         parameter "Value" id=19 offset=28 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=0 default-source="factory"
         parameter "Value" id=20 offset=29 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=127 default-source="factory"
@@ -44,22 +68,104 @@ parameter-layouts status="decoded" evidence="KORG parameter analysis" {
         parameter "Value" id=36 offset=246 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=0 default-source="factory"
         parameter "Value" id=37 offset=247 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=127 default-source="factory"
         parameter "MidiCh" id=38 offset=248 width=1 shift=0 mask=255 min=0 max=16 bias=0 kind="number" default=16 default-source="factory"
-        parameter "AssignType" id=29 offset=249 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory"
+        parameter "AssignType" id=29 offset=249 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Control Change"
+            label "No Assign"
+        }
         parameter "Value" id=40 offset=250 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=64 default-source="factory"
         parameter "Value" id=41 offset=251 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=0 default-source="factory"
         parameter "Value" id=52 offset=252 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=127 default-source="factory"
-        parameter "SwType" id=53 offset=253 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory"
+        parameter "SwType" id=53 offset=253 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Momentary"
+            label "Toggle"
+        }
         parameter "SwSpeed" id=54 offset=254 width=1 shift=0 mask=255 min=0 max=2 bias=0 kind="enum" default=0 default-source="factory"
-        parameter "ScaleType" id=55 offset=256 width=1 shift=0 mask=255 min=0 max=14 bias=0 kind="enum" default=6 default-source="factory"
-        parameter "ScaleKey" id=56 offset=257 width=1 shift=0 mask=255 min=0 max=11 bias=0 kind="enum" default=0 default-source="factory"
+        parameter "ScaleType" id=55 offset=256 width=1 shift=0 mask=255 min=0 max=14 bias=0 kind="enum" default=6 default-source="factory" {
+            label "[1] Major1 (Ionian)"
+            label "[2] Major2 (Lydian)"
+            label "[3] minor1 (Aeolian)"
+            label "[4] minor2 (Dorian)"
+            label "[5] minor3 (Phrygian)"
+            label "[6] Major Blues"
+            label "[7] minor Blues"
+            label "[8] Major Penta"
+            label "[9] Minor Penta"
+            label "[10] Raga (Raga Bhairav)"
+            label "[11] Ryukyu"
+            label "[12] Chinese"
+            label "[13] Bass Line"
+            label "[14] Wholetone"
+            label "[15] 5th Interval"
+        }
+        parameter "ScaleKey" id=56 offset=257 width=1 shift=0 mask=255 min=0 max=11 bias=0 kind="enum" default=0 default-source="factory" {
+            label "C"
+            label "C#"
+            label "D"
+            label "D#"
+            label "E"
+            label "F"
+            label "F#"
+            label "G"
+            label "G#"
+            label "A"
+            label "Bb"
+            label "B"
+        }
         parameter "Value" id=57 offset=258 width=1 shift=0 mask=255 min=0 max=6 bias=0 kind="enum" default=5 default-source="factory"
-        parameter "OnOff" id=58 offset=264 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory"
-        parameter "OnOff" id=59 offset=265 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory"
-        parameter "ArpType" id=60 offset=266 width=1 shift=0 mask=255 min=0 max=5 bias=0 kind="enum" default=0 default-source="factory"
-        parameter "ArpOct" id=61 offset=267 width=1 shift=0 mask=255 min=0 max=3 bias=0 kind="enum" default=0 default-source="factory"
+        parameter "OnOff" id=58 offset=264 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Off"
+            label "On"
+        }
+        parameter "OnOff" id=59 offset=265 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Off"
+            label "On"
+        }
+        parameter "ArpType" id=60 offset=266 width=1 shift=0 mask=255 min=0 max=5 bias=0 kind="enum" default=0 default-source="factory" {
+            label "[1] Up"
+            label "[2] Down"
+            label "[3] Alt1"
+            label "[4] Alt2"
+            label "[5] Random"
+            label "[6] Trigger"
+        }
+        parameter "ArpOct" id=61 offset=267 width=1 shift=0 mask=255 min=0 max=3 bias=0 kind="enum" default=0 default-source="factory" {
+            label "1"
+            label "2"
+            label "3"
+            label "4"
+        }
         parameter "Value" id=62 offset=268 width=1 shift=0 mask=255 min=0 max=14 bias=0 kind="number" default=0 default-source="factory"
-        parameter "ArpRate" id=63 offset=269 width=1 shift=0 mask=255 min=0 max=12 bias=0 kind="enum" default=4 default-source="factory"
-        parameter "GateTime" id=64 offset=270 width=1 shift=0 mask=255 min=0 max=10 bias=0 kind="enum" default=5 default-source="factory"
-        parameter "KeySync" id=65 offset=271 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=1 default-source="factory"
+        parameter "ArpRate" id=63 offset=269 width=1 shift=0 mask=255 min=0 max=12 bias=0 kind="enum" default=4 default-source="factory" {
+            label "[1] 1/64"
+            label "[2] 1/48"
+            label "[3] 1/32"
+            label "[4] 1/24"
+            label "[5] 1/16"
+            label "[6] 1/12"
+            label "[7] 1/8"
+            label "[8] 1/6"
+            label "[9] 1/4"
+            label "[10] 1/3"
+            label "[11] 1/2"
+            label "[12] 2/3"
+            label "[13] 1"
+        }
+        parameter "GateTime" id=64 offset=270 width=1 shift=0 mask=255 min=0 max=10 bias=0 kind="enum" default=5 default-source="factory" {
+            label "[1] -100"
+            label "[2] -80"
+            label "[3] -60"
+            label "[4] -40"
+            label "[5] -20"
+            label "[6]  0"
+            label "[7] 20"
+            label "[8] 40"
+            label "[9] 60"
+            label "[10] 80"
+            label "[11] 100"
+        }
+        parameter "KeySync" id=65 offset=271 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=1 default-source="factory" {
+            label "Off"
+            label "On"
+        }
     }
 }

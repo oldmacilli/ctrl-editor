@@ -4,17 +4,43 @@ parameter-layouts status="decoded" evidence="KORG parameter analysis" {
     layout "scene" order=14 size=256 elements=1 stride=1 version=1 {
         parameter "Value" id=0 offset=0 width=1 shift=0 mask=255 min=0 max=15 bias=0 kind="number" default=0 default-source="factory"
         parameter "Value" id=1 offset=8 width=1 shift=0 mask=255 min=-12 max=12 bias=64 kind="number" default=0 default-source="factory"
-        parameter "VelocityCurve" id=2 offset=9 width=1 shift=0 mask=255 min=0 max=8 bias=0 kind="enum" default=3 default-source="factory"
+        parameter "VelocityCurve" id=2 offset=9 width=1 shift=0 mask=255 min=0 max=8 bias=0 kind="enum" default=3 default-source="factory" {
+            label "Velocity Curve 1"
+            label "Velocity Curve 2"
+            label "Velocity Curve 3"
+            label "Velocity Curve 4"
+            label "Velocity Curve 5"
+            label "Velocity Curve 6"
+            label "Velocity Curve 7"
+            label "Velocity Curve 8"
+            label "Const Velocity"
+        }
         parameter "Value" id=3 offset=10 width=1 shift=0 mask=255 min=1 max=127 bias=0 kind="number" default=100 default-source="factory"
-        parameter "AssignType" id=4 offset=16 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=1 default-source="factory"
+        parameter "AssignType" id=4 offset=16 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=1 default-source="factory" {
+            label "Disable"
+            label "Enable"
+        }
         parameter "Value" id=5 offset=17 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=1 default-source="factory"
         parameter "Value" id=6 offset=19 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=0 default-source="factory"
         parameter "Value" id=7 offset=20 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=127 default-source="factory"
         parameter "Value" id=5 offset=41 width=1 shift=0 mask=255 min=0 max=127 bias=0 kind="number" default=64 default-source="factory"
-        parameter "PedalPolarity" id=8 offset=45 width=1 shift=0 mask=255 min=0 max=2 bias=0 kind="enum" default=0 default-source="factory"
-        parameter "AutoPowerOff" id=9 offset=240 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=1 default-source="factory"
-        parameter "BatteryType" id=10 offset=241 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory"
-        parameter "Device Name" id=11 offset=208 width=26 shift=0 mask=0 min=0 max=0 bias=0 kind="text" default-source="unknown"
-        parameter "Encryption" id=12 offset=234 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory"
+        parameter "PedalPolarity" id=8 offset=45 width=1 shift=0 mask=255 min=0 max=2 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Auto"
+            label "-"
+            label "+"
+        }
+        parameter "AutoPowerOff" id=9 offset=240 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=1 default-source="factory" {
+            label "Disable"
+            label "Enable"
+        }
+        parameter "BatteryType" id=10 offset=241 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" {
+            label "Alkaline"
+            label "Ni-MH"
+        }
+        parameter "Value" id=11 offset=208 width=26 shift=0 mask=0 min=0 max=0 bias=0 kind="text" default-source="unknown"
+        parameter "Encryption" id=12 offset=234 width=1 shift=0 mask=255 min=0 max=1 bias=0 kind="enum" default=0 default-source="factory" {
+            label "2"
+            label "1"
+        }
     }
 }
