@@ -12,6 +12,9 @@ device "korg.taktile-25-49" {
     image "X11850-panel.png" role="external-panel"
 }
 
+// The vendor editor starts every read and write over MIDI (CDL 5.2).
+interaction "active" status="inferred" evidence="KORG KONTROL Editor reads and writes this device"
+
 const "model" 0x11c status="decoded" evidence="KORG analysis/sysex/descriptors.json: model and length style short_or_long"
 
 // The port name is not recorded; the user picks it, or a scan finds the

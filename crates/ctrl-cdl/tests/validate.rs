@@ -38,6 +38,9 @@ fn findings(body: &str, severity: Severity) -> Vec<String> {
         .findings
         .into_iter()
         .filter(|f| f.severity == severity)
+        // These bodies test other rules; the class rules have their own
+        // tests (tests/interaction.rs).
+        .filter(|f| !f.error.message.contains("needs an `interaction` class"))
         .map(|f| format!("{}:{}: {}", f.error.line, f.error.col, f.error.message))
         .collect()
 }

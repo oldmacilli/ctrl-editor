@@ -11,6 +11,8 @@ device "tecontrol.breath" {
     replaces "TECMidiBreathCtrl 2.app v5.3b1"
 }
 
+interaction "usb-mixed" status="measured" evidence="configuration over HID, performance over class-compliant MIDI (TECcontrol HID traces)"
+
 identify {
     // Usage page 0x0C alone also matches media-key interfaces; the USB ids
     // decide. TECcontrol writes only to this exact VID/PID/bcd (allow-list in

@@ -152,6 +152,15 @@ pub static SCHEMA: &[NodeSpec] = &[
         "First node of every file.",
     ),
     n(
+        "interaction",
+        (1, 1),
+        "`active`, `passive`, `push-only`, `usb-mixed` or `bus-mixed`",
+        NONE,
+        false,
+        "5.2",
+        "How software reaches the configuration; the validator derives it from the descriptor and compares.",
+    ),
+    n(
         "device",
         (1, 1),
         "the device id, `vendor.model`",

@@ -11,4 +11,7 @@ device "korg.nts-1-digital-kit-mkii" {
     image "X21212-panel.png" role="external-panel"
 }
 
+// The vendor editor starts every read and write over MIDI (CDL 5.2).
+interaction "active" status="inferred" evidence="KORG KONTROL Editor reads and writes this device"
+
 driver "korg-file" provides="file:nts1mkii file:nts1mkiiprog file:nts1mkiiunit" status="decoded" evidence="KORG analysis/products/catalog.json (Info.plist document types)"

@@ -13,6 +13,7 @@
 mod convert;
 mod error;
 pub mod expr;
+pub mod interaction;
 mod ir;
 mod path;
 mod raw;

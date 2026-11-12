@@ -23,6 +23,9 @@ Shared platform for three device editors. Read docs/CONCEPT.md first.
 - ctrl-editor is the layer below every device editor. It holds only `ctrl-*`
   crates, tools and the vendor CDL descriptors; no vendor crate (`korg-*`,
   `db1-*`, `tec-*`, ...). Device editors pin the `ctrl-*` crates by rev.
+- Every device descriptor declares its class with `interaction` (CDL §5.2:
+  active, passive, push-only, usb-mixed; bus-mixed reserved). `ctrl-cli check`
+  derives the class and refuses a mismatch; the engine runs nothing without one.
 - `lbmt` belongs to zigtact. Use it as a dependency; do not copy or patch
   it here.
 - API changes to the core (EditorController, ViewModel) need the KORG lane's

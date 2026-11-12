@@ -9,6 +9,8 @@ device "example.firmware" {
     model "Template"
 }
 
+interaction "active" status="unknown"
+
 transport "aux" kind="midi" port-match="Example" role="config"
 
 message "enter-bootloader" transport="aux" kind="commit" status="unknown"

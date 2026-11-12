@@ -38,6 +38,8 @@ device "faderfox.uc4" {
     manual "UC4 Manual V03; UC4 Schnellstartanleitung; UC4 update"
 }
 
+interaction "passive" status="measured" evidence="dumps leave and enter only in setup mode, started on the device (manual; unit runs 2026-10-28)"
+
 identify {
     // bcdDevice is 0 on firmware 02.03: it does not carry the version.
     usb vid=0x2256 pid=0x2004 bcd=0x0000 status="measured" evidence="unit: ioreg 2026-10-28 (vendor \"Faderfox\", product \"Faderfox UC4\", bcdUSB 0x0110, no serial number)"

@@ -603,7 +603,8 @@ message "sensing" transport="t" { reply "FE"; }"#,
 #[test]
 fn long_sysex_is_split_for_the_host_and_by_the_protocol() {
     let d = synthetic(
-        r#"transport "linux" kind="midi" role="config" sysex-limit=4096 segment-delay=5
+        r#"interaction "active" status="unknown"
+transport "linux" kind="midi" role="config" sysex-limit=4096 segment-delay=5
 message "dump" transport="linux" kind="write" {
     send "F0 7D 01 {data:raw} F7"
     segment message="dump-part" over="data" size=2000

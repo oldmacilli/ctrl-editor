@@ -99,6 +99,9 @@ pub struct Descriptor {
     pub recipes: Vec<Recipe>,
     pub edits: Vec<Edit>,
     pub kinds: Vec<Kinds>,
+    /// How software reaches the device's configuration (§5.2).
+    #[serde(default)]
+    pub interaction: Option<InteractionDecl>,
 }
 
 impl Descriptor {
@@ -436,6 +439,31 @@ pub enum Matcher {
     /// Bytes the device sends by itself, such as Active Sensing (`FE`).
     /// A hint for a port, never an identification on its own.
     Listen { meta: Meta, pattern: Template },
+}
+
+/// The device class: how software reaches the configuration (§5.2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Interaction {
+    /// Software starts reads and writes over MIDI (KORG, DB-1).
+    Active,
+    /// The user puts the device into a transfer mode; then it sends or
+    /// takes a SysEx dump (Faderfox UC4).
+    Passive,
+    /// The device only sends its controls; configuration happens on the
+    /// device, guided by the editor (UC-33).
+    PushOnly,
+    /// Configuration over USB (HID or bulk), performance over MIDI (TEC).
+    UsbMixed,
+    /// PCIe and USB mixed with MIDI (RME, Avid). Reserved; not supported.
+    BusMixed,
+}
+
+/// `interaction "active"` (§5.2).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InteractionDecl {
+    pub meta: Meta,
+    pub class: Interaction,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

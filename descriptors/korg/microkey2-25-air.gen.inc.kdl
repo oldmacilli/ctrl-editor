@@ -12,6 +12,9 @@ device "korg.microkey2-25-air" {
     image "X14823-panel.png" role="external-panel"
 }
 
+// The vendor editor starts every read and write over MIDI (CDL 5.2).
+interaction "active" status="inferred" evidence="KORG KONTROL Editor reads and writes this device"
+
 block "scene" size=256 count=1 status="decoded" evidence="KORG analysis/products/catalog.json (factory data)"
 
 driver "korg-file" provides="file:microkey25air_data" status="decoded" evidence="KORG analysis/products/catalog.json (Info.plist document types)"

@@ -199,6 +199,7 @@ impl<'d> Run<'d> {
             .d
             .procedure(procedure)
             .ok_or_else(|| EngineError::UnknownProcedure(procedure.into()))?;
+        self.check_class()?;
         let write = matches!(
             p.kind,
             Some(ctrl_cdl::Access::Write | ctrl_cdl::Access::Commit)
@@ -265,6 +266,48 @@ impl<'d> Run<'d> {
         Ok(())
     }
 
+    /// Refuses to run anything for a descriptor without a supported device
+    /// class (CDL §5.2) or with a validation error: what the class forbids is
+    /// never sent, whatever a front end asks for.
+    fn check_class(&self) -> Result<(), EngineError> {
+        let Some(decl) = &self.d.interaction else {
+            return Err(EngineError::Unsupported(format!(
+                "`{}` declares no `interaction` class; nothing runs",
+                self.d.device.id
+            )));
+        };
+        if !decl.class.capabilities().supported {
+            return Err(EngineError::Unsupported(format!(
+                "interaction `{}` is not supported yet",
+                decl.class.keyword()
+            )));
+        }
+        if let Some(e) = ctrl_cdl::validate(self.d).errors().next() {
+            return Err(EngineError::Unsupported(format!(
+                "the descriptor does not validate: {e}"
+            )));
+        }
+        Ok(())
+    }
+
+    /// Refuses a step the device class forbids (CDL §5.2). The validator
+    /// refuses such descriptors; this is the second line.
+    fn class_allows(&self, step: &Step) -> Result<(), EngineError> {
+        use ctrl_cdl::Interaction::*;
+        let class = self.d.interaction.as_ref().map(|i| i.class);
+        let refused = match (class, step) {
+            (Some(Passive), Step::Exchange(_)) => "a passive device answers no requests",
+            (Some(PushOnly), Step::Send(_) | Step::Exchange(_)) => {
+                "a push-only device takes nothing over a wire"
+            }
+            (Some(BusMixed) | None, Step::Send(_) | Step::Exchange(_) | Step::Await(_)) => {
+                "no supported device class"
+            }
+            _ => return Ok(()),
+        };
+        Err(EngineError::Unsupported(refused.into()))
+    }
+
     /// Refuses a write whose `records-from` blocks are not in the editor
     /// document before any step runs, so the operator is not asked to arm
     /// the device for a send that cannot happen. A path whose index needs a
@@ -304,6 +347,7 @@ impl<'d> Run<'d> {
         op: &mut dyn Operator,
     ) -> Result<(), EngineError> {
         for step in steps {
+            self.class_allows(step)?;
             match step {
                 Step::Guide(_) | Step::Repeat { .. } | Step::Call { .. } => {}
                 Step::Await(s) => self.show_card(&Wait::Message(s.message.clone()), op)?,

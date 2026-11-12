@@ -333,6 +333,14 @@ First node of every file. (§2)
 - Children: none
 - Properties: none besides the common ones
 
+## `interaction`
+
+How software reaches the configuration; the validator derives it from the descriptor and compares. (§5.2)
+
+- Arguments: 1: `active`, `passive`, `push-only`, `usb-mixed` or `bus-mixed`
+- Children: none
+- Properties: none besides the common ones
+
 ## `device`
 
 Who the device is. (§3)

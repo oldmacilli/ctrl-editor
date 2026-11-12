@@ -48,6 +48,7 @@ cdl 0.1                                   // first node: language version
 device "oceanbeach.db1" { … }             // identity, vendor, links
 identify { … }                            // how to recognise it (§3)
 transport "aux" kind="midi" { … }         // one or more (§5)
+interaction "active"                      // device class (§5.2)
 const "model" 0x137                       // named numbers for templates (§8.1)
 types { … }                               // enums and value types (§4.2)
 block "drawbar" { … }                     // stored data and its fields (§4)
@@ -391,6 +392,47 @@ Sensing carries no device id, so `listen` never identifies a device alone:
 ```kdl
 identify { listen "FE" status="inferred" }
 ```
+
+### 5.2 Device classes: `interaction`
+
+Every device descriptor declares how software reaches its configuration:
+
+```kdl
+interaction "active" status="measured" evidence="…"
+```
+
+| Class | Device | Config transport | Software may | Example |
+|---|---|---|---|---|
+| `active` | answers requests and takes writes at any time | MIDI, `role="config"` | read and write; reads use `exchange`, never `await` | KORG, DB-1 |
+| `passive` | sends or takes a SysEx dump only in a transfer mode the user starts on the device | MIDI, `role="config"` | guide the user, then `await` a dump or `send` one; never `exchange` | Faderfox UC4 |
+| `push-only` | only sends its controls; set up on the device | none | listen, and guide the user through `hands`, `recipe` and `edit` (§17); never send | Evolution UC-33 |
+| `usb-mixed` | configured over USB, plays over MIDI | `hid` or `usb-bulk`, `role="config"` | read and write over USB; MIDI transports are performance only and carry no write | TEControl breath controller |
+| `bus-mixed` | PCIe and USB mixed with MIDI | — | nothing: reserved, refused by the validator and the engine | RME, Avid (later) |
+
+The validator derives the class from the contents and refuses a
+declaration that disagrees: an `exchange` makes a device `active`; `await`
+without `exchange` makes it `passive`; a non-MIDI config transport beside
+a MIDI one makes it `usb-mixed`; no config transport, nothing that writes
+and a `hands` node make it `push-only`. When the contents are too thin to
+tell (a device whose protocol is not decoded yet), the declaration stands
+with a note, and a descriptor without transports is exempt from the
+transport rules until it has one. A missing `interaction` is an error.
+
+Rules per class, checked by `ctrl-cli check`:
+
+- `passive`: every procedure guides the user (§17.2) before its first
+  `send` or `await`, a called procedure's steps counted in place.
+- `push-only`: no `role="config"` transport, no `kind="write"` or
+  `"commit"`, no `send` or `exchange` in any procedure, and `hands`.
+- `usb-mixed`: no MIDI transport has `role="config"`, and no writing
+  message goes over MIDI.
+- `active` and `usb-mixed`: a read procedure does not `await`.
+
+`ctrl-engine` runs nothing for a descriptor without a supported class or
+with a validation error, and refuses each forbidden step at run time as a
+second line. Front ends offer what `Interaction::capabilities()` allows:
+Receive and Write buttons for `active` and `usb-mixed`, guided transfers
+for `passive`, guides only for `push-only`.
 
 ## 6. Message templates
 

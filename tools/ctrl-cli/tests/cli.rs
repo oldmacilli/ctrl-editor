@@ -37,7 +37,7 @@ fn check_passes_the_repository_descriptors() {
 
 #[test]
 fn check_allows_optional_external_images_but_rejects_missing_local_images() {
-    let external = capture("external-image.kdl", "cdl \"0.1\"\ndevice \"test.example\" {\n image \"X.png\" role=\"external-thumbnail\"\n image \"X-panel.png\" role=\"external-panel\"\n}\n");
+    let external = capture("external-image.kdl", "cdl \"0.1\"\ndevice \"test.example\" {\n image \"X.png\" role=\"external-thumbnail\"\n image \"X-panel.png\" role=\"external-panel\"\n}\ninteraction \"active\" status=\"unknown\"\n");
     let (ok, out) = run(&["check", external.to_str().unwrap()]);
     assert!(ok, "{out}");
     let local = capture(

@@ -12,6 +12,9 @@ device "korg.nanokey-studio" {
     image "X14800-panel.png" role="external-panel"
 }
 
+// The vendor editor starts every read and write over MIDI (CDL 5.2).
+interaction "active" status="inferred" evidence="KORG KONTROL Editor reads and writes this device"
+
 const "model" 0x136 status="decoded" evidence="KORG analysis/sysex/descriptors.json: model and length style short_or_long"
 
 block "scene" size=240 count=8 status="decoded" evidence="KORG analysis/products/catalog.json (factory data)"

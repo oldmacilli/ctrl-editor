@@ -8,7 +8,7 @@
   (#any-of? @keyword
     "cdl" "include" "device" "identify" "transport" "types" "block" "param"
     "panel" "midi-map" "sysex-frame" "message" "procedure" "firmware" "lbmt"
-    "driver" "test-vector" "const" "labels" "pattern" "hands" "recipe" "edit" "kinds"
+    "driver" "test-vector" "const" "labels" "pattern" "hands" "recipe" "edit" "kinds" "interaction"
     "catalog" "control-assignments" "editor-pages" "global-fields" "parameter-layouts" "sysex-commands"))
 
 ; Procedure steps

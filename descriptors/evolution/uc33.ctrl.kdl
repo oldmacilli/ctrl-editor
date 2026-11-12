@@ -31,6 +31,8 @@ device "evolution.uc33" {
     replaces "Evolution Librarian 1.0 (Windows, UC-33e only)"
 }
 
+interaction "push-only" status="inferred" evidence="no dump in either direction; set up on the device (Advanced Guide)"
+
 identify {
     usb vid=0x0A4D pid=0x00F5 bcd=0x0101 status="measured" evidence="ioreg 2026-10-28"
     // CoreMIDI localises the port suffix ("Anschluss 1" in German, "Port 1"

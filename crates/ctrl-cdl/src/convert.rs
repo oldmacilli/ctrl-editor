@@ -97,6 +97,7 @@ pub(crate) fn convert(
             recipes: b.recipes,
             edits: b.edits,
             kinds: b.kinds,
+            interaction: b.interaction,
         }),
         _ => Err(Errors(cx.errors)),
     }
@@ -488,6 +489,7 @@ struct Builder {
     recipes: Vec<Recipe>,
     edits: Vec<Edit>,
     kinds: Vec<Kinds>,
+    interaction: Option<InteractionDecl>,
 }
 
 const TOP: &[&str] = &[
@@ -521,6 +523,7 @@ const TOP: &[&str] = &[
     "recipe",
     "edit",
     "kinds",
+    "interaction",
 ];
 
 impl Builder {
@@ -708,6 +711,16 @@ impl Builder {
             "recipe" => self.recipes.push(recipe(cx, n)),
             "edit" => self.edits.push(edit(cx, n)),
             "kinds" => self.kinds.push(kinds(cx, n)),
+            "interaction" => {
+                cx.node(n, "interaction");
+                if let Some(class) = cx.arg_with(n, 0, keyword) {
+                    let decl = InteractionDecl {
+                        meta: cx.meta(n),
+                        class,
+                    };
+                    once(cx, n, &mut self.interaction, decl);
+                }
+            }
             // Read before the other nodes, in `convert`.
             "pattern" => {}
             "const" => {

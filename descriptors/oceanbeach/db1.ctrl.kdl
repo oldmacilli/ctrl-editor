@@ -9,6 +9,8 @@ device "oceanbeach.db1" {
     replaces "DB-1 Configurator (LiveCode, 2014)"
 }
 
+interaction "active" status="measured" evidence="software reads and writes over the AUX port (read-all, write-all)"
+
 // The DB-1 has 5-pin DIN ports only (MAIN and AUX pairs), so no MIDI port
 // carries its name: it is reached through whatever interface the user has
 // (proven: Behringer UMC404HD). A scan (CDL §5.1) sends the revision request

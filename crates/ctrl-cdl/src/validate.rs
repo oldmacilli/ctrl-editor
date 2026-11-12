@@ -79,6 +79,7 @@ pub fn validate(d: &Descriptor) -> Report {
     v.drivers();
     v.test_vectors();
     v.hands();
+    v.interaction();
     v.unknown_and_inferred();
     Report {
         findings: v.findings,
@@ -102,6 +103,177 @@ enum Target<'d> {
 }
 
 impl<'d> V<'d> {
+    /// The device class (§5.2): declared, supported by the contents, and
+    /// kept to its rules.
+    fn interaction(&mut self) {
+        use crate::interaction::{config_transports, derive, touches, writes, Touch};
+        let d = self.d;
+        let Some(decl) = d.interaction.as_ref() else {
+            let derived = derive(d);
+            let hint = derived
+                .class
+                .map(|c| {
+                    format!(
+                        "; the descriptor supports `interaction \"{}\"`",
+                        c.keyword()
+                    )
+                })
+                .unwrap_or_default();
+            self.error(
+                d.device.meta.pos,
+                format!(
+                    "device `{}` needs an `interaction` class (§5.2){hint}",
+                    d.device.id
+                ),
+            );
+            return;
+        };
+        let pos = decl.meta.pos;
+        let class = decl.class;
+        if class == Interaction::BusMixed {
+            self.error(
+                pos,
+                "`interaction \"bus-mixed\"` (PCIe/USB with MIDI) is reserved and not supported yet",
+            );
+            return;
+        }
+        let derived = derive(d);
+        match derived.class {
+            Some(c) if c != class => self.error(
+                pos,
+                format!(
+                    "declared `{}`, but the descriptor is `{}`: {}",
+                    class.keyword(),
+                    c.keyword(),
+                    derived.reason
+                ),
+            ),
+            Some(_) => {}
+            None => self.push(
+                Severity::Note,
+                pos,
+                format!(
+                    "`{}` cannot be confirmed: {}",
+                    class.keyword(),
+                    derived.reason
+                ),
+            ),
+        }
+        // A descriptor without transports talks to nothing yet: the class is
+        // a plan, and the transport rules wait until a transport exists.
+        if d.transports.is_empty() {
+            self.push(
+                Severity::Note,
+                pos,
+                format!("`{}`: no transport is described yet", class.keyword()),
+            );
+            return;
+        }
+        let config = config_transports(d);
+        let midi_config = config.iter().any(|t| t.kind == TransportKind::Midi);
+        let usb_config = config.iter().any(|t| t.kind != TransportKind::Midi);
+        match class {
+            Interaction::Active | Interaction::Passive => {
+                if !midi_config && !config.is_empty() || usb_config {
+                    self.error(
+                        pos,
+                        format!(
+                            "`{}` configures over MIDI; a config transport here is not MIDI",
+                            class.keyword()
+                        ),
+                    );
+                }
+                if config.is_empty() {
+                    self.error(
+                        pos,
+                        format!(
+                            "`{}` needs a `role=\"config\"` MIDI transport",
+                            class.keyword()
+                        ),
+                    );
+                }
+            }
+            Interaction::PushOnly => {
+                for t in &config {
+                    self.error(t.meta.pos, format!("push-only: transport `{}` cannot be `role=\"config\"`; the device takes no configuration over a wire", t.name));
+                }
+                if writes(d) {
+                    self.error(
+                        pos,
+                        "push-only: nothing may write (`kind=\"write\"` or `\"commit\"`)",
+                    );
+                }
+                if d.hands.is_none() {
+                    self.error(pos, "push-only: needs `hands` (§17.1), so the editor can guide the user on the device");
+                }
+            }
+            Interaction::UsbMixed => {
+                if !usb_config {
+                    self.error(pos, "usb-mixed: needs a `role=\"config\"` transport of kind `hid` or `usb-bulk`");
+                }
+                if !d.transports.iter().any(|t| t.kind == TransportKind::Midi) {
+                    self.error(pos, "usb-mixed: needs a MIDI transport for performance");
+                }
+                for t in d
+                    .transports
+                    .iter()
+                    .filter(|t| t.kind == TransportKind::Midi && t.role == Some(Role::Config))
+                {
+                    self.error(t.meta.pos, format!("usb-mixed: MIDI transport `{}` cannot be `role=\"config\"`; configuration goes over USB", t.name));
+                }
+                let midi: Vec<&str> = d
+                    .transports
+                    .iter()
+                    .filter(|t| t.kind == TransportKind::Midi)
+                    .map(|t| t.name.as_str())
+                    .collect();
+                for m in &d.messages {
+                    if matches!(m.kind, Some(Access::Write | Access::Commit))
+                        && m.transport.as_deref().is_some_and(|t| midi.contains(&t))
+                    {
+                        self.error(
+                            m.meta.pos,
+                            format!(
+                                "usb-mixed: message `{}` writes over a MIDI transport",
+                                m.name
+                            ),
+                        );
+                    }
+                }
+            }
+            Interaction::BusMixed => {}
+        }
+        for p in &d.procedures {
+            let t = touches(d, p);
+            let first_device = t.iter().position(|x| *x != Touch::Guide);
+            let guided_first = t.first() == Some(&Touch::Guide);
+            match class {
+                Interaction::Active | Interaction::UsbMixed => {
+                    if p.kind == Some(Access::Read) && t.contains(&Touch::Await) {
+                        self.error(p.meta.pos, format!("{}: read procedure `{}` waits for a dump (`await`); software starts reads in this class", class.keyword(), p.name));
+                    }
+                }
+                Interaction::Passive => {
+                    if t.contains(&Touch::Exchange) {
+                        self.error(p.meta.pos, format!("passive: procedure `{}` uses `exchange`; the device answers no requests", p.name));
+                    }
+                    if first_device.is_some() && !guided_first {
+                        self.error(p.meta.pos, format!("passive: procedure `{}` must guide the user into the transfer mode before it sends or waits", p.name));
+                    }
+                }
+                Interaction::PushOnly => {
+                    if t.iter().any(|x| matches!(x, Touch::Send | Touch::Exchange)) {
+                        self.error(
+                            p.meta.pos,
+                            format!("push-only: procedure `{}` sends to the device", p.name),
+                        );
+                    }
+                }
+                Interaction::BusMixed => {}
+            }
+        }
+    }
+
     fn global_fields(&mut self) {
         let Some(fields) = self.d.global_fields.as_ref() else {
             return;
