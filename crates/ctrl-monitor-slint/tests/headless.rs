@@ -65,4 +65,25 @@ fn the_window_shows_rows_alerts_and_reacts() {
     // It renders.
     let shot = window.window().take_snapshot().expect("snapshot");
     assert_eq!((shot.width(), shot.height()), (1000, 720));
+
+    // Column widths are bridge properties (one set for header and rows),
+    // starting at the shared model's pixel defaults, and a host can set them.
+    use ctrl_monitor::{Column, ColumnWidths};
+    let w = ColumnWidths::pixels();
+    let got = [
+        bridge.get_col_time(),
+        bridge.get_col_port(),
+        bridge.get_col_ch(),
+        bridge.get_col_msg(),
+        bridge.get_col_value(),
+    ];
+    for (c, g) in Column::ALL.iter().zip(got) {
+        assert_eq!(g as u32, w.get(*c), "{c:?}");
+    }
+    let before = window.window().take_snapshot().unwrap().as_bytes().to_vec();
+    bridge.set_col_port(180.0);
+    headless::settle(&window, &monitor);
+    assert_eq!(bridge.get_col_port(), 180.0);
+    let after = window.window().take_snapshot().unwrap().as_bytes().to_vec();
+    assert_ne!(before, after, "the wider port column moves the cells");
 }

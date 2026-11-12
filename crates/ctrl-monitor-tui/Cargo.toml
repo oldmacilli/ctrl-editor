@@ -9,6 +9,7 @@ publish.workspace = true
 [dependencies]
 ctrl-monitor = { path = "../ctrl-monitor", default-features = false }
 ratatui = "0.30"
+unicode-width = "0.2"
 
 [dev-dependencies]
 ctrl-monitor = { path = "../ctrl-monitor" }

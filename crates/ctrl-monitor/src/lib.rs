@@ -25,6 +25,7 @@
 #[cfg(feature = "cdl")]
 mod cdl;
 mod collector;
+mod columns;
 mod describe;
 mod model;
 mod parser;
@@ -37,6 +38,7 @@ mod view;
 #[cfg(feature = "cdl")]
 pub use cdl::{CdlDescriber, DeviceIdx};
 pub use collector::{Collector, Describer, Running};
+pub use columns::{Column, ColumnWidths};
 pub use describe::{
     controller_name, describe, hex, manufacturer, note_name, ChannelMask, Class, Description,
     Group, NoteStyle, Radix, Style, TypeMask,

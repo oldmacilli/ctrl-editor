@@ -98,6 +98,16 @@ export global MonitorBridge {
     in property <string> status;
     in property <string> mono-family: "Menlo";
 
+    // Column widths, shared by the header and every row. The user drags
+    // them in the header; a host may persist them (ctrl_monitor::ColumnWidths
+    // ::pixels() has the same defaults and minimums). The direction column is
+    // fixed, the description takes what is left.
+    in-out property <length> col-time: 86px;
+    in-out property <length> col-port: 104px;
+    in-out property <length> col-ch: 28px;
+    in-out property <length> col-msg: 156px;
+    in-out property <length> col-value: 270px;
+
     // Lines the list shows; the pane writes it from its height.
     in-out property <int> visible-lines: 20;
     // The pane follows Slint's colour scheme; Rust colours the tones by it.
@@ -128,13 +138,14 @@ global Look {
     out property <length> font: 12px;
     out property <length> small: 11px;
     out property <length> pad: 10px;
-    out property <length> col-time: 86px;
     out property <length> col-dir: 18px;
-    out property <length> col-port: 112px;
-    out property <length> col-ch: 26px;
-    out property <length> col-msg: 156px;
-    out property <length> col-port-narrow: 84px;
-    out property <length> col-msg-narrow: 136px;
+    // Gap between columns; the header's drag handle sits in it.
+    out property <length> gap: 8px;
+    out property <length> min-time: 48px;
+    out property <length> min-port: 48px;
+    out property <length> min-ch: 24px;
+    out property <length> min-msg: 70px;
+    out property <length> min-value: 70px;
     out property <color> dim: Palette.foreground.with-alpha(0.55);
     out property <color> faint: Palette.foreground.with-alpha(0.08);
     out property <color> stripe: Palette.foreground.with-alpha(0.028);
@@ -462,21 +473,67 @@ component AlertStrip inherits Rectangle {
     }
 }
 
+// A header cell with a drag handle on its right border (in the gap). The
+// cell is the column's width plus the gap, so the header lines up with the
+// rows, which use the same widths and spacing.
+component HeaderCell inherits Rectangle {
+    in property <string> text;
+    in property <length> min-col;
+    in property <TextHorizontalAlignment> align: left;
+    in-out property <length> col-width;
+    width: root.col-width + Look.gap;
+    Cell {
+        x: 0;
+        width: root.col-width;
+        text: root.text;
+        font-size: Look.small;
+        font-weight: 600;
+        color: Look.dim;
+        horizontal-alignment: root.align;
+    }
+    Rectangle {
+        x: parent.width - 4px;
+        width: 1px;
+        y: 4px;
+        height: parent.height - 8px;
+        background: handle.pressed || handle.has-hover ? Palette.accent-background : Look.faint;
+    }
+    handle := TouchArea {
+        x: parent.width - Look.gap;
+        width: Look.gap;
+        mouse-cursor: MouseCursor.col-resize;
+        // The area moves with the border, so the offset from the press
+        // point is what is still to apply.
+        moved => {
+            if (self.pressed) {
+                root.col-width = max(root.min-col, root.col-width + (self.mouse-x - self.pressed-x));
+            }
+        }
+    }
+}
+
 component Header inherits Rectangle {
-    in property <bool> narrow;
     height: 24px;
     background: Look.bar;
     HorizontalLayout {
         padding-left: Look.pad;
         padding-right: Look.pad;
-        spacing: 8px;
-        Cell { width: Look.col-time; text: "Time"; font-size: Look.small; font-weight: 600; color: Look.dim; }
-        Cell { width: Look.col-dir; text: ""; }
-        Cell { width: root.narrow ? Look.col-port-narrow : Look.col-port; text: "Port"; font-size: Look.small; font-weight: 600; color: Look.dim; }
-        Cell { width: Look.col-ch; text: "Ch"; font-size: Look.small; font-weight: 600; color: Look.dim; horizontal-alignment: right; }
-        Cell { width: root.narrow ? Look.col-msg-narrow : Look.col-msg; text: "Message"; font-size: Look.small; font-weight: 600; color: Look.dim; }
-        Cell { horizontal-stretch: 2; text: "Value"; font-size: Look.small; font-weight: 600; color: Look.dim; }
-        if !root.narrow: Cell { horizontal-stretch: 3; text: "Detail"; font-size: Look.small; font-weight: 600; color: Look.dim; }
+        spacing: 0px;
+        HeaderCell { text: "Time"; align: right; min-col: Look.min-time; col-width <=> MonitorBridge.col-time; }
+        Rectangle { width: Look.col-dir + Look.gap; }
+        HeaderCell { text: "Port"; min-col: Look.min-port; col-width <=> MonitorBridge.col-port; }
+        HeaderCell { text: "Ch"; align: right; min-col: Look.min-ch; col-width <=> MonitorBridge.col-ch; }
+        HeaderCell { text: "Message"; min-col: Look.min-msg; col-width <=> MonitorBridge.col-msg; }
+        HeaderCell {
+            text: "Value";
+            min-col: Look.min-value;
+            col-width <=> MonitorBridge.col-value;
+            // Shrinks with the rows' value cell when the pane is narrow.
+            min-width: Look.min-value + Look.gap;
+            max-width: MonitorBridge.col-value + Look.gap;
+            preferred-width: MonitorBridge.col-value + Look.gap;
+        }
+        Cell { horizontal-stretch: 1; text: "Description"; font-size: Look.small; font-weight: 600; color: Look.dim; }
     }
     Rectangle { y: parent.height - 1px; height: 1px; background: Look.faint; }
 }
@@ -485,7 +542,7 @@ component Details inherits Rectangle {
     in property <MonitorRow> item;
     min-height: lay.preferred-height;
     lay := VerticalLayout {
-        padding-left: Look.pad + Look.col-time + 8px;
+        padding-left: Look.pad + MonitorBridge.col-time + Look.gap;
         padding-right: Look.pad;
         padding-top: 4px;
         padding-bottom: 10px;
@@ -561,9 +618,6 @@ component Details inherits Rectangle {
 component RowView inherits Rectangle {
     in property <MonitorRow> item;
     in property <int> index;
-    // Below about 760 px: narrower port and message, no detail column
-    // (the expanded row still shows it).
-    in property <bool> narrow;
     callback clicked();
     callback activated();
     min-height: lay.preferred-height;
@@ -578,13 +632,14 @@ component RowView inherits Rectangle {
             height: Look.row-h;
             padding-left: Look.pad;
             padding-right: Look.pad;
-            spacing: 8px;
+            spacing: Look.gap;
             Cell {
-                width: Look.col-time;
+                width: MonitorBridge.col-time;
                 text: root.item.time;
                 font-family: MonitorBridge.mono-family;
                 font-size: Look.small;
                 color: Look.dim;
+                horizontal-alignment: right;
             }
             Cell {
                 width: Look.col-dir;
@@ -593,13 +648,13 @@ component RowView inherits Rectangle {
                 horizontal-alignment: center;
             }
             Cell {
-                width: root.narrow ? Look.col-port-narrow : Look.col-port;
+                width: MonitorBridge.col-port;
                 text: root.item.port;
                 color: Palette.foreground.with-alpha(0.8);
                 font-italic: root.item.editor;
             }
             Cell {
-                width: Look.col-ch;
+                width: MonitorBridge.col-ch;
                 text: root.item.channel;
                 font-family: MonitorBridge.mono-family;
                 font-size: Look.small;
@@ -607,7 +662,7 @@ component RowView inherits Rectangle {
                 color: Palette.foreground.with-alpha(0.8);
             }
             HorizontalLayout {
-                width: root.narrow ? Look.col-msg-narrow : Look.col-msg;
+                width: MonitorBridge.col-msg;
                 spacing: 5px;
                 Cell {
                     text: (root.item.expandable ? (root.item.expanded ? "▾ " : "▸ ") : "") + root.item.message;
@@ -640,18 +695,17 @@ component RowView inherits Rectangle {
                     fill: transparent;
                 }
             }
-            HorizontalLayout {
-                horizontal-stretch: 2;
-                min-width: 0;
-                spacing: 6px;
-                Cell {
-                    text: root.item.value;
-                    color: root.item.tone;
-                    horizontal-stretch: 1;
-                }
+            Cell {
+                min-width: Look.min-value;
+                max-width: MonitorBridge.col-value;
+                preferred-width: MonitorBridge.col-value;
+                text: root.item.value;
+                font-family: MonitorBridge.mono-family;
+                font-size: Look.small;
+                color: root.item.tone;
             }
-            if !root.narrow: Cell {
-                horizontal-stretch: 3;
+            Cell {
+                horizontal-stretch: 1;
                 text: root.item.detail;
                 font-size: Look.small;
                 color: Look.dim;
@@ -682,12 +736,6 @@ export component MonitorPane inherits Rectangle {
     // A light / dark button in the toolbar, for a window of its own.
     in property <bool> theme-toggle: false;
     property <length> wheel;
-    // Below 760 px: narrower port and message, no detail column. Set when
-    // the width changes, not bound to it: the columns it picks size the
-    // pane, so a binding would make the pane's width depend on itself.
-    property <bool> narrow: false;
-    init => { root.narrow = root.width < 760px; }
-    changed width => { root.narrow = root.width < 760px; }
     background: Palette.background;
     min-width: 600px;
     preferred-width: 980px;
@@ -704,9 +752,7 @@ export component MonitorPane inherits Rectangle {
         }
         if MonitorBridge.alerts.length > 0: AlertStrip { }
         if MonitorBridge.chips.length > 0: ChipRow { }
-        Header {
-            narrow: root.narrow;
-        }
+        Header { }
         list := Rectangle {
             vertical-stretch: 1;
             // The rows never size the list; the list sizes the window of rows.
@@ -757,7 +803,6 @@ export component MonitorPane inherits Rectangle {
                 for row[i] in MonitorBridge.rows: RowView {
                     item: row;
                     index: i;
-                    narrow: root.narrow;
                     clicked => {
                         keys.focus();
                         MonitorBridge.row-clicked(i);

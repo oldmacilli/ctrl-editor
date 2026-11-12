@@ -190,6 +190,13 @@ key bindings.
 
 Columns: time (clock, Δ to previous, Δ to selection, host ns, beat), direction
 glyph (← in, → out, ⇄ thru), port, channel, message, value, description.
+Header and rows share one width per column (`ColumnWidths` in `ctrl-monitor`; pixels
+in Slint, cells in the terminal, each with a minimum). Time, channel and the
+terminal's cells are right-aligned numbers; the Slint pane draws time, channel and
+value in a monospaced family. Direction is fixed, the description takes the rest and
+elides. Slint: drag the border in the header (`MonitorBridge.col-*` hold the widths,
+so a host can save and restore them). TUI: `Tab`/`Shift-Tab` focus a column (underlined
+in the header), `>`/`<` widen/narrow it; widths count display cells (unicode-width).
 
 - colour by class: voice green/blue/orange by type (as now in KORG), system common
   violet, real-time grey, SysEx teal, invalid and drops red; optional tint by channel;

@@ -8,13 +8,17 @@
 //! if let Some(input) = key_input(key) { pane.handle(input, &mut view, &mut store) }
 //! ```
 
-use ctrl_monitor::{Alert, Chip, Class, Command, Details, Dir, Row, Store, TimeFormat, Tone, View};
+use ctrl_monitor::{
+    Alert, Chip, Class, Column, ColumnWidths, Command, Details, Dir, Row, Store, TimeFormat, Tone,
+    View,
+};
 use ratatui::buffer::Buffer;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Widget};
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 /// What a key asks for: a view command, or something the pane does itself.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -25,6 +29,10 @@ pub enum Input {
     /// Show one channel: the next digits typed choose it.
     StartChannel,
     ToggleHelp,
+    /// Focus the next (+1) or previous (-1) column.
+    FocusColumn(i32),
+    /// Widen (+) or narrow (-) the focused column by that many cells.
+    ResizeColumn(i32),
 }
 
 /// The key map. The help text ([`HELP`]) lists the same keys.
@@ -48,6 +56,10 @@ pub fn key_input(key: KeyEvent) -> Option<Input> {
         KeyCode::Char('/') => return Some(Input::StartSearch),
         KeyCode::Char('c') => return Some(Input::StartChannel),
         KeyCode::Char('?') => return Some(Input::ToggleHelp),
+        KeyCode::Tab => return Some(Input::FocusColumn(1)),
+        KeyCode::BackTab => return Some(Input::FocusColumn(-1)),
+        KeyCode::Char('>') => return Some(Input::ResizeColumn(1)),
+        KeyCode::Char('<') => return Some(Input::ResizeColumn(-1)),
         _ => return None,
     }))
 }
@@ -66,6 +78,11 @@ pub const HELP: &[(&str, &str)] = &[
     ("/", "search"),
     ("c", "channel: type 1–16, Enter; empty for all"),
     ("Ctrl-L", "clear"),
+    (
+        "Tab / Shift-Tab",
+        "focus the next / previous column (shown in the header)",
+    ),
+    ("> <", "widen / narrow the focused column"),
     ("?", "this help"),
 ];
 
@@ -84,6 +101,8 @@ pub struct MonitorPane {
     pub title: String,
     prompt: Option<Prompt>,
     help: bool,
+    widths: ColumnWidths,
+    focus: Column,
 }
 
 impl Default for MonitorPane {
@@ -93,6 +112,8 @@ impl Default for MonitorPane {
             title: "MIDI Monitor".into(),
             prompt: None,
             help: false,
+            widths: ColumnWidths::cells(),
+            focus: Column::Message,
         }
     }
 }
@@ -123,20 +144,61 @@ fn time_name(t: TimeFormat) -> &'static str {
     }
 }
 
-fn fit(s: &str, width: usize) -> String {
-    let n = s.chars().count();
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Align {
+    Left,
+    Right,
+}
+
+/// `s` padded or cut to exactly `width` terminal cells (display width, not
+/// bytes or chars); a cut ends in an ellipsis.
+fn fit_to(s: &str, width: usize, align: Align) -> String {
+    let n = s.width();
     if n <= width {
-        format!("{s:<width$}")
-    } else if width == 0 {
-        String::new()
-    } else {
-        let mut t: String = s.chars().take(width - 1).collect();
-        t.push('…');
-        t
+        let pad = " ".repeat(width - n);
+        return match align {
+            Align::Left => format!("{s}{pad}"),
+            Align::Right => format!("{pad}{s}"),
+        };
     }
+    if width == 0 {
+        return String::new();
+    }
+    let mut t = String::new();
+    let mut used = 0;
+    for c in s.chars() {
+        let cw = c.width().unwrap_or(0);
+        if used + cw > width - 1 {
+            break;
+        }
+        t.push(c);
+        used += cw;
+    }
+    t.push('…');
+    used += 1;
+    t.push_str(&" ".repeat(width - used));
+    t
+}
+
+fn fit(s: &str, width: usize) -> String {
+    fit_to(s, width, Align::Left)
 }
 
 impl MonitorPane {
+    /// The configured column widths in cells, for a host that persists them.
+    pub fn widths(&self) -> &ColumnWidths {
+        &self.widths
+    }
+
+    pub fn set_widths(&mut self, widths: ColumnWidths) {
+        self.widths = widths;
+    }
+
+    /// The column `<` and `>` resize.
+    pub fn focused_column(&self) -> Column {
+        self.focus
+    }
+
     /// True while a prompt takes the keys: send them to [`Self::type_key`].
     pub fn is_typing(&self) -> bool {
         self.prompt.is_some()
@@ -148,6 +210,10 @@ impl MonitorPane {
             Input::StartSearch => self.prompt = Some(Prompt::Search(view.state().search.clone())),
             Input::StartChannel => self.prompt = Some(Prompt::Channel(String::new())),
             Input::ToggleHelp => self.help = !self.help,
+            Input::FocusColumn(step) => self.focus = self.focus.step(step),
+            Input::ResizeColumn(d) => {
+                self.widths.resize(self.focus, d);
+            }
         }
     }
 
@@ -221,12 +287,9 @@ impl MonitorPane {
             Paragraph::new(self.alert_line(&alerts)).render(parts[i], buf);
             i += 1;
         }
-        let widths = Columns::for_width(inner.width as usize);
-        Paragraph::new(Line::styled(
-            widths.header(),
-            dim.add_modifier(Modifier::BOLD),
-        ))
-        .render(parts[i], buf);
+        let widths = Columns::for_width(&self.widths, inner.width as usize);
+        Paragraph::new(widths.header(self.focus, dim.add_modifier(Modifier::BOLD)))
+            .render(parts[i], buf);
         let list = parts[i + 1];
         if let Some(prompt) = &self.prompt {
             let (label, text) = match prompt {
@@ -366,14 +429,14 @@ impl MonitorPane {
         let tone = Style::default().fg(rgb(row.tone, self.dark));
         let dim = Style::default().fg(Color::DarkGray);
         // The fold count and spark line are kept whole; the value is cut.
-        let fold = if row.count > 1 {
+        let fold = if row.count > 1 && w.value >= 16 {
             format!(" ×{} {}", row.count, spark(&row.spark, 8))
         } else {
             String::new()
         };
-        let value = fit(&row.value, w.value.saturating_sub(fold.chars().count()));
+        let value = fit(&row.value, w.value.saturating_sub(fold.width()));
         let mut spans = vec![
-            Span::styled(fit(&row.time, w.time), dim),
+            Span::styled(fit_to(&row.time, w.time, Align::Right), dim),
             Span::raw(" "),
             Span::styled(
                 row.dir.to_string(),
@@ -386,7 +449,7 @@ impl MonitorPane {
             Span::raw(" "),
             Span::styled(fit(&row.port, w.port), dim),
             Span::raw(" "),
-            Span::styled(fit(&row.channel, 2), dim),
+            Span::styled(fit_to(&row.channel, w.channel, Align::Right), dim),
             Span::raw(" "),
             Span::styled(
                 fit(&row.message, w.message),
@@ -466,56 +529,90 @@ fn detail_lines(d: &Details) -> usize {
     d.fields.len() + d.notes.iter().map(|(_, f)| 1 + f.len()).sum::<usize>() + d.hex.len()
 }
 
-/// Column widths for a pane width.
+/// The widths a pane draws: the configured ones, shrunk (value, port,
+/// message, time, in that order, down to their minimums) when the pane is
+/// too narrow, and the description in what is left.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Columns {
     time: usize,
     port: usize,
+    channel: usize,
     message: usize,
     value: usize,
     detail: usize,
 }
 
+/// The description is only drawn when it gets this many cells.
+const MIN_DETAIL: usize = 8;
+
 impl Columns {
-    fn for_width(width: usize) -> Columns {
-        // time dir port ch message value [detail] marker
-        let time = 9;
-        let message = 16;
-        let fixed = time + 1 + 1 + 1 + 1 + 2 + 1 + message + 1 + 2;
-        let rest = width.saturating_sub(fixed);
-        let port = (rest / 6).clamp(6, 18);
-        let rest = rest.saturating_sub(port + 1);
-        // The value first (a folded controller run needs about 44); the
-        // description gets what is left once that is 24 or more.
-        let (value, detail) = if rest >= 44 + 1 + 24 {
-            (44, rest - 45)
-        } else {
-            (rest, 0)
+    fn for_width(cfg: &ColumnWidths, width: usize) -> Columns {
+        let mut w = ColumnWidths::cells();
+        w.from_array(cfg.to_array());
+        // time dir port ch message value, five gaps, then " ▾" at the end.
+        let fixed = 1 + 5 + 2;
+        let total = |w: &ColumnWidths| -> usize {
+            Column::ALL
+                .iter()
+                .map(|&c| w.get(c) as usize)
+                .sum::<usize>()
+                + fixed
         };
+        for c in [Column::Value, Column::Port, Column::Message, Column::Time] {
+            let over = total(&w).saturating_sub(width);
+            if over == 0 {
+                break;
+            }
+            w.resize(c, -(over.min(i32::MAX as usize) as i32));
+        }
+        let rest = width.saturating_sub(total(&w) + 1);
         Columns {
-            time,
-            port,
-            message,
-            value,
-            detail,
+            time: w.get(Column::Time) as usize,
+            port: w.get(Column::Port) as usize,
+            channel: w.get(Column::Channel) as usize,
+            message: w.get(Column::Message) as usize,
+            value: w.get(Column::Value) as usize,
+            detail: if rest >= MIN_DETAIL { rest } else { 0 },
         }
     }
 
-    fn header(&self) -> String {
-        let mut s = format!(
-            "{} {} {} {} {} {}",
-            fit("time", self.time),
-            " ",
-            fit("port", self.port),
-            fit("ch", 2),
-            fit("message", self.message),
-            fit("value", self.value)
-        );
-        if self.detail > 0 {
-            s.push(' ');
-            s.push_str(&fit("description", self.detail));
+    fn width(&self, c: Column) -> usize {
+        match c {
+            Column::Time => self.time,
+            Column::Port => self.port,
+            Column::Channel => self.channel,
+            Column::Message => self.message,
+            Column::Value => self.value,
         }
-        s
+    }
+
+    /// The header line; the focused column is underlined.
+    fn header(&self, focus: Column, style: Style) -> Line<'static> {
+        let mut spans = Vec::new();
+        for c in Column::ALL {
+            if c != Column::Time {
+                spans.push(Span::styled(" ", style));
+            }
+            if c == Column::Port {
+                spans.push(Span::styled("  ", style)); // direction + gap
+            }
+            let align = if matches!(c, Column::Time | Column::Channel) {
+                Align::Right
+            } else {
+                Align::Left
+            };
+            let st = if c == focus {
+                style.add_modifier(Modifier::UNDERLINED)
+            } else {
+                style
+            };
+            spans.push(Span::styled(fit_to(c.title(), self.width(c), align), st));
+        }
+        if self.detail > 0 {
+            spans.push(Span::styled(" ", style));
+            spans.push(Span::styled(fit("description", self.detail), style));
+        }
+        Line::from(spans)
     }
 }
 
@@ -731,7 +828,7 @@ mod tests {
 
     #[test]
     fn every_help_entry_has_a_key_and_narrow_panes_still_draw() {
-        assert_eq!(HELP.len(), 13);
+        assert_eq!(HELP.len(), 15);
         let (mut store, mut view, pane, port) = setup();
         store.record(
             port,
@@ -745,6 +842,87 @@ mod tests {
         );
         let s = screen(&pane, &mut view, &store, 40, 5);
         assert!(s.contains("Program"), "{s}");
+    }
+
+    fn put(store: &mut Store, port: ctrl_monitor::PortIdx, ms: u64, st: u8, d1: u8, d2: u8) {
+        store.record(
+            port,
+            Dir::In,
+            Parsed::Voice {
+                at: at(ms),
+                status: st,
+                d1,
+                d2,
+            },
+        );
+    }
+
+    /// The display column where `needle` starts in a line.
+    fn col(line: &str, needle: &str) -> usize {
+        line[..line.find(needle).unwrap()].width()
+    }
+
+    #[test]
+    fn columns_line_up_between_header_and_rows() {
+        let (mut store, mut view, pane, port) = setup();
+        put(&mut store, port, 5, 0x90, 60, 100);
+        put(&mut store, port, 1234, 0xB3, 7, 64);
+        put(&mut store, port, 99000, 0xC0, 4, 0);
+        let s = screen(&pane, &mut view, &store, 110, 8);
+        let lines: Vec<&str> = s.lines().collect();
+        let header = lines.iter().find(|l| l.contains("message")).unwrap();
+        let (hm, hv) = (col(header, "message"), col(header, "value"));
+        let rows: Vec<&&str> = lines
+            .iter()
+            .filter(|l| l.contains("Note On") || l.contains("Control") || l.contains("Program"))
+            .collect();
+        assert_eq!(rows.len(), 3, "{s}");
+        for r in rows {
+            let m = ["Note On", "Control", "Program"]
+                .iter()
+                .find(|n| r.contains(**n))
+                .unwrap();
+            assert_eq!(col(r, m), hm, "{r}");
+            // The value starts one column group right of the message column.
+            let w = ColumnWidths::cells();
+            assert_eq!(hv - hm, w.get(Column::Message) as usize + 1);
+        }
+    }
+
+    #[test]
+    fn wide_characters_are_cut_by_display_width() {
+        assert_eq!(fit_to("日本語テキスト", 7, Align::Left), "日本語…");
+        assert_eq!(fit_to("日本語…", 7, Align::Left).width(), 7);
+        assert_eq!(fit_to("ab", 5, Align::Right), "   ab");
+        assert_eq!(fit_to("abcdef", 4, Align::Left), "abc…");
+    }
+
+    #[test]
+    fn keys_focus_and_resize_the_columns() {
+        let (mut store, mut view, mut pane, port) = setup();
+        put(&mut store, port, 5, 0x90, 60, 100);
+        assert_eq!(
+            key_input(key(KeyCode::Char('>'))),
+            Some(Input::ResizeColumn(1))
+        );
+        assert_eq!(key_input(key(KeyCode::Tab)), Some(Input::FocusColumn(1)));
+        let before = pane.widths().get(Column::Message);
+        pane.handle(Input::ResizeColumn(4), &mut view, &mut store);
+        assert_eq!(pane.widths().get(Column::Message), before + 4);
+        pane.handle(Input::FocusColumn(1), &mut view, &mut store);
+        assert_eq!(pane.focused_column(), Column::Value);
+        pane.handle(Input::ResizeColumn(-500), &mut view, &mut store);
+        assert_eq!(
+            pane.widths().get(Column::Value),
+            pane.widths().min(Column::Value)
+        );
+        // The shifted header column moved with the width.
+        let w = Columns::for_width(pane.widths(), 120);
+        assert_eq!(w.value, 8);
+        // Too narrow: shrinks to the minimums, never below, description gone.
+        let n = Columns::for_width(pane.widths(), 40);
+        assert_eq!(n.detail, 0);
+        assert!(n.port >= 4 && n.value >= 8);
     }
 
     #[test]
