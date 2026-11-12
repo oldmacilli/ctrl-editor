@@ -138,7 +138,9 @@ Order:
    New, small platform crates (`ctrl-cdl`, `ctrl-engine`,
    `ctrl-transport`) run the DB-1 descriptor; `db1-session` brings
    restore points and the tx log. The KORG editor is not touched.
-2. Put the KORG editor behind adapters, not a rename. `korg-core` and its
+2. Put the KORG editor behind adapters, not a rename. Its `korg-*` crates
+   stay in the KORG_Kontrol_Editor repository; ctrl-editor never holds
+   vendor crates, only `ctrl-*` crates and the vendor CDL descriptors. `korg-core` and its
    `EditorController` stay as they are; adapters let the platform engine
    and front ends drive them, and the shared pieces that already exist
    (`korg_app::panel`, `run_job`) are reused. KORG devices then move to CDL

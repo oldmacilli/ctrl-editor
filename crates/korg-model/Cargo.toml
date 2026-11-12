@@ -1,9 +1,0 @@
-[package]
-name = "korg-model"
-version.workspace = true
-edition.workspace = true
-rust-version.workspace = true
-license = "MIT OR Apache-2.0"
-
-[dependencies]
-serde.workspace = true

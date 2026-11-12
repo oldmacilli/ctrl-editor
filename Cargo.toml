@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/ctrl-cdl", "crates/ctrl-codec", "crates/ctrl-engine", "crates/ctrl-descriptors", "crates/ctrl-midi", "crates/ctrl-monitor", "crates/ctrl-monitor-midi", "crates/ctrl-monitor-slint", "crates/ctrl-monitor-tui", "crates/korg-model", "crates/korg-format", "crates/korg-midi", "crates/korg-storage", "crates/korg-sysex", "crates/korg-devices", "crates/korg-core", "crates/korg-midi-midir", "crates/korg-app", "crates/korg-cli", "crates/korg-tui", "crates/korg-slint", "tools/ctrl-cli", "tools/monitor-embed-check", "tools/cdl-queries"]
+members = ["crates/ctrl-cdl", "crates/ctrl-codec", "crates/ctrl-engine", "crates/ctrl-descriptors", "crates/ctrl-midi", "crates/ctrl-monitor", "crates/ctrl-monitor-midi", "crates/ctrl-monitor-slint", "crates/ctrl-monitor-tui", "tools/ctrl-cli", "tools/monitor-embed-check", "tools/cdl-queries"]
 
 [workspace.package]
 version = "0.1.0"
@@ -13,15 +13,6 @@ kdl = "6"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
-korg-model = { path = "crates/korg-model" }
-korg-format = { path = "crates/korg-format" }
-korg-midi = { path = "crates/korg-midi" }
-korg-storage = { path = "crates/korg-storage" }
-korg-sysex = { path = "crates/korg-sysex" }
-korg-devices = { path = "crates/korg-devices" }
-korg-core = { path = "crates/korg-core" }
-korg-midi-midir = { path = "crates/korg-midi-midir" }
-korg-app = { path = "crates/korg-app" }
 ctrl-cdl = { path = "crates/ctrl-cdl" }
 ctrl-codec = { path = "crates/ctrl-codec" }
 ctrl-descriptors = { path = "crates/ctrl-descriptors" }

@@ -20,6 +20,9 @@ Shared platform for three device editors. Read docs/CONCEPT.md first.
   `*.gen.inc.kdl` files are not edited by hand; rerun the generator.
 - The evidence for each device stays in its own repo
   (`KORG_Kontrol_Editor`, `OceanBeach_DB-1`, `TECcontrol`); link to it.
+- ctrl-editor is the layer below every device editor. It holds only `ctrl-*`
+  crates, tools and the vendor CDL descriptors; no vendor crate (`korg-*`,
+  `db1-*`, `tec-*`, ...). Device editors pin the `ctrl-*` crates by rev.
 - `lbmt` belongs to zigtact. Use it as a dependency; do not copy or patch
   it here.
 - API changes to the core (EditorController, ViewModel) need the KORG lane's
