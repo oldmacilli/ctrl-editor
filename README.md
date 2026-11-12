@@ -9,6 +9,7 @@ Status: concept; P1 has started. `crates/ctrl-cdl` reads descriptors into a
 typed IR.
 
 - [docs/CONCEPT.md](docs/CONCEPT.md): why and how
+- [docs/PHILOSOPHY.md](docs/PHILOSOPHY.md): the contract between ctrl-editor and the device editors
 - [docs/CDL.md](docs/CDL.md): the descriptor language
 - [docs/TODO.md](docs/TODO.md): the living plan
 - `descriptors/`: DB-1, TEC, Evolution UC-33, Faderfox UC4 (decoded from its
