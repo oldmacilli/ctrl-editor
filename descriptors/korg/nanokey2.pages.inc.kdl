@@ -1,6 +1,7 @@
 cdl "0.1"
 editor-pages default="Common" status="decoded" evidence="KORG editor behavior" {
-    select "Common" group="Octave"
+    select "Common" group="Common"
+    fixed "Fixed on this device: shifts the keyboard by an octave; nothing to set." group="Octave"
     select "Pitch Button" group="Pitch Button"
     select "Keyboard" group="Keyboard" label="Keyboard"
     select "Sustain Button" group="Sustain Button" label="Sustain Button"

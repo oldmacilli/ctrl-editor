@@ -5,6 +5,8 @@ editor-pages default="Overview" status="decoded" evidence="KORG parameter analys
     select "Mod Wheel" group="Wheel" label="Mod"
     select "Keyboard" group="Keyboard"
     select "Assignable Switch" group="Assignable Switch"
+    select "Common" group="Common"
+    select "Wireless" group="Wireless"
     fixed "Fixed on this device: always sends Pitch Bend; nothing to set." label="Pitch"
     fixed "Fixed on this device: shifts the keyboard by an octave; nothing to set." group="Octave"
     page "Overview" {

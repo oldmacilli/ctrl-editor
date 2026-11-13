@@ -1,6 +1,7 @@
 cdl "0.1"
 editor-pages default="Keyboard" status="decoded" evidence="KORG editor behavior" {
     select "Keyboard" group="Keyboard"
+    select "Common" group="Common"
     select "Chord" group="Chord Pad" label="Chord Pad"
     select "XY" group="X-Y Pad" label="X-Y Pad"
     select "PitchMod" group="Pitch/Mod" label="Pitch/Mod"
@@ -22,6 +23,10 @@ editor-pages default="Keyboard" status="decoded" evidence="KORG editor behavior"
     select "Pad 6" group="Trigger Pad" label="Pad 6"
     select "Pad 7" group="Trigger Pad" label="Pad 7"
     select "Pad 8" group="Trigger Pad" label="Pad 8"
+    // The vendor Common page shows only the scene name (vendor editor, 2026-11-13).
+    page "Common" {
+        field "Scene Name" offset=0 kind="text" width=16
+    }
     page "Keyboard" {
         field "MIDI Channel" offset=16 kind="channel"
     }
