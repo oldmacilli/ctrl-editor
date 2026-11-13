@@ -502,6 +502,7 @@ pub static SCHEMA: &[NodeSpec] = &[
             p("key-black", "a raised black keyboard key"),
             p("element-index", "parameter schema element index"),
             p("jog-binding", "select the device jog block"),
+            p("fixed", "note for a control with a fixed function: no settings"),
         ]),
         false,
         "13",

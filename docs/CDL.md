@@ -1133,7 +1133,9 @@ panel picture="550x329" image="assets/nanokontrol-studio/panel.png" source="edit
 ```
 
 `bind` names a block, group or field; an unbound control shows "not decoded
-yet". `kind`: `knob`, `fader`, `button`, `pad`, `key`, `touchpad`, `jog`,
+yet". `fixed="<note>"` marks a control whose function the device fixes
+(a pitch wheel, octave keys): it is drawn but offers no settings, and front
+ends show the note. It cannot be combined with a binding. `kind`: `knob`, `fader`, `button`, `pad`, `key`, `touchpad`, `jog`,
 `meter` (live value from `midi-map` or a poll).
 
 Image paths (`image` on `device` and `panel`) are relative to the file that

@@ -1972,6 +1972,14 @@ impl<'d> V<'d> {
                                 "a control cannot bind both an element and the jog block (§13)",
                             );
                         }
+                        if c.fixed.is_some()
+                            && (c.bind.is_some() || c.element_index.is_some() || c.jog_binding)
+                        {
+                            v.error(
+                                c.meta.pos,
+                                "a fixed control has no settings: no bind, element-index or jog-binding (§13)",
+                            );
+                        }
                         if c.bind.is_some() && (c.element_index.is_some() || c.jog_binding) {
                             v.error(
                                 c.meta.pos,

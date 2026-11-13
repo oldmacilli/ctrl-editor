@@ -680,6 +680,7 @@ One control on the drawing. (§13)
 | `key-black` | a raised black keyboard key |
 | `element-index` | parameter schema element index |
 | `jog-binding` | select the device jog block |
+| `fixed` | note for a control with a fixed function: no settings |
 
 ## `panel/repeat`
 

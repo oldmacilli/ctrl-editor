@@ -781,6 +781,10 @@ pub struct Control {
     /// Selects the device-specific jog parameter block.
     #[serde(default)]
     pub jog_binding: bool,
+    /// The device fixes this control's function: the editor offers no
+    /// settings for it and shows this note instead.
+    #[serde(default)]
+    pub fixed: Option<String>,
 }
 
 /// A box coordinate: a number, or `{expr}` inside a `repeat`.

@@ -1870,6 +1870,7 @@ fn panel_items(cx: &mut Cx, nodes: &[RawNode]) -> Vec<PanelItem> {
                     key_black: cx.prop_bool(n, "key-black"),
                     element_index: cx.prop_u32(n, "element-index"),
                     jog_binding: cx.prop_bool(n, "jog-binding"),
+                    fixed: cx.prop_str(n, "fixed"),
                 }));
             }
             "repeat" => {
