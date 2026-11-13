@@ -1,4 +1,5 @@
-// Generated from the KORG panel baseline; do not edit by hand.
+// Exported once from the KORG panel baseline; now maintained by hand. Editable
+// controls follow the vendor KORG KONTROL EDITOR (badges on its CONTROL tab).
 cdl "0.1"
 panel picture="780x210" binding-inferred=#false source="KORG editor panel geometry; positions estimated by eye" status="inferred" evidence="Panel geometry estimated by eye" {
     control "control-0" kind="button" label="Track ◀" group="Transport" box="33,86,27,11" status="inferred" evidence="Control geometry estimated by eye"
@@ -52,4 +53,14 @@ panel picture="780x210" binding-inferred=#false source="KORG editor panel geomet
     control "control-48" kind="button" label="S 8" group="Solo" box="688,80,17,17" status="inferred" evidence="Control geometry estimated by eye"
     control "control-49" kind="button" label="M 8" group="Mute" box="688,114,17,17" status="inferred" evidence="Control geometry estimated by eye"
     control "control-50" kind="button" label="R 8" group="Rec" box="688,148,17,17" status="inferred" evidence="Control geometry estimated by eye"
+    control "common" kind="button" label="Common" group="Common" box="30,0,31,29" status="inferred" evidence="Vendor editor badge position, estimated from a screenshot"
+    control "transport-common" kind="button" label="Transport Common" group="Transport Common" box="67,0,31,29" status="inferred" evidence="Vendor editor badge position, estimated from a screenshot"
+    control "group-common-1" kind="button" label="Group Common 1" group="Group Common" box="254,0,31,29" status="inferred" evidence="Vendor editor badge position, estimated from a screenshot"
+    control "group-common-2" kind="button" label="Group Common 2" group="Group Common" box="319,0,31,29" status="inferred" evidence="Vendor editor badge position, estimated from a screenshot"
+    control "group-common-3" kind="button" label="Group Common 3" group="Group Common" box="384,0,31,29" status="inferred" evidence="Vendor editor badge position, estimated from a screenshot"
+    control "group-common-4" kind="button" label="Group Common 4" group="Group Common" box="449,0,31,29" status="inferred" evidence="Vendor editor badge position, estimated from a screenshot"
+    control "group-common-5" kind="button" label="Group Common 5" group="Group Common" box="514,0,31,29" status="inferred" evidence="Vendor editor badge position, estimated from a screenshot"
+    control "group-common-6" kind="button" label="Group Common 6" group="Group Common" box="579,0,31,29" status="inferred" evidence="Vendor editor badge position, estimated from a screenshot"
+    control "group-common-7" kind="button" label="Group Common 7" group="Group Common" box="644,0,31,29" status="inferred" evidence="Vendor editor badge position, estimated from a screenshot"
+    control "group-common-8" kind="button" label="Group Common 8" group="Group Common" box="709,0,31,29" status="inferred" evidence="Vendor editor badge position, estimated from a screenshot"
 }

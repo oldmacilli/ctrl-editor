@@ -1,9 +1,11 @@
-// Generated from the KORG panel baseline; do not edit by hand.
+// Exported once from the KORG panel baseline; now maintained by hand. Editable
+// controls follow the vendor KORG KONTROL EDITOR (badges on its CONTROL tab).
 cdl "0.1"
 panel picture="695x185" binding-inferred=#false source="KORG editor panel geometry; positions estimated by eye" status="inferred" evidence="Panel geometry estimated by eye" {
-    control "control-0" kind="jog" label="Pitch" group="Wheel" box="37,53,19,55" status="inferred" evidence="Control geometry estimated by eye"
+    control "control-0" kind="jog" label="Pitch" group="Wheel" box="37,53,19,55" fixed="Fixed on this device: always sends Pitch Bend; nothing to set." status="inferred" evidence="Control geometry estimated by eye"
     control "control-1" kind="jog" label="Mod" group="Wheel" box="68,53,18,55" status="inferred" evidence="Control geometry estimated by eye"
-    control "control-2" kind="button" label="Octave Down" group="Octave" box="38,122,9,13" status="inferred" evidence="Control geometry estimated by eye"
-    control "control-3" kind="button" label="Octave Up" group="Octave" box="70,122,9,13" status="inferred" evidence="Control geometry estimated by eye"
+    control "control-2" kind="button" label="Octave Down" group="Octave" box="38,122,9,13" fixed="Fixed on this device: shifts the keyboard by an octave; nothing to set." status="inferred" evidence="Control geometry estimated by eye"
+    control "control-3" kind="button" label="Octave Up" group="Octave" box="70,122,9,13" fixed="Fixed on this device: shifts the keyboard by an octave; nothing to set." status="inferred" evidence="Control geometry estimated by eye"
     control "control-4" kind="key" label="Keyboard" group="Keyboard" box="112,52,528,92" status="inferred" evidence="Control geometry estimated by eye"
+    control "common" kind="button" label="Common" group="Common" box="61,20,31,29" status="inferred" evidence="Vendor editor badge position, estimated from a screenshot"
 }

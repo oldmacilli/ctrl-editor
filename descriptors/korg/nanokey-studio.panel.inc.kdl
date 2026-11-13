@@ -1,4 +1,5 @@
-// Generated from the KORG panel baseline; do not edit by hand.
+// Exported once from the KORG panel baseline; now maintained by hand. Editable
+// controls follow the vendor KORG KONTROL EDITOR (badges on its CONTROL tab).
 cdl "0.1"
 panel picture="500x294" binding-inferred=#false source="KORG editor panel geometry; positions estimated by eye" status="inferred" evidence="Panel geometry estimated by eye" {
     control "control-0" kind="knob" label="Knob 1" group="Knob" box="24,41,28,28" status="inferred" evidence="Control geometry estimated by eye"
@@ -23,4 +24,5 @@ panel picture="500x294" binding-inferred=#false source="KORG editor panel geomet
     control "control-19" kind="pad" label="Pad 8" group="Trigger Pad" box="438,77,35,37" status="inferred" evidence="Control geometry estimated by eye"
     control "control-20" kind="button" label="Chord Pad" group="Chord Pad" box="432,128,15,9" status="inferred" evidence="Control geometry estimated by eye"
     control "control-21" kind="key" label="Keyboard" group="Keyboard" box="20,150,460,115" status="inferred" evidence="Control geometry estimated by eye"
+    control "common" kind="button" label="Common" group="Common" box="22,5,31,29" status="inferred" evidence="Vendor editor badge position, estimated from a screenshot"
 }

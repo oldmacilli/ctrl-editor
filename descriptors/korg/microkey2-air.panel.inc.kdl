@@ -1,4 +1,5 @@
-// Generated from the KORG panel baseline; do not edit by hand.
+// Exported once from the KORG panel baseline; now maintained by hand. Editable
+// controls follow the vendor KORG KONTROL EDITOR (badges on its CONTROL tab).
 cdl "0.1"
 panel picture="705x183" binding-inferred=#false source="KORG editor panel geometry; positions estimated by eye" status="inferred" evidence="Panel geometry estimated by eye" {
     control "control-0" kind="jog" label="Pitch" group="Wheel" box="42,52,13,66" status="inferred" evidence="Control geometry estimated by eye"
@@ -8,4 +9,6 @@ panel picture="705x183" binding-inferred=#false source="KORG editor panel geomet
     // The rear Pedal TRS jack; the vendor editor marks it top left.
     control "pedal" kind="button" label="Pedal" group="Assignable Switch" box="13,12,31,28" status="inferred" evidence="Badge position in the vendor editor, estimated by eye"
     control "control-4" kind="key" label="Keyboard" group="Keyboard" box="118,56,534,94" status="inferred" evidence="Control geometry estimated by eye"
+    control "common" kind="button" label="Common" group="Common" box="67,14,31,29" status="inferred" evidence="Vendor editor badge position, estimated from a screenshot"
+    control "wireless" kind="button" label="Wireless" group="Wireless" box="117,14,31,29" status="inferred" evidence="Vendor editor badge position, estimated from a screenshot"
 }

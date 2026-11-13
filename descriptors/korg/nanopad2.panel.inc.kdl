@@ -1,7 +1,8 @@
-// Generated from the KORG panel baseline; do not edit by hand.
+// Exported once from the KORG panel baseline; now maintained by hand. Editable
+// controls follow the vendor KORG KONTROL EDITOR (badges on its CONTROL tab).
 cdl "0.1"
 panel picture="705x190" binding-inferred=#false source="KORG editor panel geometry; positions estimated by eye" status="inferred" evidence="Panel geometry estimated by eye" {
-    control "control-0" kind="touchpad" label="X-Y Pad" group="X-Y Pad" box="27,45,140,108" status="inferred" evidence="Control geometry estimated by eye"
+    control "control-0" kind="touchpad" label="X-Y Pad" group="X-Y Pad" box="27,45,140,108" fixed="Not assignable in KORG's editor; nothing to set." status="inferred" evidence="Control geometry estimated by eye"
     control "control-1" kind="pad" label="Pad 1" group="Trigger Pad" box="195,47,50,51" element-index=0 status="inferred" evidence="Control geometry estimated by eye"
     control "control-2" kind="pad" label="Pad 2" group="Trigger Pad" box="255,47,50,51" element-index=1 status="inferred" evidence="Control geometry estimated by eye"
     control "control-3" kind="pad" label="Pad 3" group="Trigger Pad" box="316,47,50,51" element-index=2 status="inferred" evidence="Control geometry estimated by eye"
@@ -18,10 +19,10 @@ panel picture="705x190" binding-inferred=#false source="KORG editor panel geomet
     control "control-14" kind="pad" label="Pad 14" group="Trigger Pad" box="504,107,50,51" element-index=13 status="inferred" evidence="Control geometry estimated by eye"
     control "control-15" kind="pad" label="Pad 15" group="Trigger Pad" box="565,107,50,51" element-index=14 status="inferred" evidence="Control geometry estimated by eye"
     control "control-16" kind="pad" label="Pad 16" group="Trigger Pad" box="625,107,50,51" element-index=15 status="inferred" evidence="Control geometry estimated by eye"
-    control "control-17" kind="button" label="Hold" group="Button" box="395,15,25,11" status="inferred" evidence="Control geometry estimated by eye"
-    control "control-18" kind="button" label="Gate Arp" group="Button" box="427,15,25,11" status="inferred" evidence="Control geometry estimated by eye"
-    control "control-19" kind="button" label="Touch Scale" group="Button" box="460,15,25,11" status="inferred" evidence="Control geometry estimated by eye"
-    control "control-20" kind="button" label="Key/Range" group="Button" box="497,15,25,11" status="inferred" evidence="Control geometry estimated by eye"
-    control "control-21" kind="button" label="Scale/Tap" group="Button" box="531,15,25,11" status="inferred" evidence="Control geometry estimated by eye"
-    control "control-22" kind="button" label="Scene" group="Button" box="577,15,25,11" status="inferred" evidence="Control geometry estimated by eye"
+    control "control-17" kind="button" label="Hold" group="Button" box="395,15,25,11" fixed="Not assignable in KORG's editor; nothing to set." status="inferred" evidence="Control geometry estimated by eye"
+    control "control-18" kind="button" label="Gate Arp" group="Button" box="427,15,25,11" fixed="Not assignable in KORG's editor; nothing to set." status="inferred" evidence="Control geometry estimated by eye"
+    control "control-19" kind="button" label="Touch Scale" group="Button" box="460,15,25,11" fixed="Not assignable in KORG's editor; nothing to set." status="inferred" evidence="Control geometry estimated by eye"
+    control "control-20" kind="button" label="Key/Range" group="Button" box="497,15,25,11" fixed="Not assignable in KORG's editor; nothing to set." status="inferred" evidence="Control geometry estimated by eye"
+    control "control-21" kind="button" label="Scale/Tap" group="Button" box="531,15,25,11" fixed="Not assignable in KORG's editor; nothing to set." status="inferred" evidence="Control geometry estimated by eye"
+    control "control-22" kind="button" label="Scene" group="Button" box="577,15,25,11" fixed="Fixed on this device: selects the scene; nothing to set." status="inferred" evidence="Control geometry estimated by eye"
 }

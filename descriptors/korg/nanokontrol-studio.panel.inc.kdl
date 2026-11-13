@@ -1,4 +1,5 @@
-// Generated from the KORG panel baseline; do not edit by hand.
+// Exported once from the KORG panel baseline; now maintained by hand. Editable
+// controls follow the vendor KORG KONTROL EDITOR (badges on its CONTROL tab).
 cdl "0.1"
 panel picture="550x329" binding-inferred=#false source="KORG editor panel geometry; positions estimated by eye" status="inferred" evidence="Panel geometry estimated by eye" {
     control "control-0" kind="button" label="Scene" group="Scene" box="25,93,22,12" status="inferred" evidence="Control geometry estimated by eye"

@@ -1,17 +1,18 @@
-// Generated from the KORG panel baseline; do not edit by hand.
+// Exported once from the KORG panel baseline; now maintained by hand. Editable
+// controls follow the vendor KORG KONTROL EDITOR (badges on its CONTROL tab).
 cdl "0.1"
 panel picture="700x183" binding-inferred=#false source="KORG editor panel geometry; positions estimated by eye" status="inferred" evidence="Panel geometry estimated by eye" {
     control "control-0" kind="touchpad" label="Pitch" group="Pitch/Mod" box="50,20,160,18" status="inferred" evidence="Control geometry estimated by eye"
     control "control-1" kind="touchpad" label="Mod" group="Pitch/Mod" box="215,20,140,18" status="inferred" evidence="Control geometry estimated by eye"
-    control "control-2" kind="button" label="Button 1" group="Button" box="363,20,24,24" status="inferred" evidence="Control geometry estimated by eye"
-    control "control-3" kind="button" label="Button 2" group="Button" box="395.9,20,24,24" status="inferred" evidence="Control geometry estimated by eye"
-    control "control-4" kind="button" label="Button 3" group="Button" box="428.8,20,24,24" status="inferred" evidence="Control geometry estimated by eye"
-    control "control-5" kind="button" label="Button 4" group="Button" box="461.7,20,24,24" status="inferred" evidence="Control geometry estimated by eye"
-    control "control-6" kind="button" label="Button 5" group="Button" box="494.6,20,24,24" status="inferred" evidence="Control geometry estimated by eye"
+    control "control-2" kind="button" label="Button 1" group="Button" box="363,20,24,24" fixed="Not assignable in KORG's editor; nothing to set." status="inferred" evidence="Control geometry estimated by eye"
+    control "control-3" kind="button" label="Button 2" group="Button" box="395.9,20,24,24" fixed="Not assignable in KORG's editor; nothing to set." status="inferred" evidence="Control geometry estimated by eye"
+    control "control-4" kind="button" label="Button 3" group="Button" box="428.8,20,24,24" fixed="Not assignable in KORG's editor; nothing to set." status="inferred" evidence="Control geometry estimated by eye"
+    control "control-5" kind="button" label="Button 4" group="Button" box="461.7,20,24,24" fixed="Not assignable in KORG's editor; nothing to set." status="inferred" evidence="Control geometry estimated by eye"
+    control "control-6" kind="button" label="Button 5" group="Button" box="494.6,20,24,24" fixed="Not assignable in KORG's editor; nothing to set." status="inferred" evidence="Control geometry estimated by eye"
     control "control-7" kind="button" label="Button 6" group="Button" box="527.5,20,24,24" status="inferred" evidence="Control geometry estimated by eye"
-    control "control-8" kind="button" label="Button 7" group="Button" box="560.4,20,24,24" status="inferred" evidence="Control geometry estimated by eye"
+    control "control-8" kind="button" label="Button 7" group="Button" box="560.4,20,24,24" fixed="Not assignable in KORG's editor; nothing to set." status="inferred" evidence="Control geometry estimated by eye"
     control "control-9" kind="button" label="Button 8" group="Button" box="593.3,20,24,24" status="inferred" evidence="Control geometry estimated by eye"
-    control "control-10" kind="button" label="Button 9" group="Button" box="626.2,20,24,24" status="inferred" evidence="Control geometry estimated by eye"
+    control "control-10" kind="button" label="Button 9" group="Button" box="626.2,20,24,24" fixed="Not assignable in KORG's editor; nothing to set." status="inferred" evidence="Control geometry estimated by eye"
     control "control-11" kind="knob" label="Knob 1" group="Knob" box="78,62,35,54" status="inferred" evidence="Control geometry estimated by eye"
     control "control-12" kind="knob" label="Knob 2" group="Knob" box="121,62,34,54" status="inferred" evidence="Control geometry estimated by eye"
     control "control-13" kind="knob" label="C TYPE" group="Knob" box="205,62,35,54" status="inferred" evidence="Control geometry estimated by eye"
@@ -37,4 +38,9 @@ panel picture="700x183" binding-inferred=#false source="KORG editor panel geomet
     control "control-33" kind="pad" label="Pad 13" group="Touch Keyboard" box="564,118,34,47" status="inferred" evidence="Control geometry estimated by eye"
     control "control-34" kind="pad" label="Pad 14" group="Touch Keyboard" box="606,118,34,47" status="inferred" evidence="Control geometry estimated by eye"
     control "control-35" kind="pad" label="Pad 15" group="Touch Keyboard" box="649,118,34,47" status="inferred" evidence="Control geometry estimated by eye"
+    control "common" kind="button" label="Common" group="Common" box="5.9,11.5,28,26" status="inferred" evidence="Vendor editor badge position, estimated from a screenshot"
+    control "keyboard" kind="button" label="Keyboard" group="Keyboard" box="0,96.6,28,26" status="inferred" evidence="Vendor editor badge position, estimated from a screenshot"
+    control "sus-button" kind="button" label="Sus Button" group="Sus Button" box="0,141,28,26" status="inferred" evidence="Vendor editor badge position, estimated from a screenshot"
+    control "touch-kbd" kind="touchpad" label="Touch KBD" group="Touch KBD" box="186,16.1,28,26" status="inferred" evidence="Vendor editor badge position, estimated from a screenshot"
+    control "touch-cc" kind="touchpad" label="Touch CC" group="Touch CC" box="225.8,16.1,28,26" status="inferred" evidence="Vendor editor badge position, estimated from a screenshot"
 }
