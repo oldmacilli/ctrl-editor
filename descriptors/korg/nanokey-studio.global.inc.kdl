@@ -1,5 +1,5 @@
 cdl "0.1"
-global-fields name-label="Wireless Device Name" name-offset=8 name-width=26 bpm-label="BPM" bpm-offset=57 bpm-min=200 bpm-max=3000 chord-pad-label="Chord Pad" easy-scale-label="Easy Scale" status="decoded" evidence="KORG global data analysis" {
+global-fields name-label="Wireless Device Name" name-offset=8 name-width=26 bpm-label="BPM" bpm-offset=57 bpm-min=200 bpm-max=3000 chord-pad-label="Chord Pad" easy-scale-label="Easy Scale" status="decoded" evidence="KORG global data analysis; BPM word at 57-58: vendor table writes id 44 at both bytes, factory and device (fw 1.08, 2026-11-13) hold B0 04 = 120.0" {
     binding "channel" label="Global MIDI Channel" offset=0 min=1 max=16 bias=-1 status="decoded" evidence="existing editor range"
     binding "battery" label="Battery Type" offset=1 status="decoded" evidence="KORG global data analysis" {
         choice "Alkaline" value=0 status="inferred" evidence="existing UI choice order"
@@ -34,6 +34,16 @@ global-fields name-label="Wireless Device Name" name-offset=8 name-width=26 bpm-
         choice "Immediate" value=0 status="inferred" evidence="existing UI choice order"
         choice "Fast" value=1 status="inferred" evidence="existing UI choice order"
         choice "Normal" value=2 status="inferred" evidence="existing UI choice order"
+        choice "Slow" value=3 status="decoded" evidence="vendor return-speed combo (fourth item); vendor range 0..3"
+    }
+    binding "chord-octave" label="Chord Pad Octave Offset" offset=40 min=-2 max=2 bias=64 status="decoded" evidence="vendor global table id 47, range -2..2, bias 64; label from the vendor global screen (order inferred)"
+    binding "scale-octave" label="Easy Scale Octave Offset" offset=41 min=-2 max=2 bias=64 status="decoded" evidence="vendor global table id 48, range -2..2, bias 64; label from the vendor global screen (order inferred)"
+    binding "usb-power" label="Auto Power Off (USB)" offset=72 status="decoded" evidence="vendor global table id 34 (AutoPowerOffType); the vendor screen does not show it" {
+        choice "Disable" value=0 status="inferred" evidence="same type as battery-power"
+        choice "30 min" value=1 status="inferred" evidence="same type as battery-power"
+        choice "1 hour" value=2 status="inferred" evidence="same type as battery-power"
+        choice "2 hours" value=3 status="inferred" evidence="same type as battery-power"
+        choice "4 hours" value=4 status="inferred" evidence="same type as battery-power"
     }
     binding "usb-led-off" label="Auto LED Off" offset=73 status="decoded" evidence="KORG global data analysis" {
         choice "Disable" value=0 status="inferred" evidence="existing UI choice order"
