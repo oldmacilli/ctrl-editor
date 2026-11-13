@@ -2,7 +2,7 @@
 // controls follow the vendor KORG KONTROL EDITOR (badges on its CONTROL tab).
 cdl "0.1"
 panel picture="892x197" binding-inferred=#false source="KORG editor panel geometry; positions estimated by eye" status="inferred" evidence="Panel geometry estimated by eye" {
-    control "control-0" kind="fader" label="Master" group="Slider" box="5,48,23,104" status="inferred" evidence="Control geometry estimated by eye"
+    control "control-0" kind="fader" label="Mod Wheel" group="Slider" box="5,48,23,104" status="inferred" evidence="Control geometry estimated by eye"
     control "control-1" kind="knob" label="Knob 1" group="Knob" box="39,0,36,36" status="inferred" evidence="Control geometry estimated by eye"
     control "control-2" kind="fader" label="Slider 1" group="Slider" box="52,62,10,70" status="inferred" evidence="Control geometry estimated by eye"
     control "control-3" kind="knob" label="Knob 2" group="Knob" box="75,0,36,36" status="inferred" evidence="Control geometry estimated by eye"
@@ -20,8 +20,8 @@ panel picture="892x197" binding-inferred=#false source="KORG editor panel geomet
     control "control-15" kind="knob" label="Knob 8" group="Knob" box="291,0,36,36" status="inferred" evidence="Control geometry estimated by eye"
     control "control-16" kind="fader" label="Slider 8" group="Slider" box="304,62,10,70" status="inferred" evidence="Control geometry estimated by eye"
     control "control-17" kind="button" label="Scene 1" group="Scene" box="334,11,31,19" fixed="Not assignable in KORG's editor; nothing to set." status="inferred" evidence="Control geometry estimated by eye"
-    control "control-18" kind="button" label="Scene 2" group="Scene" box="334,43,31,19" status="inferred" evidence="Control geometry estimated by eye"
-    control "control-19" kind="button" label="Scene 3" group="Scene" box="334,77,31,19" status="inferred" evidence="Control geometry estimated by eye"
+    control "control-18" kind="button" label="Track FF" group="Scene" box="334,43,31,19" status="inferred" evidence="Control geometry estimated by eye"
+    control "control-19" kind="button" label="Track Rew" group="Scene" box="334,77,31,19" status="inferred" evidence="Control geometry estimated by eye"
     control "control-20" kind="button" label="Scene 4" group="Scene" box="334,110,31,19" fixed="Not assignable in KORG's editor; nothing to set." status="inferred" evidence="Control geometry estimated by eye"
     control "control-21" kind="touchpad" label="Touch Pad" group="Touch Pad" box="381,25,120,92" status="inferred" evidence="Control geometry estimated by eye"
     control "control-22" kind="button" label="Page −" group="Page" box="378,158,14,10" fixed="Not assignable in KORG's editor; nothing to set." status="inferred" evidence="Control geometry estimated by eye"
@@ -55,7 +55,7 @@ panel picture="892x197" binding-inferred=#false source="KORG editor panel geomet
     control "control-50" kind="button" label="Stop" group="Transport" box="634,166,28,20" status="inferred" evidence="Control geometry estimated by eye"
     control "control-51" kind="button" label="Play" group="Transport" box="672,166,29,20" status="inferred" evidence="Control geometry estimated by eye"
     control "control-52" kind="button" label="Rec" group="Transport" box="709,166,29,20" status="inferred" evidence="Control geometry estimated by eye"
-    control "control-53" kind="button" label="Loop" group="Transport" box="746,166,30,20" status="inferred" evidence="Control geometry estimated by eye"
+    control "control-53" kind="button" label="Cycle" group="Transport" box="746,166,30,20" status="inferred" evidence="Control geometry estimated by eye"
     control "model" kind="button" label="Model" group="Model" box="0.6,0.7,28,26" status="inferred" evidence="Vendor editor badge position, estimated from a screenshot"
     control "common" kind="button" label="Common" group="Common" box="366.3,170.7,28,26" status="inferred" evidence="Vendor editor badge position, estimated from a screenshot"
     control "keyboard" kind="button" label="Keyboard" group="Keyboard" box="405.7,170.7,28,26" status="inferred" evidence="Vendor editor badge position, estimated from a screenshot"
