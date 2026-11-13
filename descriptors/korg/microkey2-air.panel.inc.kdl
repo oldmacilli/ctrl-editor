@@ -5,5 +5,7 @@ panel picture="705x183" binding-inferred=#false source="KORG editor panel geomet
     control "control-1" kind="jog" label="Mod" group="Wheel" box="73,52,13,66" status="inferred" evidence="Control geometry estimated by eye"
     control "control-2" kind="button" label="Octave Down" group="Octave" box="42,130,9,11" status="inferred" evidence="Control geometry estimated by eye"
     control "control-3" kind="button" label="Octave Up" group="Octave" box="73,130,9,11" status="inferred" evidence="Control geometry estimated by eye"
+    // The rear Pedal TRS jack; the vendor editor marks it top left.
+    control "pedal" kind="button" label="Pedal" group="Assignable Switch" box="13,12,31,28" status="inferred" evidence="Badge position in the vendor editor, estimated by eye"
     control "control-4" kind="key" label="Keyboard" group="Keyboard" box="118,56,534,94" status="inferred" evidence="Control geometry estimated by eye"
 }
