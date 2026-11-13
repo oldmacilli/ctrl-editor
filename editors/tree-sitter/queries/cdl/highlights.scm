@@ -32,7 +32,7 @@
     "item" "source" "sink" "prefix" "suffix" "arg" "reply" "owns"
     "version-from" "stage" "recovery" "args" "bytes" "data" "assign"
     "choice" "command" "detail" "display-choice" "extension" "factory-file"
-    "binding" "hide-if-value" "label" "layout" "live-number" "map" "page" "parameter" "select"
+    "binding" "hide-if-value" "label" "layout" "live-number" "map" "page" "parameter" "select" "fixed"
     "entry" "open" "close" "check" "option" "kind"))
 
 ; Evidence status: how far a fact can be trusted (CDL §4.1)

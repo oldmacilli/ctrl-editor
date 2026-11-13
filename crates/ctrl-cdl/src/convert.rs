@@ -1062,6 +1062,7 @@ fn editor_pages(cx: &mut Cx, n: &RawNode) -> EditorPages {
         meta: cx.meta(n),
         default_page: required_string(cx, n, "default"),
         selectors: Vec::new(),
+        fixed: Vec::new(),
         pages: Vec::new(),
     };
     for child in &n.children {
@@ -1095,6 +1096,18 @@ fn editor_pages(cx: &mut Cx, n: &RawNode) -> EditorPages {
                     );
                 }
                 result.selectors.push(selector);
+            }
+            "fixed" => {
+                cx.node(child, "editor-pages/fixed");
+                let fixed = FixedControl {
+                    group: cx.prop_str(child, "group"),
+                    label: cx.prop_str(child, "label"),
+                    note: cx.name(child),
+                };
+                if fixed.group.is_none() && fixed.label.is_none() {
+                    cx.err(child.pos, "fixed control needs a group or label");
+                }
+                result.fixed.push(fixed);
             }
             "page" => {
                 cx.node(child, "editor-pages/page");
@@ -1225,7 +1238,7 @@ fn editor_pages(cx: &mut Cx, n: &RawNode) -> EditorPages {
                 }
                 result.pages.push(page);
             }
-            _ => cx.unknown_child("editor-pages", child, &["select", "page"]),
+            _ => cx.unknown_child("editor-pages", child, &["select", "fixed", "page"]),
         }
     }
     if !result

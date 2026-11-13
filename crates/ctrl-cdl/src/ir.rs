@@ -292,7 +292,18 @@ pub struct EditorPages {
     pub meta: Meta,
     pub default_page: String,
     pub selectors: Vec<PageSelector>,
+    /// Controls that open no page because the device gives them a fixed
+    /// function, with the note a front end shows instead.
+    #[serde(default)]
+    pub fixed: Vec<FixedControl>,
     pub pages: Vec<EditorPage>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FixedControl {
+    pub group: Option<String>,
+    pub label: Option<String>,
+    pub note: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

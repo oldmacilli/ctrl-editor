@@ -154,6 +154,18 @@ Select a page for a control. (§4)
 | `group` | control group |
 | `label` | control label |
 
+## `editor-pages/fixed`
+
+A control with a fixed function: no page, a note instead. (§4)
+
+- Arguments: 1: note
+- Children: none
+
+| Property | Meaning |
+|---|---|
+| `group` | control group |
+| `label` | control label |
+
 ## `editor-pages/page`
 
 Ordered fields of a page. (§4)

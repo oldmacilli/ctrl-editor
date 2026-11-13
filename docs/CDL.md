@@ -272,6 +272,9 @@ children omit a field for the listed byte values; `min-from-offset` and
 condition bytes do not enable or reveal a field. Selectors for different
 pages must be disjoint; when labels and groups both identify a control, the
 descriptor can specify both. Changing either requires updating the selector.
+`fixed "<note>"` with `group` and/or `label` marks a control whose function
+the device fixes (a pitch wheel that always sends Pitch Bend): it opens no
+page, and front ends show the note instead of an empty page.
 Only decoded or measured page sets are used for editing. The loader rejects
 unresolved page selectors, invalid kinds, invalid bounds and incomplete
 conditions.
