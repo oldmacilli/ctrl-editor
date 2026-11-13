@@ -123,8 +123,8 @@ A device editor conforms when:
 
 | Editor | Classes | State |
 |---|---|---|
-| KORG_Kontrol_Editor | `active` | descriptors, pin, class guard |
-| TECcontrol | `usb-mixed` | conformance tests against `breath.ctrl.kdl` |
-| OceanBeach_DB-1 | `active` | descriptor in ctrl-editor |
+| KORG_Kontrol_Editor | `active` | pin 195b545; loader refuses other classes; GUI, TUI and jobs offer transfers from the class |
+| TECcontrol | `usb-mixed` | pin 195b545; conformance tests check bytes, class and HID-only config |
+| OceanBeach_DB-1 | `active` | pin 195b545; conformance tests check bytes and class; writes keep a restore point and read back |
 | Faderfox UC4 | `passive` | descriptor, runs on `ctrl-engine` |
 | Evolution UC-33 | `push-only` | descriptor, guides |
