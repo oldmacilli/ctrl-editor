@@ -259,7 +259,7 @@ test-vector "status-51-flag" message="status-51" reply=#true variant="flag" stat
     args flag=1
     bytes "01 00 00 00 00 00 00 00"
 }
-test-vector "status-51-flag-zero" message="status-51" reply=#true variant="flag" status="measured" evidence="read-only read-all, serial 18260464, firmware 5.0, 2026-11-12" {
+test-vector "status-51-flag-zero" message="status-51" reply=#true variant="flag" status="measured" evidence="breath-read-all-2026-11-13-read-only.log (serial 18260464, firmware 5.0)" {
     args flag=0
     bytes "00 00 00 00 00 00 00 00"
 }
