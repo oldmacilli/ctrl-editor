@@ -411,7 +411,7 @@ impl View {
         }
         if self.state.fold {
             if let Msg::Voice { status, d1, d2 } = e.msg {
-                if status & 0xF0 == 0xB0 && !e.annotated {
+                if status & 0xF0 == 0xB0 {
                     let key = (e.port, e.dir, status & 0x0F, d1);
                     if let Some(row) = self.rows.back_mut() {
                         if let Some(run) = row.cc.as_mut().filter(|r| r.key == key) {
@@ -481,7 +481,8 @@ impl View {
         if !s.search.is_empty() {
             let needle = s.search.to_lowercase();
             let d = describe(&e.msg, e.msg.blob().and_then(|b| store.bytes(b)), &s.style);
-            let hay = format!("{} {} {}", d.class.name(), d.value, detail(notes)).to_lowercase();
+            let hay =
+                format!("{} {} {}", d.class.name(), d.value, notes_text(notes)).to_lowercase();
             if !hay.contains(&needle) {
                 return false;
             }
@@ -668,7 +669,8 @@ impl View {
                 value = hex(&w, 24);
             }
         }
-        let notes = store.notes(e.seq);
+        // A folded run says what its newest event says.
+        let notes = store.notes(data.last);
         Row {
             seq: data.first,
             count: data.count,
@@ -682,7 +684,7 @@ impl View {
             channel: d.channel.map(|c| c.to_string()).unwrap_or_default(),
             message: d.class.name().to_string(),
             value,
-            detail: detail(notes),
+            detail: notes_text(notes),
             detail_rgb: notes.iter().find_map(|n| match n {
                 Annotation::Source { rgb, .. } => Some(*rgb),
                 _ => None,
@@ -976,8 +978,10 @@ impl View {
     }
 }
 
-/// What the detail column says: the first description, a control, a state.
-fn detail(notes: &[Annotation]) -> String {
+/// What the detail column says about an event's annotations: the
+/// description with its first fields, a control, a state. Exports use it so
+/// they say what the pane says.
+pub fn notes_text(notes: &[Annotation]) -> String {
     let mut s = String::new();
     for n in notes {
         let part = match n {
@@ -1401,6 +1405,25 @@ mod tests {
             &mut f.store,
         );
         assert_eq!(f.rows()[0].time, "00:00:01.500");
+    }
+
+    #[test]
+    fn a_described_controller_run_still_folds_and_shows_its_newest_note() {
+        let mut f = fixture();
+        for (i, v) in [0u8, 50, 100].into_iter().enumerate() {
+            let seq = f.voice(i as u64, 0xB0, 7, v);
+            f.store.annotate(
+                seq,
+                Annotation::Described {
+                    name: "X: cc".into(),
+                    fields: vec![("value".into(), v.to_string())],
+                },
+            );
+        }
+        let rows = f.rows();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].count, 3);
+        assert_eq!(rows[0].detail, "X: cc · value 100");
     }
 
     #[test]
