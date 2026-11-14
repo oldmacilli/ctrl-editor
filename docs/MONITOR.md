@@ -387,3 +387,26 @@ DB-1, TEC and UC-33 adopt it after M4, each in its own PR.
   drivers open ports exclusively and it has no virtual ports. `ctrl-midi` (midir, WinMM
   today) gets a Windows MIDI Services backend before M5 ships on Windows.
 - LightBow: the Slint component replaces the egui Mesh Monitor pane.
+
+## Embedding the monitor in an editor
+
+Every device editor embeds the same pane; it writes no monitor code of its own.
+
+1. Depend on `ctrl-monitor`, `ctrl-monitor-midi` and `ctrl-monitor-slint` (or
+   `ctrl-monitor-tui`) at the editor's pinned rev.
+2. GUI: in `build.rs`, map `@ctrl-monitor` to `DEP_CTRL_MONITOR_SLINT_UI`;
+   import `MonitorPane` and export the bridge structs from the window's
+   `.slint`; expand `ctrl_monitor_slint::monitor_glue!()` next to
+   `slint::include_modules!()`.
+3. Start `ctrl_monitor_midi::Monitor` with the describers: the CDL descriptors
+   (`CdlDescriber::embedded()`) plus the editor's own, then
+   `MonitorController::new(&window, monitor.store.clone(), ViewState::default())`.
+4. Keep its ports watched with `ctrl_monitor_midi::Watcher::new(backend,
+   &["<port name part>"])`: `scan(&monitor)` when the pane opens and every
+   few seconds while it is open. Watching never sends.
+5. An editor's describer annotates what it knows: `Annotation::Control` for a
+   panel control (KORG), `Annotation::Source { label, rgb }` for a device part
+   drawn in its own colour (TEC sensors). A `Source` fills the description
+   column in that colour and counts as described for "Only described".
+
+Used by: KORG_Kontrol_Editor (`korg_app::monitor`), TECcontrol (`tec-ui`).

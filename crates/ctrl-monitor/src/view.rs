@@ -172,6 +172,8 @@ pub struct Row {
     /// What a descriptor or the device says: "KORG nanoKONTROL Studio:
     /// scene-write · scene 3".
     pub detail: String,
+    /// The detail's own colour (`0xRRGGBB`), from a [`Annotation::Source`].
+    pub detail_rgb: Option<u32>,
     pub tone: Tone,
     /// The editor sent it.
     pub editor: bool,
@@ -472,7 +474,7 @@ impl View {
         if s.only_described
             && !notes
                 .iter()
-                .any(|n| matches!(n, Annotation::Described { .. }))
+                .any(|n| matches!(n, Annotation::Described { .. } | Annotation::Source { .. }))
         {
             return false;
         }
@@ -681,6 +683,10 @@ impl View {
             message: d.class.name().to_string(),
             value,
             detail: detail(notes),
+            detail_rgb: notes.iter().find_map(|n| match n {
+                Annotation::Source { rgb, .. } => Some(*rgb),
+                _ => None,
+            }),
             tone: Tone::of(d.class, &e.msg),
             editor: port.is_some_and(|p| p.kind == PortKind::Editor),
             expandable: !notes.is_empty() || e.msg.blob().is_some(),
@@ -925,6 +931,9 @@ impl View {
                 Annotation::Control { label, id } => {
                     ("Control".into(), vec![(label.clone(), id.clone())])
                 }
+                Annotation::Source { label, .. } => {
+                    ("Source".into(), vec![(label.clone(), String::new())])
+                }
                 Annotation::State(s) => ("State".into(), vec![(s.clone(), String::new())]),
                 Annotation::Rule { gate, action, rule } => (
                     format!("Gate {gate}"),
@@ -986,6 +995,7 @@ fn detail(notes: &[Annotation]) -> String {
                 }
             }
             Annotation::Control { label, .. } => format!("◉ {label}"),
+            Annotation::Source { label, .. } => label.clone(),
             Annotation::State(state) => state.clone(),
             Annotation::Rule { gate, action, .. } => format!("{gate}: {action}"),
             Annotation::Path {
@@ -1102,6 +1112,24 @@ mod tests {
                 .map(|r| format!("{} {}", r.message, r.value))
                 .collect()
         }
+    }
+
+    #[test]
+    fn a_source_names_the_row_in_its_colour_and_counts_as_described() {
+        let mut f = fixture();
+        let seq = f.voice(0, 0xB2, 2, 64);
+        f.store.annotate(
+            seq,
+            Annotation::Source {
+                label: "Breath".into(),
+                rgb: 0xFF5A47,
+            },
+        );
+        f.view.state.only_described = true;
+        let rows = f.rows();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].detail, "Breath");
+        assert_eq!(rows[0].detail_rgb, Some(0xFF5A47));
     }
 
     #[test]

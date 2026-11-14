@@ -208,6 +208,9 @@ pub enum Annotation {
     },
     /// The panel control that sent it.
     Control { label: String, id: String },
+    /// The device part that sent it, in the colour the editor draws it in
+    /// (`0xRRGGBB`): a TEC sensor, "Breath" in red.
+    Source { label: String, rgb: u32 },
     /// A device state it changed or reports: "scene 3".
     State(String),
     /// A MeshGate / LBMT rule saw it.

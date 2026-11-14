@@ -180,9 +180,69 @@ impl RecordedOutput {
     }
 }
 
+/// Keeps every input port an editor cares about watched: the ports whose
+/// readable name contains one of `patterns` (all inputs when it is empty).
+/// Call [`Watcher::scan`] when the pane opens and then now and then: a
+/// device plugged in later is picked up, one already watched is kept.
+/// Watching never takes part in the port's traffic and never sends.
+pub struct Watcher {
+    backend: Backend,
+    patterns: Vec<String>,
+    watched: Vec<(String, Watch)>,
+}
+
+impl Watcher {
+    pub fn new(backend: Backend, patterns: &[&str]) -> Self {
+        Watcher {
+            backend,
+            patterns: patterns.iter().map(|p| p.to_string()).collect(),
+            watched: Vec::new(),
+        }
+    }
+
+    /// Whether a port with this readable name is one to watch.
+    pub fn wants(&self, name: &str) -> bool {
+        self.patterns.is_empty() || self.patterns.iter().any(|p| name.contains(p.as_str()))
+    }
+
+    /// Watches the inputs not watched yet; returns how many were added.
+    pub fn scan(&mut self, monitor: &Monitor) -> usize {
+        let Ok(ports) = ctrl_midi::ports(self.backend) else {
+            return 0;
+        };
+        let mut added = 0;
+        for port in ports {
+            if port.dir != ctrl_midi::Dir::In || !self.wants(&readable(&port)) {
+                continue;
+            }
+            if self.watched.iter().any(|(name, _)| *name == port.name) {
+                continue;
+            }
+            if let Ok(watch) = monitor.watch(self.backend, &port) {
+                self.watched.push((port.name.clone(), watch));
+                added += 1;
+            }
+        }
+        added
+    }
+
+    /// The ports being watched, by their backend names.
+    pub fn watched(&self) -> impl Iterator<Item = &str> {
+        self.watched.iter().map(|(name, _)| name.as_str())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_watcher_wants_the_ports_its_patterns_name() {
+        let w = Watcher::new(Backend::native(), &["Breath Controller"]);
+        assert!(w.wants("Breath Controller 5.0-18260464"));
+        assert!(!w.wants("IAC Driver Bus 1"));
+        assert!(Watcher::new(Backend::native(), &[]).wants("anything"));
+    }
 
     #[test]
     fn backends_map_to_port_kinds() {

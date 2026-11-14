@@ -40,6 +40,7 @@ fn plain_row() -> Row {
         message: "Note On".into(),
         value: "C4 vel 100".into(),
         detail: String::new(),
+        detail_rgb: None,
         tone: Tone::Note,
         editor: false,
         expandable: false,

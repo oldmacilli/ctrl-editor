@@ -30,6 +30,9 @@ export struct MonitorRow {
     message: string,
     value: string,
     detail: string,
+    // A Source annotation's own colour, used when detail-toned.
+    detail-toned: bool,
+    detail-tone: color,
     // "×37" for a folded run, else empty.
     count: string,
     tone: color,
@@ -708,7 +711,8 @@ component RowView inherits Rectangle {
                 horizontal-stretch: 1;
                 text: root.item.detail;
                 font-size: Look.small;
-                color: Look.dim;
+                font-weight: root.item.detail-toned ? 700 : 400;
+                color: root.item.detail-toned ? root.item.detail-tone : Look.dim;
             }
         }
         if root.item.expanded: Details {

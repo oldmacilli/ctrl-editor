@@ -104,6 +104,17 @@ macro_rules! monitor_glue {
                     message: r.message.as_str().into(),
                     value: r.value.as_str().into(),
                     detail: r.detail.as_str().into(),
+                    detail_toned: r.detail_rgb.is_some(),
+                    detail_tone: r
+                        .detail_rgb
+                        .map(|c| {
+                            $crate::slint::Color::from_rgb_u8(
+                                (c >> 16) as u8,
+                                (c >> 8) as u8,
+                                c as u8,
+                            )
+                        })
+                        .unwrap_or_default(),
                     count: if r.count > 1 {
                         format!("×{}", r.count).into()
                     } else {
