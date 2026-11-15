@@ -123,7 +123,7 @@ A device editor conforms when:
 
 | Editor | Classes | State |
 |---|---|---|
-| KORG_Kontrol_Editor | `active` | pin 6aace54; loader refuses other classes; GUI, TUI and jobs offer transfers from the class |
+| KORG_Kontrol_Editor | `active` | pin 911f6df; loader refuses other classes; GUI, TUI and jobs offer transfers from the class |
 | TECcontrol | `usb-mixed` | pin 6aace54; conformance tests check bytes, class and HID-only config |
 | OceanBeach_DB-1 | `active` | pin 9a48d0a; conformance tests check bytes and class; writes keep a restore point and read back |
 | Faderfox UC4 | `passive` | descriptor, runs on `ctrl-engine` |
