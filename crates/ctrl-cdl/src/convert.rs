@@ -65,6 +65,25 @@ pub(crate) fn convert(
         cx.err(nodes[0].pos, "missing `device` node");
     }
     b.check_duplicates(&mut cx);
+    // A curve set names a parameter of the device's layouts.
+    if let Some(layouts) = &b.parameter_layouts {
+        for set in &b.response_curves {
+            let known = layouts
+                .layouts
+                .iter()
+                .flat_map(|l| &l.parameters)
+                .any(|p| p.key == set.parameter);
+            if !known {
+                cx.err(
+                    set.meta.pos,
+                    format!(
+                        "`response-curves \"{}\"`: no parameter `{}`",
+                        set.name, set.parameter
+                    ),
+                );
+            }
+        }
+    }
     match (device, cx.errors.is_empty()) {
         (Some(device), true) => Ok(Descriptor {
             version: b.version.unwrap_or_default(),
@@ -76,6 +95,7 @@ pub(crate) fn convert(
             editor_pages: b.editor_pages,
             control_assignments: b.control_assignments,
             global_fields: b.global_fields,
+            response_curves: b.response_curves,
             identify: b.identify,
             transports: b.transports,
             types: b.types,
@@ -468,6 +488,7 @@ struct Builder {
     parameter_layouts: Option<ParameterLayouts>,
     editor_pages: Option<EditorPages>,
     global_fields: Option<GlobalFields>,
+    response_curves: Vec<ResponseCurves>,
     control_assignments: Option<ControlAssignments>,
     identify: Vec<Matcher>,
     transports: Vec<Transport>,
@@ -499,6 +520,7 @@ const TOP: &[&str] = &[
     "catalog",
     "sysex-commands",
     "parameter-layouts",
+    "response-curves",
     "editor-pages",
     "control-assignments",
     "global-fields",
@@ -545,6 +567,16 @@ impl Builder {
             "parameter-layouts" => {
                 let layouts = parameter_layouts(cx, n);
                 once(cx, n, &mut self.parameter_layouts, layouts);
+            }
+            "response-curves" => {
+                let set = response_curves(cx, n);
+                if self.response_curves.iter().any(|s| s.name == set.name) {
+                    cx.err(
+                        n.pos,
+                        format!("duplicate `response-curves \"{}\"`", set.name),
+                    );
+                }
+                self.response_curves.push(set);
             }
             "editor-pages" => {
                 let pages = editor_pages(cx, n);
@@ -1347,6 +1379,76 @@ fn parameter_layouts(cx: &mut Cx, n: &RawNode) -> ParameterLayouts {
     ParameterLayouts {
         meta: cx.meta(n),
         layouts,
+    }
+}
+
+fn response_curves(cx: &mut Cx, n: &RawNode) -> ResponseCurves {
+    cx.node(n, "response-curves");
+    let name = cx.name(n);
+    let parameter = cx.prop_str(n, "parameter").unwrap_or_default();
+    if parameter.is_empty() {
+        cx.err(n.pos, "`response-curves` needs `parameter`");
+    }
+    let mut curves: Vec<ResponseCurve> = Vec::new();
+    for child in &n.children {
+        if child.name != "curve" {
+            cx.unknown_child("response-curves", child, &["curve"]);
+            continue;
+        }
+        cx.node(child, "response-curves/curve");
+        let curve_name = cx.name(child);
+        let value = cx.prop_i64(child, "value").unwrap_or(-1);
+        let constant = cx.prop_bool(child, "constant");
+        let mut points = Vec::new();
+        for grand in &child.children {
+            if grand.name != "points" {
+                cx.unknown_child("response-curves/curve", grand, &["points"]);
+                continue;
+            }
+            cx.node(grand, "response-curves/curve/points");
+            for i in 0..grand.args.len() {
+                match cx.arg_int(grand, i) {
+                    Some(v @ 0..=127) => points.push(v as u8),
+                    Some(v) => cx.err(
+                        grand.args[i].pos,
+                        format!("curve point {v} is outside 0..127"),
+                    ),
+                    None => {}
+                }
+            }
+        }
+        if value < 0 {
+            cx.err(
+                child.pos,
+                "a curve needs `value`, the parameter value that selects it",
+            );
+        }
+        match (constant, points.len()) {
+            (true, 0) => {}
+            (true, _) => cx.err(child.pos, "a constant curve has no `points`"),
+            (false, 0 | 1) => cx.err(child.pos, "a curve needs at least two `points`"),
+            _ => {}
+        }
+        if curves.iter().any(|c| c.value == value) {
+            cx.err(child.pos, format!("two curves for value {value}"));
+        }
+        if curves.iter().any(|c| c.name == curve_name) {
+            cx.err(child.pos, format!("duplicate curve `{curve_name}`"));
+        }
+        curves.push(ResponseCurve {
+            meta: cx.meta(child),
+            name: curve_name,
+            value,
+            points,
+            constant,
+        });
+    }
+    ResponseCurves {
+        meta: cx.meta(n),
+        name,
+        parameter,
+        input: cx.prop_str(n, "input"),
+        curves,
     }
 }
 

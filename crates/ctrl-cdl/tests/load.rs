@@ -929,3 +929,27 @@ fn message_args_take_a_range_or_a_block_index() {
     );
     assert!(found[2].contains("appears twice"), "{found:#?}");
 }
+
+#[test]
+fn response_curves_load_and_reject_bad_points() {
+    let ok = format!("{HEAD}response-curves \"velocity\" parameter=\"VelocityCurve\" input=\"strike\" status=\"decoded\" {{ curve \"Heavy\" value=0 {{ points 1 64 127 }}; curve \"Const\" value=8 constant=#true }}");
+    let set = &parse_str("test", &ok).unwrap().response_curves[0];
+    assert_eq!(set.parameter, "VelocityCurve");
+    assert_eq!(set.curve(0).unwrap().points, [1, 64, 127]);
+    assert!(set.curve(8).unwrap().constant);
+    for bad in [
+        "curve \"A\" value=0 { points 1 128 }",
+        "curve \"A\" value=0 { points 1 }",
+        "curve \"A\" value=0 constant=#true { points 1 2 }",
+        "curve \"A\" value=0 { points 1 2 }; curve \"B\" value=0 { points 1 2 }",
+        "curve \"A\" { points 1 2 }",
+    ] {
+        assert!(
+            !errors(&format!(
+                "{HEAD}response-curves \"v\" parameter=\"P\" {{ {bad} }}"
+            ))
+            .is_empty(),
+            "{bad}"
+        );
+    }
+}

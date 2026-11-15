@@ -278,6 +278,38 @@ One editor choice when enum labels are absent. (§4)
 - Children: none
 - Properties: none besides the common ones
 
+## `response-curves`
+
+What each choice of a curve parameter does to an input. (§4)
+
+- Arguments: 1: set name
+- Children: yes
+
+| Property | Meaning |
+|---|---|
+| `parameter` | key of the enum parameter that selects the curve |
+| `input` | what the input is, for an axis label |
+
+## `response-curves/curve`
+
+One curve. (§4)
+
+- Arguments: 1: short name
+- Children: yes
+
+| Property | Meaning |
+|---|---|
+| `value` | parameter value that selects the curve |
+| `constant` | #true when the output ignores the input |
+
+## `response-curves/curve/points`
+
+Output at evenly spaced inputs. (§4)
+
+- Arguments: 2 or more: outputs 0..127, lowest input first
+- Children: none
+- Properties: none besides the common ones
+
 ## `sysex-commands`
 
 Recovered device command table. (§8)
