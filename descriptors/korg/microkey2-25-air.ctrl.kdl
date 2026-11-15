@@ -12,4 +12,6 @@ include "microkey2-25-air.catalog.inc.kdl"
 
 include "microkey2-25-air.sysex.inc.kdl"
 
+include "microkey2-25-air.velocity.inc.kdl"
+
 include "microkey2-25-air.parameters.inc.kdl"

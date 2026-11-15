@@ -124,6 +124,15 @@ pub static SCHEMA: &[NodeSpec] = &[
     ]), true, "4", "One ordered parameter, including its packed representation."),
     n("parameter-layouts/layout/parameter/label", (1, 1), "display label", NONE, false, "4", "One ordered enum label."),
     n("parameter-layouts/layout/parameter/display-choice", (1, 1), "fallback choice", NONE, false, "4", "One editor choice when enum labels are absent."),
+    n("response-curves", (1, 1), "set name", Some(&[
+        p("parameter", "key of the enum parameter that selects the curve"),
+        p("input", "what the input is, for an axis label"),
+    ]), true, "4", "What each choice of a curve parameter does to an input."),
+    n("response-curves/curve", (1, 1), "short name", Some(&[
+        p("value", "parameter value that selects the curve"),
+        p("constant", "#true when the output ignores the input"),
+    ]), true, "4", "One curve."),
+    n("response-curves/curve/points", (2, usize::MAX), "outputs 0..127, lowest input first", NONE, false, "4", "Output at evenly spaced inputs."),
     n("sysex-commands", (0, 0), "", Some(&[
         p("model-id", "optional 14-bit model id"),
         p("length-style", "optional SysEx length encoding"),

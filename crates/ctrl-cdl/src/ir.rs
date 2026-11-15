@@ -77,6 +77,9 @@ pub struct Descriptor {
     /// Optional global text and tempo fields, loaded from the descriptor.
     #[serde(default)]
     pub global_fields: Option<GlobalFields>,
+    /// What an enum parameter's curve choices do to an input (§4.6).
+    #[serde(default)]
+    pub response_curves: Vec<ResponseCurves>,
     pub identify: Vec<Matcher>,
     pub transports: Vec<Transport>,
     pub types: Vec<TypeDef>,
@@ -191,6 +194,41 @@ pub struct Catalog {
 pub struct CatalogExtension {
     pub extension: String,
     pub os_type: Option<String>,
+}
+
+/// The curves behind an enum parameter (§4.6): for each choice, the output
+/// at evenly spaced inputs.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ResponseCurves {
+    pub meta: Meta,
+    /// Name of the set, e.g. `velocity`.
+    pub name: String,
+    /// Key of the enum parameter whose value selects a curve.
+    pub parameter: String,
+    /// What the input is, for a front end's axis label, e.g. `strike`.
+    pub input: Option<String>,
+    pub curves: Vec<ResponseCurve>,
+}
+
+impl ResponseCurves {
+    /// The curve for a parameter value.
+    pub fn curve(&self, value: i64) -> Option<&ResponseCurve> {
+        self.curves.iter().find(|c| c.value == value)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ResponseCurve {
+    pub meta: Meta,
+    /// Short name, e.g. `Heavy`.
+    pub name: String,
+    /// Parameter value that selects it.
+    pub value: i64,
+    /// Output 0..127 from the lowest input to the highest; empty for a
+    /// constant curve.
+    pub points: Vec<u8>,
+    /// True when the output does not depend on the input.
+    pub constant: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

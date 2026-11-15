@@ -314,6 +314,31 @@ param "drawbar.*.cc" label="CC" group="Drawbar" ui="spin"
 param "global.instrument" label="Instrument" ui="combo" min-firmware="x.10"
 ```
 
+### 4.6 Response curves
+
+Some parameters pick a curve the firmware applies to an input: a velocity
+curve, an aftertouch curve. `response-curves` says what each choice does, so
+a front end can draw the selected one.
+
+```kdl
+response-curves "velocity" parameter="VelocityCurve" input="strike" status="decoded" evidence="firmware curve tables" {
+    curve "Heavy" value=0 { points 1 2 4 9 20 45 90 127 }
+    curve "Normal" value=3 { points 4 10 22 40 62 85 108 127 }
+    curve "Const" value=8 constant=#true
+}
+```
+
+- `parameter` names an enum parameter in `parameter-layouts`; `value` is the
+  parameter value that selects the curve. The name is a short title for
+  display; the enum labels stay what the device's own editor shows.
+- `points` are outputs 0..127 at evenly spaced inputs, lowest input first,
+  at least two. A front end may draw them as a smooth line; nothing writes
+  them to the device.
+- `constant=#true` marks a choice whose output ignores the input (a fixed
+  velocity). It carries no points; the value it uses is another parameter.
+- `input` says what the x axis is, for a label. How the inputs are spaced
+  belongs in the `note`.
+
 ## 5. Transports
 
 ```kdl

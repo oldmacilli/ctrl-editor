@@ -13,6 +13,8 @@ include "microkey2-air.catalog.inc.kdl"
 
 include "microkey2-air.sysex.inc.kdl"
 
+include "microkey2-air.velocity.inc.kdl"
+
 // Live scene request was measured against microKEY2 Air firmware 1.04.
 sysex-commands model-id=312 request-form="low" status="measured" evidence="KORG live MIDI trace" {
     command "request_command" byte=40 status="measured"

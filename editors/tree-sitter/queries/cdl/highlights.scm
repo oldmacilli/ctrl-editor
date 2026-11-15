@@ -9,7 +9,7 @@
     "cdl" "include" "device" "identify" "transport" "types" "block" "param"
     "panel" "midi-map" "sysex-frame" "message" "procedure" "firmware" "lbmt"
     "driver" "test-vector" "const" "labels" "pattern" "hands" "recipe" "edit" "kinds" "interaction"
-    "catalog" "control-assignments" "editor-pages" "global-fields" "parameter-layouts" "sysex-commands"))
+    "catalog" "control-assignments" "editor-pages" "global-fields" "parameter-layouts" "response-curves" "sysex-commands"))
 
 ; Procedure steps
 ((node name: (identifier) @keyword.function)
@@ -33,7 +33,7 @@
     "version-from" "stage" "recovery" "args" "bytes" "data" "assign"
     "choice" "command" "detail" "display-choice" "extension" "factory-file"
     "binding" "hide-if-value" "label" "layout" "live-number" "map" "page" "parameter" "select" "fixed"
-    "entry" "open" "close" "check" "option" "kind"))
+    "entry" "open" "close" "check" "option" "kind" "curve" "points"))
 
 ; Evidence status: how far a fact can be trusted (CDL §4.1)
 ((prop
